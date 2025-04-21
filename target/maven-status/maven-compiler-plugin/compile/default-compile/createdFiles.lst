@@ -1,0 +1,12 @@
+com\afkplugin\commands\AFKReloadCommand.class
+com\afkplugin\database\FlatFileImpl.class
+com\afkplugin\utils\WorldGuard.class
+com\afkplugin\utils\ParticleUtils.class
+com\afkplugin\listeners\PlayerListener.class
+com\afkplugin\AFKPlugin.class
+com\afkplugin\commands\AFKCheckCommand.class
+com\afkplugin\database\MySQLImpl.class
+com\afkplugin\listeners\AntiAFKListener.class
+com\afkplugin\holograms\AFKHologram.class
+com\afkplugin\database\DatabaseManager.class
+com\afkplugin\managers\AFKManager.class

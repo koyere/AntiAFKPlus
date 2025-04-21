@@ -1,0 +1,15 @@
+name: AntiAFKPlus
+version: 1.0
+main: com.afkplugin.AFKPlugin
+api-version: 1.18
+author: TuNombre
+website: https://github.com/TuUsuario/AntiAFKPlus
+commands:
+  afkcheck:
+    description: Check if a player is AFK
+  afkreload:
+    description: Reload plugin configuration
+permissions:
+  antiafkplus.use:
+    description: Allows using AntiAFKPlus commands
+    default: true
