@@ -1,0 +1,53 @@
+# --------------------------------------
+# AntiAFKPlus Configuration File
+# Plugin by Koyere
+# --------------------------------------
+
+# Default time (in seconds) before a player is considered AFK.
+# Example: 300 seconds = 5 minutes
+default-afk-time: 300
+
+# How often the AFK check task should run (in seconds).
+afk-check-interval-seconds: 5
+
+# Warning times before a player is kicked (in seconds before kick).
+# Example: 60 = warning at 1 minute left, 30 = warning at 30 seconds left
+afk-warnings:
+  - 60
+  - 30
+  - 10
+
+# Messages displayed during AFK events.
+# Use '&' for color codes.
+# Available placeholders: {player}, {seconds}
+messages:
+  afk-enter: "&e{player} is now marked as AFK."
+  afk-exit: "&a{player} is no longer AFK."
+  kick-warning: "&eYou will be kicked in {seconds} seconds for being AFK!"
+  kicked: "&cYou have been kicked for being AFK."
+
+# AFK times per permission group.
+# Format: permission: time in seconds.
+# Higher permissions override lower ones.
+permission-times:
+  antiafkplus.time.600: 600   # 10 minutes
+  antiafkplus.time.900: 900   # 15 minutes
+  antiafkplus.time.1800: 1800 # 30 minutes
+
+# Worlds where the AntiAFK system is active.
+# Leave empty [] to enable in all worlds.
+enabled-worlds:
+  - world
+  - world_nether
+  - world_the_end
+
+# Future premium settings (currently unused)
+premium-settings:
+  mysql-enabled: false
+  mysql-host: "localhost"
+  mysql-port: 3306
+  mysql-database: "antiafkplus"
+  mysql-username: "root"
+  mysql-password: "password"
+  use-holograms: false
+  kick-action: "KICK" # Options: KICK, TELEPORT_SPAWN, TELEPORT_LOBBY

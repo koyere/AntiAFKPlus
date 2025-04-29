@@ -1,0 +1,28 @@
+name: AntiAFKPlus
+version: 1.0
+main: me.koyere.antiafkplus.AntiAFKPlus
+api-version: 1.16
+description: Kick players after a configurable time of inactivity.
+author: Koyere
+website: https://github.com/koyere/AntiAFKPlus
+
+commands:
+  afkplus:
+    description: Reload AntiAFKPlus configuration.
+    usage: /<command> reload
+    permission: antiafkplus.admin
+  afk:
+    description: Toggle AFK status manually.
+    usage: /<command>
+    permission: antiafkplus.afk
+
+permissions:
+  antiafkplus.bypass:
+    description: Allows the player to bypass the AFK system.
+    default: false
+  antiafkplus.admin:
+    description: Allows use of admin commands like /afkplus reload.
+    default: op
+  antiafkplus.afk:
+    description: Allows the player to toggle AFK status manually using /afk.
+    default: true
