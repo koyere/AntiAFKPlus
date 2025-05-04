@@ -18,6 +18,34 @@ public class AFKCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+
+        // Subcomando: /afk list
+        if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
+            String permission = plugin.getConfigManager().getListCommandPermission(); // configurable
+            if (!sender.hasPermission(permission)) {
+                sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+                return true;
+            }
+
+            int afkCount = 0;
+            sender.sendMessage(plugin.getConfigManager().getMessage("afk-list-header"));
+
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                if (plugin.getAfkManager().isAFK(online)) {
+                    sender.sendMessage(plugin.getConfigManager().getMessage("afk-list-format")
+                            .replace("{player}", online.getName()));
+                    afkCount++;
+                }
+            }
+
+            if (afkCount == 0) {
+                sender.sendMessage(plugin.getConfigManager().getMessage("afk-list-empty"));
+            }
+
+            return true;
+        }
+
+        // Comando principal: /afk
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
             return true;
@@ -26,16 +54,12 @@ public class AFKCommand implements CommandExecutor {
         boolean isNowAfk = plugin.getAfkManager().toggleManualAFK(player);
 
         if (isNowAfk) {
-            String message = ChatColor.YELLOW + player.getName() + " is now AFK (manually).";
+            String message = plugin.getConfigManager().getMessageAfkEnter().replace("{player}", player.getName());
             Bukkit.getServer().broadcastMessage(message);
-
-            // Optional: show a title
             player.sendTitle(ChatColor.YELLOW + "You are now AFK", ChatColor.GRAY + "Move to return", 10, 70, 20);
         } else {
-            String message = ChatColor.GREEN + player.getName() + " is no longer AFK.";
+            String message = plugin.getConfigManager().getMessageAfkExit().replace("{player}", player.getName());
             Bukkit.getServer().broadcastMessage(message);
-
-            // Optional: show a title
             player.sendTitle(ChatColor.GREEN + "You are no longer AFK", ChatColor.GRAY + "Welcome back!", 10, 70, 20);
         }
 

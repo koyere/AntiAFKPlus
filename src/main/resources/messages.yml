@@ -1,0 +1,30 @@
+# --------------------------------------
+# AntiAFKPlus Messages File
+# Plugin by Koyere
+# --------------------------------------
+
+messages:
+  # When a player becomes AFK (automatically or manually)
+  afk-enter: "&e{player} is now AFK."
+
+  # When a player returns from AFK
+  afk-exit: "&a{player} is no longer AFK."
+
+  # Warning sent before kicking the player for inactivity
+  # {seconds} will be replaced with remaining seconds
+  kick-warning: "&cYou will be kicked in {seconds} seconds for being AFK!"
+
+  # Final kick message shown to the player
+  kicked: "&cYou have been kicked for being AFK."
+
+  # Message when player exceeds allowed time in manual AFK mode
+  afk-voluntary-time-limit: "&cYou have been removed from AFK mode due to time limit."
+
+  # Header shown when running /afk list
+  afk-list-header: "&6Currently AFK players:"
+
+  # Shown if there are no AFK players
+  afk-list-empty: "&7No players are currently AFK."
+
+  # Format per AFK player line in list
+  afk-list-format: "&e- {player}"

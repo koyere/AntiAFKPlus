@@ -17,15 +17,6 @@ afk-warnings:
   - 30
   - 10
 
-# Messages displayed during AFK events.
-# Use '&' for color codes.
-# Available placeholders: {player}, {seconds}
-messages:
-  afk-enter: "&e{player} is now marked as AFK."
-  afk-exit: "&a{player} is no longer AFK."
-  kick-warning: "&eYou will be kicked in {seconds} seconds for being AFK!"
-  kicked: "&cYou have been kicked for being AFK."
-
 # AFK times per permission group.
 # Format: permission: time in seconds.
 # Higher permissions override lower ones.
@@ -40,6 +31,14 @@ enabled-worlds:
   - world
   - world_nether
   - world_the_end
+
+# Max time (in seconds) a player can stay in voluntary AFK mode (/afk).
+# Set to 0 to disable this feature.
+max-voluntary-afk-time-seconds: 600
+
+# Permission required to use /afk list
+# Players without this permission will be denied access.
+list-command-permission: "antiafkplus.list"
 
 # Future premium settings (currently unused)
 premium-settings:

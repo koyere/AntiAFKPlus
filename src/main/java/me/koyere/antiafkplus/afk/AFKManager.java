@@ -8,13 +8,25 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
+/**
+ * Manages AFK detection and manual AFK mode.
+ */
 public class AFKManager {
 
     private final AntiAFKPlus plugin;
     private final MovementListener movementListener;
+
+    // Players marked as AFK automatically (for kick detection)
     private final Set<UUID> afkPlayers = new HashSet<>();
+
+    // Tracks warning times already sent to each player
     private final Map<UUID, Set<Integer>> warningsSent = new HashMap<>();
+
+    // Players in voluntary /afk mode
     private final Set<UUID> manualAfk = new HashSet<>();
+
+    // Tracks when each player entered manual AFK
+    private final Map<UUID, Long> manualAfkStartTime = new HashMap<>();
 
     public AFKManager(AntiAFKPlus plugin, MovementListener movementListener) {
         this.plugin = plugin;
@@ -29,13 +41,34 @@ public class AFKManager {
             @Override
             public void run() {
                 for (Player player : Bukkit.getOnlinePlayers()) {
-                    if (player.hasPermission("antiafkplus.bypass") || manualAfk.contains(player.getUniqueId())) {
-                        continue;
-                    }
+                    UUID uuid = player.getUniqueId();
 
+                    // Bypass check
+                    if (player.hasPermission("antiafkplus.bypass")) continue;
+
+                    // Ignore if world is not enabled
                     if (!plugin.getConfigManager().getEnabledWorlds().isEmpty()
                             && !plugin.getConfigManager().getEnabledWorlds().contains(player.getWorld().getName())) {
                         continue;
+                    }
+
+                    // Voluntary AFK: check time limit
+                    if (manualAfk.contains(uuid)) {
+                        long limitMillis = plugin.getConfigManager().getMaxVoluntaryAfkTimeSeconds() * 1000L;
+                        if (limitMillis > 0 && manualAfkStartTime.containsKey(uuid)) {
+                            long since = manualAfkStartTime.get(uuid);
+                            if ((System.currentTimeMillis() - since) >= limitMillis) {
+                                manualAfk.remove(uuid);
+                                manualAfkStartTime.remove(uuid);
+                                player.sendMessage(plugin.getConfigManager().getMessageVoluntaryAFKLimit());
+                                String message = ChatColor.GREEN + player.getName() + " is no longer AFK.";
+                                for (Player online : Bukkit.getOnlinePlayers()) {
+                                    online.sendMessage(message);
+                                }
+                                continue;
+                            }
+                        }
+                        continue; // skip further AFK check while in manual AFK mode
                     }
 
                     long lastMovement = movementListener.getLastMovement(player);
@@ -46,7 +79,7 @@ public class AFKManager {
                         kickPlayer(player);
                     } else {
                         checkWarnings(player, timeSinceMovement, afkThreshold);
-                        if (afkPlayers.contains(player.getUniqueId()) && timeSinceMovement < afkThreshold) {
+                        if (afkPlayers.contains(uuid) && timeSinceMovement < afkThreshold) {
                             unmarkAsAFK(player);
                         }
                     }
@@ -102,22 +135,36 @@ public class AFKManager {
     }
 
     public boolean isAFK(Player player) {
-        return afkPlayers.contains(player.getUniqueId());
+        return afkPlayers.contains(player.getUniqueId()) || manualAfk.contains(player.getUniqueId());
     }
 
+    /**
+     * Toggles manual AFK mode. Returns true if entered AFK, false if exited.
+     */
     public boolean toggleManualAFK(Player player) {
         UUID uuid = player.getUniqueId();
         if (manualAfk.contains(uuid)) {
             manualAfk.remove(uuid);
+            manualAfkStartTime.remove(uuid);
+            String message = ChatColor.GREEN + player.getName() + " is no longer AFK.";
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                online.sendMessage(message);
+            }
             return false;
         } else {
             manualAfk.add(uuid);
+            manualAfkStartTime.put(uuid, System.currentTimeMillis());
+            String message = ChatColor.YELLOW + player.getName() + " is now AFK.";
+            for (Player online : Bukkit.getOnlinePlayers()) {
+                online.sendMessage(message);
+            }
             return true;
         }
     }
 
     public void unmarkManualAFKIfNeeded(Player player) {
         if (manualAfk.remove(player.getUniqueId())) {
+            manualAfkStartTime.remove(player.getUniqueId());
             String message = ChatColor.GREEN + player.getName() + " is no longer AFK.";
             for (Player online : Bukkit.getOnlinePlayers()) {
                 online.sendMessage(message);
@@ -129,6 +176,7 @@ public class AFKManager {
         UUID uuid = player.getUniqueId();
         afkPlayers.remove(uuid);
         manualAfk.remove(uuid);
+        manualAfkStartTime.remove(uuid);
         warningsSent.remove(uuid);
     }
 }
