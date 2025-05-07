@@ -6,7 +6,7 @@
 
     <groupId>me.koyere</groupId>
     <artifactId>antiafkplus</artifactId>
-    <version>1.1</version>
+    <version>1.2</version>
     <packaging>jar</packaging>
 
     <name>AntiAFKPlus</name>
@@ -21,6 +21,10 @@
         <repository>
             <id>bstats-repo</id>
             <url>https://repo.codemc.io/repository/maven-public/</url>
+        </repository>
+        <repository>
+            <id>placeholderapi</id>
+            <url>https://repo.extendedclip.com/content/repositories/placeholderapi/</url>
         </repository>
     </repositories>
 
@@ -45,6 +49,14 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>32.1.2-jre</version>
+        </dependency>
+
+        <!-- PlaceholderAPI (optional support) -->
+        <dependency>
+            <groupId>me.clip</groupId>
+            <artifactId>placeholderapi</artifactId>
+            <version>2.11.5</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -74,6 +86,7 @@
                         <configuration>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <relocations>
+                                <!-- Relocate bStats to avoid conflicts -->
                                 <relocation>
                                     <pattern>org.bstats</pattern>
                                     <shadedPattern>me.koyere.antiafkplus.libs.bstats</shadedPattern>

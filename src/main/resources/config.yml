@@ -32,6 +32,10 @@ enabled-worlds:
   - world_nether
   - world_the_end
 
+# Alternatively, disable the AFK system in specific worlds (optional).
+# This will override enabled-worlds if both are defined.
+disabled-worlds: []
+
 # Max time (in seconds) a player can stay in voluntary AFK mode (/afk).
 # Set to 0 to disable this feature.
 max-voluntary-afk-time-seconds: 600
@@ -40,7 +44,10 @@ max-voluntary-afk-time-seconds: 600
 # Players without this permission will be denied access.
 list-command-permission: "antiafkplus.list"
 
-# Future premium settings (currently unused)
+# Enable debug messages in console for AFK detection
+debug: false
+
+# Premium settings (currently unused)
 premium-settings:
   mysql-enabled: false
   mysql-host: "localhost"

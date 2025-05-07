@@ -1,10 +1,13 @@
 name: AntiAFKPlus
-version: 1.1
+version: 1.2
 main: me.koyere.antiafkplus.AntiAFKPlus
 api-version: 1.16
 description: Kick players after a configurable time of inactivity.
 author: Koyere
 website: https://github.com/koyere/AntiAFKPlus
+
+# Optional soft dependency for PlaceholderAPI support
+softdepend: [PlaceholderAPI]
 
 commands:
   afkplus:
@@ -12,8 +15,8 @@ commands:
     usage: /<command> reload
     permission: antiafkplus.admin
   afk:
-    description: Toggle AFK status manually or view AFK players list.
-    usage: /<command> [list]
+    description: "Toggle AFK status manually or use subcommands: list/status."
+    usage: /<command> [list|status <player>]
     permission: antiafkplus.afk
 
 permissions:
@@ -29,3 +32,7 @@ permissions:
   antiafkplus.list:
     description: Allows the player to use /afk list to view AFK players.
     default: op
+  antiafkplus.status:
+    description: Allows the player to use /afk status to check AFK state of others.
+    default: op
+

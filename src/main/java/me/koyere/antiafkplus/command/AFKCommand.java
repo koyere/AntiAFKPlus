@@ -8,6 +8,9 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+/**
+ * Handles the /afk command and its subcommands (/afk list, /afk status).
+ */
 public class AFKCommand implements CommandExecutor {
 
     private final AntiAFKPlus plugin;
@@ -19,9 +22,9 @@ public class AFKCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 
-        // Subcomando: /afk list
+        // /afk list
         if (args.length == 1 && args[0].equalsIgnoreCase("list")) {
-            String permission = plugin.getConfigManager().getListCommandPermission(); // configurable
+            String permission = plugin.getConfigManager().getListCommandPermission();
             if (!sender.hasPermission(permission)) {
                 sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
                 return true;
@@ -45,7 +48,36 @@ public class AFKCommand implements CommandExecutor {
             return true;
         }
 
-        // Comando principal: /afk
+        // /afk status [player]
+        if (args.length >= 1 && args[0].equalsIgnoreCase("status")) {
+            if (!sender.hasPermission("antiafkplus.status")) {
+                sender.sendMessage(ChatColor.RED + "You don't have permission to use this command.");
+                return true;
+            }
+
+            Player target;
+
+            if (args.length == 1) {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage(ChatColor.RED + "Console must specify a player: /afk status <player>");
+                    return true;
+                }
+                target = player;
+            } else {
+                target = Bukkit.getPlayer(args[1]);
+                if (target == null) {
+                    sender.sendMessage(ChatColor.RED + "Player not found.");
+                    return true;
+                }
+            }
+
+            boolean isAfk = plugin.getAfkManager().isAFK(target);
+            sender.sendMessage(ChatColor.YELLOW + target.getName() + " is currently: " +
+                    (isAfk ? ChatColor.RED + "AFK" : ChatColor.GREEN + "ACTIVE"));
+            return true;
+        }
+
+        // /afk (manual toggle)
         if (!(sender instanceof Player player)) {
             sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
             return true;

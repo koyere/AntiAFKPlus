@@ -28,3 +28,8 @@ messages:
 
   # Format per AFK player line in list
   afk-list-format: "&e- {player}"
+
+  # Status check message: used by /afk status
+  afk-status-afk: "&c{player} is currently AFK."
+  afk-status-active: "&a{player} is currently active."
+  afk-status-self: "&fYou are currently: {status}"
