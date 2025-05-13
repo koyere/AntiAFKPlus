@@ -1,5 +1,5 @@
 name: AntiAFKPlus
-version: 1.2
+version: 1.3
 main: me.koyere.antiafkplus.AntiAFKPlus
 api-version: 1.16
 description: Kick players after a configurable time of inactivity.

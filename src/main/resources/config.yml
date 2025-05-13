@@ -47,6 +47,12 @@ list-command-permission: "antiafkplus.list"
 # Enable debug messages in console for AFK detection
 debug: false
 
+# Prevent players from picking up items while AFK (manual or automatic)
+block-pickup-while-afk: true
+
+# Enable basic autoclick detection for stationary players
+autoclick-detection: true
+
 # Premium settings (currently unused)
 premium-settings:
   mysql-enabled: false

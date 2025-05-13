@@ -2,12 +2,17 @@ package me.koyere.antiafkplus.placeholder;
 
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import me.koyere.antiafkplus.AntiAFKPlus;
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * PlaceholderAPI hook for AntiAFKPlus.
- * Registers %antiafkplus_status%: returns "AFK" or "ACTIVE".
+ * Supports:
+ * %antiafkplus_status% => ACTIVE or AFK
+ * %antiafkplus_afktime% => time in seconds since last movement
  */
 public class PlaceholderHook extends PlaceholderExpansion {
 
@@ -34,18 +39,27 @@ public class PlaceholderHook extends PlaceholderExpansion {
 
     @Override
     public boolean persist() {
-        return true; // Prevent unregistration on reload
+        return true;
     }
 
     @Override
-    public String onPlaceholderRequest(Player player, @NotNull String identifier) {
+    public @Nullable String onRequest(OfflinePlayer offlinePlayer, @NotNull String identifier) {
+        if (offlinePlayer == null || !offlinePlayer.isOnline()) return "";
+
+        Player player = Bukkit.getPlayer(offlinePlayer.getUniqueId());
         if (player == null) return "";
 
-        if (identifier.equalsIgnoreCase("status")) {
-            boolean isAfk = plugin.getAfkManager().isAFK(player);
-            return isAfk ? "AFK" : "ACTIVE";
-        }
+        switch (identifier.toLowerCase()) {
+            case "status":
+                return plugin.getAfkManager().isAFK(player) ? "AFK" : "ACTIVE";
 
-        return null;
+            case "afktime":
+                long last = plugin.getAfkManager().getLastMovement(player);
+                long diff = (System.currentTimeMillis() - last) / 1000L;
+                return String.valueOf(diff);
+
+            default:
+                return null;
+        }
     }
 }

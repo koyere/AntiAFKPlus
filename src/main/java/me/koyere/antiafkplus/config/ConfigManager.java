@@ -22,6 +22,9 @@ public class ConfigManager {
     private int maxVoluntaryAfkTimeSeconds;
 
     private boolean debugEnabled;
+    private boolean blockPickupWhileAFK;
+    private boolean autoclickDetectionEnabled;
+
     private String listCommandPermission;
 
     private List<Integer> afkWarningTimes = new ArrayList<>();
@@ -55,6 +58,9 @@ public class ConfigManager {
         this.maxVoluntaryAfkTimeSeconds = config.getInt("max-voluntary-afk-time-seconds", 600);
 
         this.debugEnabled = config.getBoolean("debug", false);
+        this.blockPickupWhileAFK = config.getBoolean("block-pickup-while-afk", true);
+        this.autoclickDetectionEnabled = config.getBoolean("autoclick-detection", true);
+
         this.listCommandPermission = config.getString("list-command-permission", "antiafkplus.list");
 
         this.afkWarningTimes.clear();
@@ -90,7 +96,6 @@ public class ConfigManager {
         this.messageKickWarning = color(messages.getString("messages.kick-warning", "&cYou will be kicked soon for being AFK!"));
         this.messageKicked = color(messages.getString("messages.kicked", "&cYou have been kicked for being AFK."));
         this.messageVoluntaryAFKLimit = color(messages.getString("messages.afk-voluntary-time-limit", "&cYou have been removed from AFK mode due to time limit."));
-
         this.messageStatusSelf = color(messages.getString("messages.afk-status-self", "&fYou are currently: {status}"));
         this.messageStatusAFK = color(messages.getString("messages.afk-status-afk", "&c{player} is currently AFK."));
         this.messageStatusActive = color(messages.getString("messages.afk-status-active", "&a{player} is currently active."));
@@ -120,6 +125,14 @@ public class ConfigManager {
 
     public boolean isDebugEnabled() {
         return debugEnabled;
+    }
+
+    public boolean isBlockPickupWhileAFK() {
+        return blockPickupWhileAFK;
+    }
+
+    public boolean isAutoclickDetectionEnabled() {
+        return autoclickDetectionEnabled;
     }
 
     public String getListCommandPermission() {

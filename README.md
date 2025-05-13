@@ -14,15 +14,17 @@ AntiAFKPlus is a lightweight and highly configurable Minecraft plugin that autom
 - 🧪 Warn players before being kicked (multiple intervals)
 - 🎭 Manual AFK toggle command (`/afk`)
 - 📋 View who is AFK with `/afk list`
-- 🌍 Per-world AFK system (world whitelist)
+- 🌍 Per-world AFK system (`enabled-worlds` & `disabled-worlds`)
 - 🔐 AFK time per permission group
+- 🛡️ Voluntary AFK time limit (`max-voluntary-afk-time-seconds`)
+- 🚫 Prevent item pickup while AFK
+- 📶 Detect autoclickers (experimental, optional)
+- 🔧 Reload settings instantly with `/afkplus reload`
+- 🎨 Fully customizable messages (`messages.yml`)
 - 🔒 Bypass permission support
-- 🛑 Exclude creative/spectator players
-- 📦 Reload settings with `/afkplus reload`
-- 🎨 Fully customizable messages (via `messages.yml`)
-- 🧠 Optional AFK voluntary limit (for `/afk`)
+- 🧠 PlaceholderAPI integration: `%antiafkplus_status%`, `%antiafkplus_afktime%`
 - 📈 Built-in bStats usage tracking
-- ⚙️ Clean API for other plugins to integrate
+- ⚙️ Developer-friendly public API
 
 ---
 
@@ -38,37 +40,51 @@ AntiAFKPlus is a lightweight and highly configurable Minecraft plugin that autom
 |--------------------------|---------------------------------------------|
 | `antiafkplus.bypass`     | Exempts player from AFK checks              |
 | `antiafkplus.afk`        | Allows use of `/afk` command                |
-| `antiafkplus.list`       | Allows access to `/afk list`               |
+| `antiafkplus.list`       | Allows access to `/afk list`                |
 | `antiafkplus.admin`      | Allows use of admin commands                |
 
 ---
 
-## 🔄 Configuration
+## ⚙️ Configuration
 
 - All main settings are in `config.yml`
-- All messages are in `messages.yml`
-- Permission times and AFK check interval customizable
-- Compatible with PlaceholderAPI (`%antiafkplus_afktime%`)
+- All messages are now in `messages.yml` for better organization
+- `enabled-worlds` and `disabled-worlds` supported
+- Warnings before kick can be customized in seconds (`afk-warnings`)
+- Custom timeouts based on permissions (`permission-times`)
+- Toggle verbose logging with `debug: true`
+- Enable item pickup restriction while AFK
+- Enable or disable experimental autoclick detection
 
 ---
 
-## 📦 Developer API
+## 🧩 PlaceholderAPI Support
 
-AntiAFKPlus includes a public API so you can interact with AFK status programmatically.
+If PlaceholderAPI is installed, you can use:
+- `%antiafkplus_status%` → `AFK` / `ACTIVE`
+- `%antiafkplus_afktime%` → seconds since last movement
 
-Example usage:
+---
+
+## 🧱 Developer API
+
+AntiAFKPlus includes a clean and extensible API so you can interact with player AFK state.
+
+**Example:**
 
 ```java
 AntiAFKPlusAPI api = AntiAFKPlusAPI.getInstance();
 boolean isAfk = api.isAFK(player);
 ```
-## 🧱 Metrics
+You can also check last movement time and register your own behaviors via events.
+
+## 📊 Metrics
 This plugin uses bStats to collect anonymous usage statistics.
-You can disable it in the /plugins/bStats/config.yml.
+You can disable it in /plugins/bStats/config.yml.
 
 ## 👤 Author
 Developed by Koyere
+💬 Support Discord: https://discord.gg/xKUjn3EJzR
 
-Discord: https://discord.gg/xKUjn3EJzR
 ## 🛠️ License
 Licensed under the MIT License — open, free and safe to use.

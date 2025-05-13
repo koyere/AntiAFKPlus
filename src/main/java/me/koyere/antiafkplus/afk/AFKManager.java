@@ -1,6 +1,7 @@
 package me.koyere.antiafkplus.afk;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -36,10 +37,8 @@ public class AFKManager {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
 
-                    // Bypass check
                     if (player.hasPermission("antiafkplus.bypass")) continue;
 
-                    // World validation
                     List<String> disabled = plugin.getConfigManager().getDisabledWorlds();
                     List<String> enabled = plugin.getConfigManager().getEnabledWorlds();
                     String world = player.getWorld().getName();
@@ -47,7 +46,7 @@ public class AFKManager {
                     if (disabled.contains(world)) continue;
                     if (!enabled.isEmpty() && !enabled.contains(world)) continue;
 
-                    // Voluntary AFK: check time limit
+                    // Manual AFK time limit check
                     if (manualAfk.contains(uuid)) {
                         long limitMillis = plugin.getConfigManager().getMaxVoluntaryAfkTimeSeconds() * 1000L;
                         if (limitMillis > 0 && manualAfkStartTime.containsKey(uuid)) {
@@ -56,9 +55,7 @@ public class AFKManager {
                                 manualAfk.remove(uuid);
                                 manualAfkStartTime.remove(uuid);
                                 player.sendMessage(plugin.getConfigManager().getMessageVoluntaryAFKLimit());
-                                if (plugin.getConfigManager().isDebugEnabled()) {
-                                    plugin.getLogger().info("[DEBUG] " + player.getName() + " auto-exited voluntary AFK due to time limit.");
-                                }
+                                AFKLogger.logAFKExit(player, "manual (timeout)", (System.currentTimeMillis() - since) / 1000L);
                                 unmarkAsAFK(player);
                                 continue;
                             }
@@ -71,11 +68,12 @@ public class AFKManager {
                     long timeSinceMovement = System.currentTimeMillis() - lastMovement;
 
                     if (timeSinceMovement >= afkThreshold) {
-                        kickPlayer(player);
+                        kickPlayer(player, timeSinceMovement);
                     } else {
                         checkWarnings(player, timeSinceMovement, afkThreshold);
                         if (afkPlayers.contains(uuid) && timeSinceMovement < afkThreshold) {
                             unmarkAsAFK(player);
+                            AFKLogger.logAFKExit(player, "auto", timeSinceMovement / 1000L);
                         }
                     }
                 }
@@ -92,9 +90,7 @@ public class AFKManager {
                 if (!sentWarnings.contains(warningTime)) {
                     player.sendMessage(plugin.getConfigManager().getMessageKickWarning()
                             .replace("{seconds}", String.valueOf(secondsRemaining)));
-                    if (plugin.getConfigManager().isDebugEnabled()) {
-                        plugin.getLogger().info("[DEBUG] Sent warning (" + warningTime + "s) to " + player.getName());
-                    }
+                    AFKLogger.logAFKWarning(player, secondsRemaining);
                     sentWarnings.add(warningTime);
                 }
             }
@@ -110,13 +106,11 @@ public class AFKManager {
         return plugin.getConfigManager().getDefaultAfkTime();
     }
 
-    private void kickPlayer(Player player) {
+    private void kickPlayer(Player player, long afkTimeMillis) {
         afkPlayers.add(player.getUniqueId());
         player.kickPlayer(plugin.getConfigManager().getMessageKicked());
         warningsSent.remove(player.getUniqueId());
-        if (plugin.getConfigManager().isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Kicked " + player.getName() + " for being AFK.");
-        }
+        AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
     }
 
     private void markAsAFK(Player player) {
@@ -125,9 +119,7 @@ public class AFKManager {
         for (Player online : Bukkit.getOnlinePlayers()) {
             online.sendMessage(message);
         }
-        if (plugin.getConfigManager().isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Marked " + player.getName() + " as AFK.");
-        }
+        AFKLogger.logAFKEnter(player, manualAfk.contains(player.getUniqueId()) ? "manual" : "auto");
     }
 
     private void unmarkAsAFK(Player player) {
@@ -135,9 +127,6 @@ public class AFKManager {
         String message = ChatColor.GREEN + player.getName() + " is no longer AFK.";
         for (Player online : Bukkit.getOnlinePlayers()) {
             online.sendMessage(message);
-        }
-        if (plugin.getConfigManager().isDebugEnabled()) {
-            plugin.getLogger().info("[DEBUG] Unmarked " + player.getName() + " as AFK.");
         }
     }
 
@@ -150,6 +139,7 @@ public class AFKManager {
         if (manualAfk.contains(uuid)) {
             manualAfk.remove(uuid);
             manualAfkStartTime.remove(uuid);
+            AFKLogger.logAFKExit(player, "manual", -1);
             unmarkAsAFK(player);
             return false;
         } else {
@@ -163,6 +153,7 @@ public class AFKManager {
     public void unmarkManualAFKIfNeeded(Player player) {
         if (manualAfk.remove(player.getUniqueId())) {
             manualAfkStartTime.remove(player.getUniqueId());
+            AFKLogger.logAFKExit(player, "manual", -1);
             unmarkAsAFK(player);
         }
     }
@@ -173,5 +164,13 @@ public class AFKManager {
         manualAfk.remove(uuid);
         manualAfkStartTime.remove(uuid);
         warningsSent.remove(uuid);
+    }
+
+    /**
+     * Returns the timestamp of the last known movement of the player.
+     * Used for %antiafkplus_afktime% placeholder.
+     */
+    public long getLastMovement(Player player) {
+        return movementListener.getLastMovement(player);
     }
 }
