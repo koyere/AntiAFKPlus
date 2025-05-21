@@ -1,59 +1,131 @@
 # --------------------------------------
 # AntiAFKPlus Configuration File
 # Plugin by Koyere
+#
+# For support, please visit the SpigotMC page or GitHub repository.
 # --------------------------------------
 
-# Default time (in seconds) before a player is considered AFK.
+# --- General AFK Settings ---
+
+# Default time (in seconds) before a player is considered AFK if no specific permission-based time applies.
 # Example: 300 seconds = 5 minutes
 default-afk-time: 300
 
-# How often the AFK check task should run (in seconds).
+# How often (in seconds) the plugin checks for AFK players.
+# Lower values mean quicker detection but slightly more server load. Must be greater than 0.
 afk-check-interval-seconds: 5
 
-# Warning times before a player is kicked (in seconds before kick).
-# Example: 60 = warning at 1 minute left, 30 = warning at 30 seconds left
+# Maximum time (in seconds) a player can stay in voluntary AFK mode (using /afk).
+# Set to 0 to allow indefinite voluntary AFK (no time limit).
+max-voluntary-afk-time-seconds: 600
+
+# --- AFK Warnings ---
+
+# Times (in seconds remaining before kick) at which warnings are sent to the player.
+# Example: [60, 30, 10] means warnings will be sent when 60, 30, and 10 seconds are left.
 afk-warnings:
   - 60
   - 30
   - 10
 
-# AFK times per permission group.
-# Format: permission: time in seconds.
-# Higher permissions override lower ones.
+# --- Permission-Based AFK Times ---
+
+# Define custom AFK times (in seconds) for players with specific permissions.
+# Format: 'permission.node.here': time_in_seconds
+# If a player has multiple permissions listed here, the one granting the longest AFK time will be used.
+# If a player has none of these permissions, 'default-afk-time' will be used.
 permission-times:
-  antiafkplus.time.600: 600   # 10 minutes
-  antiafkplus.time.900: 900   # 15 minutes
-  antiafkplus.time.1800: 1800 # 30 minutes
+  'antiafkplus.time.vip': 600      # Example: VIPs get 10 minutes
+  'antiafkplus.time.staff': 1800   # Example: Staff get 30 minutes
+  # Add more custom permission times as needed:
+  # 'antiafkplus.time.donator': 900
 
-# Worlds where the AntiAFK system is active.
-# Leave empty [] to enable in all worlds.
+# --- World Control ---
+
+# List of worlds where the AntiAFK system should be active.
+# - If this list is EMPTY, the plugin will be active in ALL worlds,
+#   except for those listed in 'disabled-worlds'.
+# - If this list contains world names, the plugin will ONLY be active in these specified worlds,
+#   and NOT in any worlds listed in 'disabled-worlds' (disabled-worlds takes precedence).
 enabled-worlds:
-  - world
-  - world_nether
-  - world_the_end
+  - "world"
+  - "world_nether"
+  - "world_the_end"
 
-# Alternatively, disable the AFK system in specific worlds (optional).
-# This will override enabled-worlds if both are defined.
+# List of worlds where the AntiAFK system should be EXPLICITLY disabled.
+# This list takes precedence. If a world is in both 'enabled-worlds' and 'disabled-worlds',
+# the AFK system will be disabled for that world.
 disabled-worlds: []
+# - "creative_world" # Example: Disable AFK checks in a creative world
 
-# Max time (in seconds) a player can stay in voluntary AFK mode (/afk).
-# Set to 0 to disable this feature.
-max-voluntary-afk-time-seconds: 600
+# --- Feature Toggles & Behavior ---
 
-# Permission required to use /afk list
-# Players without this permission will be denied access.
-list-command-permission: "antiafkplus.list"
-
-# Enable debug messages in console for AFK detection
+# Enable debug messages in the server console. Useful for troubleshooting.
 debug: false
 
-# Prevent players from picking up items while AFK (manual or automatic)
+# If true, players who are AFK (either automatically or manually) will be prevented from picking up items.
 block-pickup-while-afk: true
 
-# Enable basic autoclick detection for stationary players
-autoclick-detection: true
+# If true, global messages like "Player is now AFK" and "Player is no longer AFK" will be broadcast.
+# Player-specific messages (warnings, kick messages) are not affected by this.
+broadcast-afk-state-changes: true
 
-# Premium settings (currently unused)
+# --- Autoclicker Detection (Experimental) ---
+
+# Main toggle to enable or disable the experimental autoclicker detection feature.
+# If false, the settings below in 'autoclick-detection-settings' will be ignored.
+autoclick-detection: true # This is the primary switch for the feature
+
+# Detailed settings for the autoclicker detection mechanism.
+# These are only active if 'autoclick-detection' (above) is true.
+autoclick-detection-settings:
+  # Time window (in milliseconds) within which clicks are counted.
+  click-window-ms: 5000     # Default: 5 seconds
+  # Number of clicks within 'click-window-ms' to be considered suspicious.
+  click-threshold: 20       # Default: 20 clicks
+  # Player must be idle (no significant movement) for this duration (in milliseconds)
+  # AND meet the click threshold for the detection to trigger.
+  min-idle-time-ms: 60000   # Default: 60 seconds (60000 ms)
+  # Action to take when suspicious activity is detected:
+  # "NONE" - Do nothing (detection still runs, useful for testing with debug mode).
+  # "LOG"  - Only log the detection to console (and to AFKLogger).
+  # "SET_AFK" - Forcibly set the player to manual AFK mode.
+  # "KICK" - Kick the player from the server.
+  action: "LOG"
+
+# --- Command Permissions ---
+# While many permissions are checked directly in code (see "Plugin Permissions" comment block below),
+# some command-specific permissions can be configured here.
+
+# Permission required to use the '/afk list' command.
+list-command-permission: "antiafkplus.list"
+
+# --------------------------------------
+# Plugin Permissions Overview
+# --------------------------------------
+# The following permissions are used by AntiAFKPlus and can be assigned to players/groups:
+#
+# Core Functionality:
+#   antiafkplus.afk         - Allows player to use /afk to toggle their own AFK status.
+#   antiafkplus.bypass      - Exempts player from ALL AFK checks, warnings, and kicks. They will not be made AFK.
+#
+# Command Specific:
+#   antiafkplus.list        - (Configurable above) Allows use of /afk list.
+#   antiafkplus.status.check - Allows use of /afk status [player] to check AFK status.
+#   antiafkplus.reload      - Allows use of /afkplus reload to reload plugin configuration.
+#
+# Bypass Specific Features:
+#   antiafkplus.bypass.itempickup - Allows player to pick up items even if AFK and 'block-pickup-while-afk' is true.
+#   antiafkplus.bypass.autoclick  - Exempts player from autoclicker detection.
+#
+# Custom AFK Durations (defined in 'permission-times' section):
+#   Example: antiafkplus.time.vip, antiafkplus.time.staff, etc.
+#
+# It's recommended to grant 'antiafkplus.bypass' to server staff or roles that should never be affected by AFK mechanics.
+# --------------------------------------
+
+# --- Premium Settings (Placeholders for future premium version) ---
+# These settings are not currently used by the free version of AntiAFKPlus.
 premium-settings:
   mysql-enabled: false
   mysql-host: "localhost"
@@ -61,5 +133,5 @@ premium-settings:
   mysql-database: "antiafkplus"
   mysql-username: "root"
   mysql-password: "password"
-  use-holograms: false
-  kick-action: "KICK" # Options: KICK, TELEPORT_SPAWN, TELEPORT_LOBBY
+  use-holograms: false # Example: For displaying AFK status above player using DecentHolograms/HolographicDisplays
+  kick-action: "KICK"  # Advanced kick actions: KICK, SEND_TO_SERVER (e.g., lobby), RUN_COMMANDS

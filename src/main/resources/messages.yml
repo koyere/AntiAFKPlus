@@ -1,35 +1,96 @@
 # --------------------------------------
 # AntiAFKPlus Messages File
 # Plugin by Koyere
+#
+# You can use standard Minecraft color codes with '&'.
+# Placeholders like {player}, {seconds}, {status}, {usage}, {name}, {version}
+# will be replaced by the plugin where applicable.
 # --------------------------------------
 
 messages:
-  # When a player becomes AFK (automatically or manually)
-  afk-enter: "&e{player} is now AFK."
 
-  # When a player returns from AFK
-  afk-exit: "&a{player} is no longer AFK."
+  # --- General Plugin Feedback ---
+  plugin-prefix: "&8[&6AntiAFK+&8] &r" # Optional prefix for plugin messages
+  no-permission: "&cYou do not have permission to use this command."
+  player-not-found: "&cPlayer '{player}' not found."
+  player-only-command: "&cThis command can only be used by players."
+  incorrect-usage: "&cIncorrect usage. Try: {usage}"
+  config-reloaded: "&aAntiAFKPlus configuration and messages have been reloaded."
+  plugin-info: "&e{name} version {version} by Koyere. Use /afkplus reload to reload." # For /afkplus base command
 
-  # Warning sent before kicking the player for inactivity
-  # {seconds} will be replaced with remaining seconds
-  kick-warning: "&cYou will be kicked in {seconds} seconds for being AFK!"
+  # --- Core AFK State Changes & Warnings ---
+  # These messages are primarily used by AFKManager.
 
-  # Final kick message shown to the player
-  kicked: "&cYou have been kicked for being AFK."
+  # Broadcast when a player becomes AFK (if 'broadcast-afk-state-changes' is true in config.yml).
+  player-now-afk: "&e{player} is now AFK."
 
-  # Message when player exceeds allowed time in manual AFK mode
+  # Broadcast when a player returns from AFK (if 'broadcast-afk-state-changes' is true in config.yml).
+  player-no-longer-afk: "&a{player} is no longer AFK."
+
+  # Warning sent to a player before being kicked for inactivity. {seconds} is replaced.
+  kick-warning: "&cYou will be kicked in {seconds}s for being AFK!"
+
+  # Message shown to the player when they are kicked for being AFK.
+  kicked-for-afk: "&cYou have been kicked for being AFK."
+
+  # Message shown when a player using /afk exceeds 'max-voluntary-afk-time-seconds'.
   afk-voluntary-time-limit: "&cYou have been removed from AFK mode due to time limit."
 
-  # Header shown when running /afk list
+  # Message shown to a player trying to use /afk when they are already considered AFK.
+  already-afk: "&eYou are already AFK."
+
+  # --- /afk Command Specific Messages ---
+
+  # --- /afk (toggle) ---
+  # Title shown to player when they successfully enter manual AFK via /afk.
+  manual-afk-title-on: "&eYou are now AFK"
+  # Subtitle shown to player when they successfully enter manual AFK via /afk.
+  manual-afk-subtitle-on: "&7Move to return"
+
+  # Title shown to player when they successfully exit manual AFK via /afk.
+  manual-afk-title-off: "&aYou are no longer AFK"
+  # Subtitle shown to player when they successfully exit manual AFK via /afk.
+  manual-afk-subtitle-off: "&7Welcome back!"
+
+  # --- /afk list ---
+  # Header for the /afk list command output.
   afk-list-header: "&6Currently AFK players:"
-
-  # Shown if there are no AFK players
+  # Message for /afk list when no players are AFK.
   afk-list-empty: "&7No players are currently AFK."
-
-  # Format per AFK player line in list
+  # Format for each player entry in the /afk list. {player} is the AFK player's name.
   afk-list-format: "&e- {player}"
 
-  # Status check message: used by /afk status
-  afk-status-afk: "&c{player} is currently AFK."
-  afk-status-active: "&a{player} is currently active."
+  # --- /afk status ---
+  # Message for /afk status (when checking self). {status} is replaced with "AFK" or "ACTIVE".
   afk-status-self: "&fYou are currently: {status}"
+  # Message for /afk status <player> when the target player is AFK. {player} is the target's name.
+  afk-status-target-afk: "&c{player} is currently AFK."
+  # Message for /afk status <player> when the target player is active. {player} is the target's name.
+  afk-status-target-active: "&a{player} is currently active."
+  # (The actual "AFK" and "ACTIVE" strings for {status} are hardcoded in AFKCommand.java for now,
+  #  but could be made configurable here if desired, e.g., status-afk-term: "&cAFK", status-active-term: "&aACTIVE")
+
+  # --- Autoclicker Detection Messages ---
+  # These messages are used by AutoClickListener.java.
+
+  # Message sent to a player if autoclicker detection sets them to AFK.
+  autoclick-detected-set-afk: "&cSuspicious clicking detected. You have been set to AFK."
+
+  # Kick reason if 'action: KICK' is set for autoclicker detection.
+  autoclick-detected-kick-reason: "&cKicked for suspicious clicking activity (autoclick)."
+
+  # Optional: Message sent to player if 'action: LOG' is set (if you want player notification for LOG mode).
+  # autoclick-detected-logged: "&7Suspicious clicking activity has been logged."
+
+
+  # --- PlaceholderAPI Related (for %antiafkplus_status%) ---
+  # These define the text returned by the %antiafkplus_status% placeholder.
+  # Note: Currently, "AFK" and "ACTIVE" are hardcoded in PlaceholderHook.java.
+  # To make them configurable, PlaceholderHook would need to read from ConfigManager.
+  # placeholder-status-afk: "AFK"
+  # placeholder-status-active: "ACTIVE"
+
+  # --- Future Feature Examples (Not yet implemented) ---
+  # afk-invulnerable: "&aYou are now invulnerable while AFK."
+  # afk-vulnerable: "&cYou are no longer invulnerable."
+  # command-cooldown: "&cPlease wait {seconds}s before using this command again."

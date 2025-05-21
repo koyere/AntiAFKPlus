@@ -1,63 +1,145 @@
+// AutoClickListener.java - English comments
 package me.koyere.antiafkplus.listener;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.afk.AFKManager;
+import me.koyere.antiafkplus.config.ConfigManager;
+import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * Detects repetitive clicking without movement, which may indicate autoclickers.
- * If a player is clicking rapidly but hasn't moved for a while, we log it and optionally
- * treat it as AFK based on the plugin configuration.
+ * Detects repetitive clicking without significant movement, which may indicate autoclickers.
+ * This is an experimental feature.
  */
 public class AutoClickListener implements Listener {
 
-    private final AntiAFKPlus plugin = AntiAFKPlus.getInstance();
+    private final AntiAFKPlus plugin;
+    private final AFKManager afkManager;
+    private final ConfigManager configManager;
 
-    // Stores recent click timestamps per player
     private final Map<UUID, List<Long>> clickHistory = new HashMap<>();
 
-    // Detection settings
-    private static final int CLICK_WINDOW_MS = 5000;
-    private static final int CLICK_THRESHOLD = 20; // clicks in 5 seconds
-    private static final int MIN_IDLE_MS = 60000;  // 60s of inactivity
+    private int clickWindowMs;
+    private int clickThreshold;
+    private long minIdleTimeToTriggerMs;
+    private String autoclickAction;
 
-    @EventHandler
+    private BukkitTask cleanupTask;
+
+    public AutoClickListener(AntiAFKPlus plugin) {
+        this.plugin = plugin;
+        this.afkManager = plugin.getAfkManager();
+        this.configManager = plugin.getConfigManager();
+        loadConfigurableSettings();
+
+        this.cleanupTask = new BukkitRunnable() {
+            @Override
+            public void run() {
+                long veryOldCutoff = System.currentTimeMillis() - (3600_000 * 6); // 6 hours
+                clickHistory.entrySet().removeIf(entry -> {
+                    List<Long> timestamps = entry.getValue();
+                    if (timestamps.isEmpty()) return true;
+                    return timestamps.get(timestamps.size() - 1) < veryOldCutoff && timestamps.size() < (configManager.getAutoclickClickThreshold() * 2); // Use getter
+                });
+            }
+        }.runTaskTimerAsynchronously(plugin, 20L * 60 * 30, 20L * 60 * 30);
+    }
+
+    private void loadConfigurableSettings() {
+        // Use the new getters from ConfigManager
+        this.clickWindowMs = configManager.getAutoclickClickWindowMs();
+        this.clickThreshold = configManager.getAutoclickClickThreshold();
+        this.minIdleTimeToTriggerMs = configManager.getAutoclickMinIdleTimeMs();
+        this.autoclickAction = configManager.getAutoclickAction().toUpperCase(); // Ensure it's uppercase for switch
+    }
+
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
+        // The main toggle configManager.isAutoclickDetectionEnabled() is checked in AntiAFKPlus before registering this listener.
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
-        // Skip if detection is disabled or player has bypass
-        if (!plugin.getConfigManager().isAutoclickDetectionEnabled()) return;
-        if (player.hasPermission("antiafkplus.bypass")) return;
+        if (player.hasPermission("antiafkplus.bypass.autoclick")) {
+            return;
+        }
 
-        long now = System.currentTimeMillis();
+        long currentTime = System.currentTimeMillis();
+        List<Long> history = clickHistory.computeIfAbsent(uuid, k -> new ArrayList<>());
+        history.add(currentTime);
+        history.removeIf(timestamp -> timestamp < currentTime - this.clickWindowMs);
 
-        // Track click timestamps
-        clickHistory.putIfAbsent(uuid, new ArrayList<>());
-        List<Long> history = clickHistory.get(uuid);
-        history.add(now);
+        long lastMovementTimestamp = afkManager.getLastMovementTimestampForPlayer(player);
+        long timeIdleMs = currentTime - lastMovementTimestamp;
 
-        // Remove clicks outside the detection window
-        history.removeIf(timestamp -> timestamp < now - CLICK_WINDOW_MS);
+        if (timeIdleMs >= this.minIdleTimeToTriggerMs && history.size() >= this.clickThreshold) {
+            String playerName = player.getName();
+            String logMessage = "[AutoClick] Suspicious activity for " + playerName +
+                    ": " + history.size() + " clicks in " + (this.clickWindowMs / 1000) + "s " +
+                    "while idle for " + (timeIdleMs / 1000) + "s.";
 
-        // Check if player has been idle
-        long lastMovement = plugin.getAfkManager().getLastMovement(player);
-        long timeIdle = now - lastMovement;
-
-        if (timeIdle >= MIN_IDLE_MS && history.size() >= CLICK_THRESHOLD) {
-            // Log suspicious activity
-            if (plugin.getConfigManager().isDebugEnabled()) {
-                plugin.getLogger().warning("[AFK] Possible autoclicker detected for " + player.getName() +
-                        ": " + history.size() + " clicks in last " + (CLICK_WINDOW_MS / 1000) + "s without movement.");
+            AFKLogger.logActivity(logMessage);
+            if (configManager.isDebugEnabled()) {
+                plugin.getLogger().warning(logMessage);
             }
 
-            // Optionally mark as manual AFK (can be expanded to custom punishments)
-            plugin.getAfkManager().clearPlayerData(player);
-            plugin.getAfkManager().toggleManualAFK(player);
+            switch (this.autoclickAction) {
+                case "SET_AFK":
+                    afkManager.forceSetManualAFKState(player, true);
+                    player.sendMessage(configManager.getMessageAutoclickSetAfk()); // Use new getter
+                    history.clear();
+                    break;
+                case "KICK":
+                    final String kickReason = configManager.getMessageAutoclickKickReason(); // Use new getter
+                    new BukkitRunnable() {
+                        @Override
+                        public void run() {
+                            if (player.isOnline()) {
+                                player.kickPlayer(kickReason);
+                            }
+                        }
+                    }.runTask(plugin);
+                    history.clear();
+                    break;
+                case "LOG":
+                    // Consider a player message even for LOG, if desired.
+                    // player.sendMessage(configManager.getMessage("autoclick-detected-logged", "&7Suspicious clicking activity has been logged."));
+                    break;
+                case "NONE":
+                default:
+                    break;
+            }
         }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        clickHistory.remove(event.getPlayer().getUniqueId());
+    }
+
+    public void shutdown() {
+        if (this.cleanupTask != null && !this.cleanupTask.isCancelled()) {
+            this.cleanupTask.cancel();
+            plugin.getLogger().info("AutoClickListener cleanup task cancelled.");
+        }
+        clickHistory.clear();
+    }
+
+    public void reloadDetectorConfig() {
+        loadConfigurableSettings();
+        plugin.getLogger().info("AutoClickListener settings reloaded.");
     }
 }
