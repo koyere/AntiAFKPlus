@@ -1,86 +1,116 @@
-# Plugin definition for AntiAFKPlus
+# Plugin definition for AntiAFKPlus v2.0
 name: AntiAFKPlus
-version: 1.4 # Make sure this matches your current development version
+version: 2.0
 main: me.koyere.antiafkplus.AntiAFKPlus
-api-version: '1.16' # Use quotes for api-version as per Spigot's updated recommendations, though 1.16 works without too.
-description: Advanced AFK management plugin to handle player inactivity, with warnings, kicks, and bypasses.
+api-version: '1.16'
+description: Advanced AFK management plugin v2.0 with enhanced pattern detection, behavioral analysis, and anti-exploit systems.
 author: Koyere
 website: https://github.com/koyere/AntiAFKPlus
 
-# Soft dependency: PlaceholderAPI for placeholder support. Plugin works without it.
+# Soft dependency: PlaceholderAPI for enhanced placeholder support
 softdepend: [PlaceholderAPI]
 
-# bStats Metrics ID (Ensure this is correctly registered on bstats.org for your plugin)
-# This is not a standard plugin.yml field but a reminder for your build process or notes.
-# bstats-id: 25664 # Your ID
+# Enhanced v2.0 features in description
+load: POSTWORLD
+prefix: AntiAFK+
 
 commands:
   afkplus:
-    description: "Core administrative command for AntiAFKPlus (e.g., reload)."
-    usage: "/<command> reload"
-    permission: antiafkplus.reload # Specific permission for reloading
-    aliases: [afkp] # Optional alias
+    description: "Core administrative command for AntiAFKPlus v2.0 (reload, stats, debug)."
+    usage: "/<command> [reload|stats|debug|migration]"
+    permission: antiafkplus.reload
+    aliases: [afkp, aafk+]
   afk:
-    description: "Toggle manual AFK status or use subcommands."
-    usage: "/<command> [list|status [player]]"
-    # Base permission to use /afk for self-toggle is antiafkplus.afk
-    # Subcommands like list/status have their own specific permissions checked in code.
-    # No top-level permission needed here if subcommands handle their own and base /afk has its own.
-    # Alternatively, set a base permission here like antiafkplus.command.afk if desired.
-    # For now, relies on antiafkplus.afk for the toggle part.
+    description: "Enhanced AFK command with advanced detection and subcommands."
+    usage: "/<command> [list|status [player]|stats|patterns]"
+    aliases: [away]
 
 permissions:
-  # Wildcard permission for all AntiAFKPlus features (primarily for OPs or full admins)
+  # Wildcard permission for all AntiAFKPlus v2.0 features
   antiafkplus.*:
-    description: Grants all permissions for the AntiAFKPlus plugin.
+    description: Grants all permissions for AntiAFKPlus v2.0 including enhanced detection features.
     default: op
     children:
-      # Granting all defined specific permissions as children
       antiafkplus.reload: true
-      antiafkplus.bypass: true # This will also grant its children by default if set up in perm system
+      antiafkplus.bypass: true
       antiafkplus.afk: true
       antiafkplus.list: true
       antiafkplus.status.check: true
-      # Specific bypasses are children of antiafkplus.bypass
-      # Time permissions are separate and assigned as needed.
+      antiafkplus.debug: true
+      antiafkplus.stats: true
+      antiafkplus.patterns.view: true
 
   # Core command permissions
   antiafkplus.reload:
-    description: "Allows usage of /afkplus reload command."
+    description: "Allows usage of /afkplus reload command and configuration management."
     default: op
   antiafkplus.afk:
     description: "Allows player to toggle their own AFK status using /afk."
-    default: true # Usually, all players should be able to go AFK.
+    default: true
   antiafkplus.list:
     description: "Allows player to use /afk list to view AFK players."
-    # Default defined by list-command-permission in config.yml which points to this node.
-    # Setting default here for clarity if config isn't checked first by admin.
-    default: op # Or 'true' if you want everyone to use it by default.
+    default: op
   antiafkplus.status.check:
     description: "Allows player to use /afk status [player] to check AFK state."
-    default: op # Or 'true' for self-check, op for others; currently one perm for both.
+    default: op
 
-  # Bypass permissions
+  # Enhanced v2.0 permissions
+  antiafkplus.debug:
+    description: "Allows access to debug information and enhanced logging."
+    default: op
+  antiafkplus.stats:
+    description: "Allows viewing detailed AFK statistics and analytics."
+    default: op
+  antiafkplus.patterns.view:
+    description: "Allows viewing pattern detection data and behavioral analysis."
+    default: op
+
+  # Bypass permissions with enhanced granularity
   antiafkplus.bypass:
-    description: "Exempts player from all AntiAFK system checks (AFK detection, kick, item pickup block, autoclick)."
+    description: "Exempts player from ALL AntiAFK v2.0 detection systems."
     default: false
     children:
+      antiafkplus.bypass.detection: true
       antiafkplus.bypass.itempickup: true
       antiafkplus.bypass.autoclick: true
+      antiafkplus.bypass.patterns: true
+  antiafkplus.bypass.detection:
+    description: "Exempts player from standard AFK detection (movement, time-based)."
+    default: false
   antiafkplus.bypass.itempickup:
     description: "Allows player to pick up items even if AFK and block-pickup-while-afk is true."
     default: false
   antiafkplus.bypass.autoclick:
-    description: "Exempts player from autoclicker detection."
+    description: "Exempts player from autoclicker detection algorithms."
+    default: false
+  antiafkplus.bypass.patterns:
+    description: "Exempts player from advanced pattern detection (water circles, confined spaces, etc)."
     default: false
 
-  # Permission-based AFK times (nodes defined in config.yml's 'permission-times' section)
-  # Example permission nodes that would be defined by server admins:
-  # antiafkplus.time.vip:
-  #   description: "Grants VIP AFK duration."
-  #   default: false
-  # antiafkplus.time.staff:
-  #   description: "Grants Staff AFK duration."
-  #   default: false
-  # (These specific .time.<name> permissions don't need 'default' values here in plugin.yml,
-  #  as they are meant to be assigned explicitly by server admins. The comment above is for documentation.)
+  # Permission-based AFK times (examples - configured in config.yml)
+  antiafkplus.time.vip:
+    description: "Grants VIP AFK duration as defined in config.yml."
+    default: false
+  antiafkplus.time.staff:
+    description: "Grants Staff AFK duration as defined in config.yml."
+    default: false
+  antiafkplus.time.premium:
+    description: "Grants Premium AFK duration as defined in config.yml."
+    default: false
+
+  # Enhanced detection feature permissions
+  antiafkplus.detection.enhanced:
+    description: "Enables enhanced movement detection for this player."
+    default: true
+  antiafkplus.detection.patterns:
+    description: "Enables pattern detection analysis for this player."
+    default: true
+  antiafkplus.detection.behavioral:
+    description: "Enables behavioral analysis tracking for this player."
+    default: true
+
+# Plugin metadata for v2.0
+folia-supported: false
+provides: [AntiAFK, AFKDetection, PatternDetection]
+authors: [Koyere]
+contributors: []

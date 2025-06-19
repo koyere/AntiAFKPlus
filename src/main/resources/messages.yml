@@ -1,9 +1,12 @@
 # --------------------------------------
-# AntiAFKPlus Messages File
+# AntiAFKPlus v2.0 Messages File
 # Plugin by Koyere
 #
+# Enhanced with advanced pattern detection messages, behavioral analysis notifications,
+# and comprehensive event system messages.
+#
 # You can use standard Minecraft color codes with '&'.
-# Placeholders like {player}, {seconds}, {status}, {usage}, {name}, {version}
+# Placeholders like {player}, {seconds}, {status}, {usage}, {name}, {version}, {pattern}, {confidence}
 # will be replaced by the plugin where applicable.
 # --------------------------------------
 
@@ -15,7 +18,7 @@ messages:
   player-not-found: "&cPlayer '{player}' not found."
   player-only-command: "&cThis command can only be used by players."
   incorrect-usage: "&cIncorrect usage. Try: {usage}"
-  config-reloaded: "&aAntiAFKPlus configuration and messages have been reloaded."
+  config-reloaded: "&aAntiAFKPlus v2.0 configuration and messages have been reloaded."
   plugin-info: "&e{name} version {version} by Koyere. Use /afkplus reload to reload." # For /afkplus base command
 
   # --- Core AFK State Changes & Warnings ---
@@ -67,8 +70,58 @@ messages:
   afk-status-target-afk: "&c{player} is currently AFK."
   # Message for /afk status <player> when the target player is active. {player} is the target's name.
   afk-status-target-active: "&a{player} is currently active."
-  # (The actual "AFK" and "ACTIVE" strings for {status} are hardcoded in AFKCommand.java for now,
-  #  but could be made configurable here if desired, e.g., status-afk-term: "&cAFK", status-active-term: "&aACTIVE")
+
+  # --- Enhanced v2.0 Detection Messages ---
+
+  # --- Pattern Detection Messages ---
+
+  # General pattern detection notification
+  pattern-detected: "&c[AntiAFK] Suspicious movement pattern detected: {pattern}"
+
+  # Specific pattern detection messages
+  pattern-water-circle: "&c[AntiAFK] Water circle movement pattern detected."
+  pattern-confined-space: "&e[AntiAFK] Movement confined to small area detected."
+  pattern-repetitive-movement: "&6[AntiAFK] Repetitive movement pattern detected."
+  pattern-pendulum-movement: "&6[AntiAFK] Back-and-forth movement pattern detected."
+  pattern-combined: "&4[AntiAFK] Multiple suspicious patterns detected simultaneously."
+
+  # Pattern detection confidence levels
+  pattern-confidence-low: "&7Detection confidence: {confidence}% (Low)"
+  pattern-confidence-medium: "&e Detection confidence: {confidence}% (Medium)"
+  pattern-confidence-high: "&c Detection confidence: {confidence}% (High)"
+
+  # Pattern violation messages
+  pattern-violation-warning: "&e[AntiAFK] Pattern violation #{violations} detected. Continuing suspicious behavior may result in AFK marking."
+  pattern-violation-final: "&c[AntiAFK] Final pattern violation. You have been marked as AFK due to suspicious activity."
+  pattern-violation-kicked: "&4[AntiAFK] Kicked for repeated pattern violations: {pattern}"
+
+  # --- Behavioral Analysis Messages ---
+
+  # Activity score notifications
+  activity-score-low: "&7Your activity score is low ({score}/100). Consider moving more naturally."
+  activity-score-warning: "&e[AntiAFK] Low activity detected. Activity score: {score}/100"
+  activity-score-critical: "&c[AntiAFK] Critical activity level. Please demonstrate active gameplay."
+
+  # Behavioral analysis warnings
+  behavioral-analysis-warning: "&6[AntiAFK] Unusual behavior pattern detected. Please play normally."
+  suspicious-activity: "&e[AntiAFK] Suspicious activity detected. Please move normally."
+  enhanced-detection-warning: "&6[AntiAFK] Enhanced detection system is monitoring your activity."
+
+  # --- Enhanced Movement Detection Messages ---
+
+  # Micro-movement detection
+  micro-movement-detected: "&7Minimal movement detected. Consider larger movements to register activity."
+
+  # Head rotation detection
+  head-rotation-activity: "&aHead movement registered as activity."
+
+  # Jump detection and spam protection
+  jump-spam-warning: "&e[AntiAFK] Excessive jumping detected. Jump spamming may not register as valid activity."
+  jump-pattern-suspicious: "&c[AntiAFK] Suspicious jumping pattern detected."
+
+  # Swimming and flying state changes
+  swim-state-activity: "&7Swimming state change registered as activity."
+  fly-state-activity: "&7Flight state change registered as activity."
 
   # --- Autoclicker Detection Messages ---
   # These messages are used by AutoClickListener.java.
@@ -79,18 +132,111 @@ messages:
   # Kick reason if 'action: KICK' is set for autoclicker detection.
   autoclick-detected-kick-reason: "&cKicked for suspicious clicking activity (autoclick)."
 
-  # Optional: Message sent to player if 'action: LOG' is set (if you want player notification for LOG mode).
-  # autoclick-detected-logged: "&7Suspicious clicking activity has been logged."
+  # Warning message for suspicious clicking patterns
+  autoclick-warning: "&e[AntiAFK] Suspicious clicking pattern detected. Please click normally."
 
+  # Message for high-confidence autoclick detection
+  autoclick-confidence-high: "&c[AntiAFK] High confidence autoclick detection: {confidence}%"
 
-  # --- PlaceholderAPI Related (for %antiafkplus_status%) ---
-  # These define the text returned by the %antiafkplus_status% placeholder.
-  # Note: Currently, "AFK" and "ACTIVE" are hardcoded in PlaceholderHook.java.
-  # To make them configurable, PlaceholderHook would need to read from ConfigManager.
-  # placeholder-status-afk: "AFK"
-  # placeholder-status-active: "ACTIVE"
+  # --- Advanced Warning System Messages ---
 
-  # --- Future Feature Examples (Not yet implemented) ---
-  # afk-invulnerable: "&aYou are now invulnerable while AFK."
-  # afk-vulnerable: "&cYou are no longer invulnerable."
-  # command-cooldown: "&cPlease wait {seconds}s before using this command again."
+  # Enhanced warning titles and subtitles
+  warning-title-standard: "&c⚠ AFK Warning"
+  warning-subtitle-standard: "&e{seconds} seconds remaining"
+
+  warning-title-pattern: "&4⚠ Pattern Detection"
+  warning-subtitle-pattern: "&cSuspicious behavior detected"
+
+  warning-title-critical: "&4⚠ FINAL WARNING"
+  warning-subtitle-critical: "&c{seconds} seconds until kick"
+
+  # Warning context messages
+  warning-context-movement: "&7Last activity: Movement {seconds} seconds ago"
+  warning-context-rotation: "&7Last activity: Head rotation {seconds} seconds ago"
+  warning-context-jump: "&7Last activity: Jumping {seconds} seconds ago"
+  warning-context-command: "&7Last activity: Command usage {seconds} seconds ago"
+  warning-context-interaction: "&7Last activity: Block/item interaction {seconds} seconds ago"
+
+  # --- Event System Messages ---
+
+  # State change notifications (for debugging/admin purposes)
+  state-change-active-to-afk: "&7[StateChange] {player}: ACTIVE → AFK ({reason})"
+  state-change-afk-to-active: "&7[StateChange] {player}: AFK → ACTIVE ({reason})"
+  state-change-manual-toggle: "&7[StateChange] {player}: Manual AFK toggle ({reason})"
+
+  # Custom kick action messages
+  kick-action-teleport: "&e[AntiAFK] You have been teleported due to inactivity."
+  kick-action-gamemode: "&e[AntiAFK] Your gamemode has been changed due to inactivity."
+  kick-action-command: "&e[AntiAFK] Administrative action taken due to inactivity."
+  kick-action-mark-afk: "&e[AntiAFK] You have been marked as AFK due to inactivity."
+
+  # --- Administrative and Debug Messages ---
+
+  # Admin notifications for suspicious activity
+  admin-pattern-alert: "&4[ADMIN] Pattern detected: {player} - {pattern} (Confidence: {confidence}%)"
+  admin-behavior-alert: "&6[ADMIN] Behavioral anomaly: {player} - Activity score: {score}/100"
+  admin-violation-alert: "&c[ADMIN] Pattern violation: {player} - Violation #{violations} ({pattern})"
+
+  # Debug information messages
+  debug-pattern-analysis: "&8[DEBUG] Pattern analysis for {player}: {pattern} (Samples: {samples})"
+  debug-activity-score: "&8[DEBUG] Activity score update for {player}: {score}/100"
+  debug-detection-method: "&8[DEBUG] Detection method for {player}: {method}"
+  debug-movement-data: "&8[DEBUG] Movement data for {player}: X:{x} Y:{y} Z:{z}"
+
+  # --- PlaceholderAPI Related Messages ---
+  # These define the text returned by placeholders like %antiafkplus_status%
+  placeholder-status-afk: "AFK"
+  placeholder-status-active: "ACTIVE"
+  placeholder-status-manual-afk: "MANUAL AFK"
+  placeholder-status-auto-afk: "AUTO AFK"
+
+  # --- Enhanced Command Feedback ---
+
+  # Statistics and information commands
+  stats-header: "&6=== AFK Statistics for {player} ==="
+  stats-total-afk-time: "&7Total AFK time: &e{time} seconds"
+  stats-pattern-violations: "&7Pattern violations: &e{violations}"
+  stats-activity-score: "&7Current activity score: &e{score}/100"
+  stats-detection-method: "&7Last detection method: &e{method}"
+  stats-afk-reason: "&7Current AFK reason: &e{reason}"
+
+  # Pattern information commands
+  patterns-header: "&6=== Pattern Detection Data for {player} ==="
+  patterns-water-circle: "&7Water circle detections: &e{count}"
+  patterns-confined-space: "&7Confined space detections: &e{count}"
+  patterns-repetitive: "&7Repetitive pattern detections: &e{count}"
+  patterns-pendulum: "&7Pendulum movement detections: &e{count}"
+  patterns-most-common: "&7Most common pattern: &e{pattern}"
+  patterns-none: "&aNo suspicious patterns detected for this player."
+
+  # --- Migration and Version Messages ---
+
+  # Migration completion notification
+  migration-complete: "&a[AntiAFK] Successfully migrated from v{old_version} to v{new_version}!"
+  migration-backup-created: "&e[AntiAFK] Configuration backup created: {backup_file}"
+  migration-settings-preserved: "&a[AntiAFK] All existing settings have been preserved."
+
+  # Version compatibility messages
+  version-enhanced-features: "&e[AntiAFK] v2.0 enhanced features are now active!"
+  version-feature-disabled: "&7[AntiAFK] Feature '{feature}' is disabled in configuration."
+
+  # --- Future Feature Placeholders ---
+  # These messages are reserved for upcoming features and should not be removed
+
+  # Zone-based AFK management (Phase 2.0B)
+  zone-entered-afk-allowed: "&e[AntiAFK] Entered AFK-allowed zone: {zone}"
+  zone-entered-afk-restricted: "&c[AntiAFK] Entered AFK-restricted zone: {zone}"
+  zone-afk-timeout-custom: "&6[AntiAFK] Custom AFK timeout in {zone}: {timeout} seconds"
+
+  # Reward system (Phase 2.0B)
+  afk-reward-earned: "&a[AntiAFK] AFK reward earned: {reward}"
+  afk-reward-limit: "&e[AntiAFK] Daily AFK reward limit reached."
+
+  # Visual and audio system (Phase 2.0C)
+  hologram-afk-status: "&7{player} is AFK"
+  particle-effect-enabled: "&e[AntiAFK] AFK particle effects enabled."
+
+  # Player protection system (Phase 2.0D)
+  protection-invulnerable: "&a[AntiAFK] You are now invulnerable while AFK."
+  protection-vulnerable: "&c[AntiAFK] You are no longer invulnerable."
+  protection-movement-blocked: "&e[AntiAFK] Movement blocked while AFK."

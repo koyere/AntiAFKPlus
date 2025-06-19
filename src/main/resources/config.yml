@@ -1,137 +1,737 @@
-# --------------------------------------
-# AntiAFKPlus Configuration File
-# Plugin by Koyere
-#
-# For support, please visit the SpigotMC page or GitHub repository.
-# --------------------------------------
+# ===============================================================================
+#                           AntiAFKPlus Enterprise v2.0
+#                        Configuration File - COMPLETE EDITION
+# ===============================================================================
+# 
+# 🌟 ENTERPRISE FEATURES:
+# ✅ Modular architecture with enable/disable controls
+# ✅ Folia/Paper/Spigot/Bukkit auto-detection and compatibility
+# ✅ Bedrock Edition compatibility (Floodgate/Geyser support)
+# ✅ Complete internationalization system (20+ languages)
+# ✅ Zero-lag performance optimization with adaptive intervals
+# ✅ Advanced pattern detection and behavioral analysis
+# ✅ Professional API for third-party integration
+# ✅ Enterprise-grade database support
+# ✅ Visual effects and hologram integration
+# ✅ Zone-based AFK management with WorldGuard
+# ✅ Reward system with economic integration
+# ✅ Real-time analytics and monitoring
+# 
+# 📖 Documentation: https://github.com/koyere/AntiAFKPlus
+# 💬 Support Discord: https://discord.gg/xKUjn3EJzR
+# 
+# ===============================================================================
 
-# --- General AFK Settings ---
+# Configuration version (DO NOT MODIFY - Used for automatic migration)
+version: "2.0.0-ENTERPRISE"
 
-# Default time (in seconds) before a player is considered AFK if no specific permission-based time applies.
-# Example: 300 seconds = 5 minutes
+# ===============================================================================
+# 📦 MODULE SYSTEM - Enable/Disable Features
+# ===============================================================================
+
+modules:
+  # Core modules (required for basic functionality)
+  core-detection:
+    enabled: true
+    performance-monitoring: false
+  
+  core-events:
+    enabled: true
+    performance-monitoring: false
+  
+  core-api:
+    enabled: true
+    performance-monitoring: false
+  
+  core-commands:
+    enabled: true
+    performance-monitoring: false
+  
+  # Feature modules (optional, can be disabled for performance)
+  pattern-detection:
+    enabled: true
+    performance-monitoring: true
+    # Advanced pattern detection settings
+    water-circle-radius: 3.0
+    min-samples-for-pattern: 20
+    confined-space-threshold: 5.0
+    pattern-analysis-interval-ms: 30000
+    repetitive-movement-threshold: 0.8
+    max-pattern-violations: 3
+  
+  autoclick-detection:
+    enabled: true
+    performance-monitoring: true
+    # Autoclick detection settings
+    click-window-ms: 5000
+    click-threshold: 20
+    min-idle-time-ms: 60000
+    action: "LOG" # LOG, SET_AFK, KICK, NONE
+  
+  player-protection:
+    enabled: true
+    performance-monitoring: false
+    # Player protection settings
+    prevent-movement: false
+    prevent-damage: true
+    prevent-interaction: true
+    invulnerability-delay: 5000
+  
+  afk-zones:
+    enabled: false
+    performance-monitoring: false
+    # WorldGuard integration
+    require-worldguard: true
+    default-zone-timeout: 300
+    allow-zone-inheritance: true
+  
+  reward-system:
+    enabled: false
+    performance-monitoring: false
+    # Reward system settings
+    reward-interval-minutes: 10
+    max-daily-rewards: 144 # 24 hours worth
+    require-vault: false
+  
+  visual-effects:
+    enabled: false
+    performance-monitoring: false
+    # Visual effects settings
+    holograms-enabled: false
+    particles-enabled: false
+    hologram-provider: "DecentHolograms" # DecentHolograms, HolographicDisplays
+  
+  database:
+    enabled: false
+    performance-monitoring: true
+    # Database settings
+    type: "SQLite" # SQLite, MySQL, H2
+    connection-pool-size: 5
+    connection-timeout: 30000
+  
+  analytics:
+    enabled: false
+    performance-monitoring: true
+    # Analytics settings
+    data-retention-days: 30
+    export-enabled: false
+  
+  # Integration modules
+  worldguard-integration:
+    enabled: false
+    performance-monitoring: false
+  
+  placeholderapi-integration:
+    enabled: true
+    performance-monitoring: false
+  
+  vault-integration:
+    enabled: false
+    performance-monitoring: false
+  
+  discordsrv-integration:
+    enabled: false
+    performance-monitoring: false
+  
+  floodgate-integration:
+    enabled: true
+    performance-monitoring: false
+  
+  # Platform compatibility modules
+  folia-compatibility:
+    enabled: true
+    performance-monitoring: false
+  
+  bedrock-compatibility:
+    enabled: true
+    performance-monitoring: false
+  
+  # Performance logging for all modules
+  performance-logging: false
+
+# ===============================================================================
+# 🌍 INTERNATIONALIZATION SYSTEM
+# ===============================================================================
+
+internationalization:
+  # Default language for all players
+  default-language: "en"
+  
+  # Automatically detect player language from client locale
+  auto-detect-language: true
+  
+  # Fall back to default language if message not found in player's language
+  fallback-to-default: true
+  
+  # Cache messages for performance
+  cache-messages: true
+  
+  # Development mode - recreates language files on startup
+  development-mode: false
+  
+  # Language-specific settings
+  language-settings:
+    en:
+      display-name: "English"
+    es:
+      display-name: "Español"
+    fr:
+      display-name: "Français"
+    de:
+      display-name: "Deutsch"
+    it:
+      display-name: "Italiano"
+    pt:
+      display-name: "Português"
+    ru:
+      display-name: "Русский"
+    zh:
+      display-name: "中文"
+    ja:
+      display-name: "日本語"
+    ko:
+      display-name: "한국어"
+    nl:
+      display-name: "Nederlands"
+    pl:
+      display-name: "Polski"
+    sv:
+      display-name: "Svenska"
+    no:
+      display-name: "Norsk"
+    da:
+      display-name: "Dansk"
+    fi:
+      display-name: "Suomi"
+    tr:
+      display-name: "Türkçe"
+    ar:
+      display-name: "العربية"
+    he:
+      display-name: "עברית"
+    hi:
+      display-name: "हिन्दी"
+
+# ===============================================================================
+# 📱 BEDROCK EDITION COMPATIBILITY
+# ===============================================================================
+
+bedrock-compatibility:
+  enabled: true
+  
+  # UI adaptations for Bedrock players
+  adapt-menus: true
+  adapt-messages: true
+  adapt-hotkeys: true
+  adapt-item-interactions: true
+  custom-detection: true
+  
+  # Detection methods
+  detection-methods:
+    floodgate: true
+    geyser: true
+    username-prefix: true
+    client-brand: true
+  
+  # UI adaptations
+  ui-adaptations:
+    max-menu-slots: 27
+    use-simple-layouts: true
+    avoid-shift-click: true
+    use-touch-friendly-buttons: true
+  
+  # Message adaptations
+  message-adaptations:
+    shorter-messages: true
+    max-length: 100
+    avoid-complex-formatting: true
+    use-actionbar-sparingly: true
+
+# ===============================================================================
+# ⚡ PERFORMANCE OPTIMIZATION SYSTEM
+# ===============================================================================
+
+performance:
+  # Master toggle for automatic performance optimization
+  auto-optimization: true
+  
+  # Adaptive intervals based on server performance
+  adaptive-intervals: true
+  
+  # Memory optimization features
+  memory-optimization: true
+  
+  # CPU optimization features
+  cpu-optimization: true
+  
+  # Network optimization features
+  network-optimization: true
+  
+  # Performance thresholds
+  thresholds:
+    # Maximum TPS impact allowed (milliseconds per tick)
+    max-tps-impact: 0.5
+    
+    # Maximum memory usage (MB)
+    max-memory-mb: 50
+    
+    # Maximum CPU usage percentage
+    max-cpu-percent: 5
+  
+  # Optimization interval (milliseconds)
+  optimization-interval: 5000
+  
+  # Advanced settings
+  advanced:
+    # Use object pooling to reduce garbage collection
+    use-object-pooling: true
+    
+    # Cache calculation results
+    cache-calculations: true
+    
+    # Batch operations for efficiency
+    batch-operations: true
+    
+    # Process heavy operations asynchronously
+    async-processing: true
+  
+  # Player categorization for optimization
+  player-categorization:
+    enabled: true
+    # Actions per minute thresholds
+    high-activity-threshold: 10
+    low-activity-threshold: 2
+  
+  # Debug logging for performance monitoring
+  debug-logging: false
+
+# ===============================================================================
+# 🔧 BASIC AFK SETTINGS
+# ===============================================================================
+
+# Default time (in seconds) before a player is considered AFK
 default-afk-time: 300
 
-# How often (in seconds) the plugin checks for AFK players.
-# Lower values mean quicker detection but slightly more server load. Must be greater than 0.
+# How often (in seconds) the plugin checks for AFK players
 afk-check-interval-seconds: 5
 
-# Maximum time (in seconds) a player can stay in voluntary AFK mode (using /afk).
-# Set to 0 to allow indefinite voluntary AFK (no time limit).
+# Maximum time (in seconds) a player can stay in voluntary AFK mode
 max-voluntary-afk-time-seconds: 600
 
-# --- AFK Warnings ---
+# ===============================================================================
+# 🎯 ENHANCED DETECTION SYSTEM
+# ===============================================================================
 
-# Times (in seconds remaining before kick) at which warnings are sent to the player.
-# Example: [60, 30, 10] means warnings will be sent when 60, 30, and 10 seconds are left.
+enhanced-detection:
+  # Master control for enhanced detection features
+  enabled: true
+  
+  # Enable pattern detection for AFK pools, water circles, confined spaces
+  pattern-detection: true
+  
+  # Enable behavioral analysis and activity scoring
+  behavioral-analysis: true
+  
+  # Enable advanced movement tracking
+  advanced-movement-tracking: true
+
+# Pattern detection specific settings
+pattern-detection-settings:
+  water-circle-radius: 3.0
+  min-samples-for-pattern: 20
+  confined-space-threshold: 5.0
+  pattern-analysis-interval-ms: 30000
+  repetitive-movement-threshold: 0.8
+  max-pattern-violations: 3
+
+# Movement detection settings
+movement-detection-settings:
+  micro-movement-threshold: 0.1
+  head-rotation-threshold: 5.0
+  jump-spam-threshold-ms: 1000
+  max-jumps-per-period: 10
+  jump-reset-period-ms: 30000
+
+# Activity scoring weights
+activity-scoring-weights:
+  movement: 1.0
+  head-rotation: 1.5
+  jump: 0.8
+  command: 2.0
+  chat: 2.5
+  interaction: 1.8
+  block-break: 1.5
+  block-place: 1.5
+  item-use: 1.2
+  combat: 2.0
+  inventory: 1.3
+
+# ===============================================================================
+# 📊 EVENT SYSTEM
+# ===============================================================================
+
+event-system:
+  # Enable various event types for external plugin integration
+  afk-state-change-events: true
+  afk-warning-events: true
+  afk-kick-events: true
+  pattern-detection-events: true
+
+# ===============================================================================
+# ⚠️ AFK WARNINGS AND TIMEOUTS
+# ===============================================================================
+
+# Warning times (seconds remaining before kick)
 afk-warnings:
   - 60
   - 30
   - 10
 
-# --- Permission-Based AFK Times ---
-
-# Define custom AFK times (in seconds) for players with specific permissions.
-# Format: 'permission.node.here': time_in_seconds
-# If a player has multiple permissions listed here, the one granting the longest AFK time will be used.
-# If a player has none of these permissions, 'default-afk-time' will be used.
+# Permission-based AFK times
 permission-times:
-  'antiafkplus.time.vip': 600      # Example: VIPs get 10 minutes
-  'antiafkplus.time.staff': 1800   # Example: Staff get 30 minutes
-  # Add more custom permission times as needed:
-  # 'antiafkplus.time.donator': 900
+  'antiafkplus.time.vip': 600      # 10 minutes
+  'antiafkplus.time.staff': 1800   # 30 minutes
+  'antiafkplus.time.premium': 900  # 15 minutes
+  'antiafkplus.time.donator': 1200 # 20 minutes
 
-# --- World Control ---
+# ===============================================================================
+# 🌍 WORLD CONTROL
+# ===============================================================================
 
-# List of worlds where the AntiAFK system should be active.
-# - If this list is EMPTY, the plugin will be active in ALL worlds,
-#   except for those listed in 'disabled-worlds'.
-# - If this list contains world names, the plugin will ONLY be active in these specified worlds,
-#   and NOT in any worlds listed in 'disabled-worlds' (disabled-worlds takes precedence).
+# Worlds where AFK system is active (empty = all worlds)
 enabled-worlds:
   - "world"
   - "world_nether"
   - "world_the_end"
 
-# List of worlds where the AntiAFK system should be EXPLICITLY disabled.
-# This list takes precedence. If a world is in both 'enabled-worlds' and 'disabled-worlds',
-# the AFK system will be disabled for that world.
+# Worlds where AFK system is disabled (takes precedence)
 disabled-worlds: []
-# - "creative_world" # Example: Disable AFK checks in a creative world
 
-# --- Feature Toggles & Behavior ---
+# ===============================================================================
+# 🔨 FEATURE TOGGLES
+# ===============================================================================
 
-# Enable debug messages in the server console. Useful for troubleshooting.
+# Enable debug messages
 debug: false
 
-# If true, players who are AFK (either automatically or manually) will be prevented from picking up items.
+# Block item pickup while AFK
 block-pickup-while-afk: true
 
-# If true, global messages like "Player is now AFK" and "Player is no longer AFK" will be broadcast.
-# Player-specific messages (warnings, kick messages) are not affected by this.
+# Broadcast AFK state changes
 broadcast-afk-state-changes: true
 
-# --- Autoclicker Detection (Experimental) ---
+# Legacy autoclick detection (superseded by module system)
+autoclick-detection: true
 
-# Main toggle to enable or disable the experimental autoclicker detection feature.
-# If false, the settings below in 'autoclick-detection-settings' will be ignored.
-autoclick-detection: true # This is the primary switch for the feature
-
-# Detailed settings for the autoclicker detection mechanism.
-# These are only active if 'autoclick-detection' (above) is true.
+# Legacy autoclick settings
 autoclick-detection-settings:
-  # Time window (in milliseconds) within which clicks are counted.
-  click-window-ms: 5000     # Default: 5 seconds
-  # Number of clicks within 'click-window-ms' to be considered suspicious.
-  click-threshold: 20       # Default: 20 clicks
-  # Player must be idle (no significant movement) for this duration (in milliseconds)
-  # AND meet the click threshold for the detection to trigger.
-  min-idle-time-ms: 60000   # Default: 60 seconds (60000 ms)
-  # Action to take when suspicious activity is detected:
-  # "NONE" - Do nothing (detection still runs, useful for testing with debug mode).
-  # "LOG"  - Only log the detection to console (and to AFKLogger).
-  # "SET_AFK" - Forcibly set the player to manual AFK mode.
-  # "KICK" - Kick the player from the server.
+  click-window-ms: 5000
+  click-threshold: 20
+  min-idle-time-ms: 60000
   action: "LOG"
 
-# --- Command Permissions ---
-# While many permissions are checked directly in code (see "Plugin Permissions" comment block below),
-# some command-specific permissions can be configured here.
+# ===============================================================================
+# 🛡️ PLAYER PROTECTION SYSTEM
+# ===============================================================================
 
-# Permission required to use the '/afk list' command.
-list-command-permission: "antiafkplus.list"
+player-protection:
+  # Position locking
+  prevent-movement-while-afk: false
+  movement-restriction-message: true
+  
+  # Invulnerability system
+  invulnerability-enabled: true
+  invulnerability-delay-ms: 5000
+  damage-types-blocked:
+    - "FALL"
+    - "DROWNING"
+    - "FIRE"
+    - "LAVA"
+  prevent-pvp-invulnerability: true
+  
+  # Interaction blocking
+  block-inventory-access: true
+  block-command-execution: false
+  command-whitelist:
+    - "/afk"
+    - "/help"
+    - "/spawn"
+  prevent-block-interaction: true
 
-# --------------------------------------
-# Plugin Permissions Overview
-# --------------------------------------
-# The following permissions are used by AntiAFKPlus and can be assigned to players/groups:
-#
-# Core Functionality:
-#   antiafkplus.afk         - Allows player to use /afk to toggle their own AFK status.
-#   antiafkplus.bypass      - Exempts player from ALL AFK checks, warnings, and kicks. They will not be made AFK.
-#
-# Command Specific:
-#   antiafkplus.list        - (Configurable above) Allows use of /afk list.
-#   antiafkplus.status.check - Allows use of /afk status [player] to check AFK status.
-#   antiafkplus.reload      - Allows use of /afkplus reload to reload plugin configuration.
-#
-# Bypass Specific Features:
-#   antiafkplus.bypass.itempickup - Allows player to pick up items even if AFK and 'block-pickup-while-afk' is true.
-#   antiafkplus.bypass.autoclick  - Exempts player from autoclicker detection.
-#
-# Custom AFK Durations (defined in 'permission-times' section):
-#   Example: antiafkplus.time.vip, antiafkplus.time.staff, etc.
-#
-# It's recommended to grant 'antiafkplus.bypass' to server staff or roles that should never be affected by AFK mechanics.
-# --------------------------------------
+# ===============================================================================
+# 🗺️ ZONE-BASED AFK MANAGEMENT
+# ===============================================================================
 
-# --- Premium Settings (Placeholders for future premium version) ---
-# These settings are not currently used by the free version of AntiAFKPlus.
-premium-settings:
-  mysql-enabled: false
-  mysql-host: "localhost"
-  mysql-port: 3306
-  mysql-database: "antiafkplus"
-  mysql-username: "root"
-  mysql-password: "password"
-  use-holograms: false # Example: For displaying AFK status above player using DecentHolograms/HolographicDisplays
-  kick-action: "KICK"  # Advanced kick actions: KICK, SEND_TO_SERVER (e.g., lobby), RUN_COMMANDS
+zone-management:
+  enabled: false
+  require-worldguard: true
+  
+  # Default zone settings
+  default-afk-allowed: true
+  default-timeout-seconds: 300
+  
+  # Zone inheritance from parent regions
+  allow-region-inheritance: true
+  
+  # Predefined zones
+  zones:
+    spawn:
+      afk-allowed: false
+      timeout-seconds: 60
+      kick-action: "TELEPORT"
+      teleport-location: "world,0,64,0"
+    
+    afk-pool:
+      afk-allowed: true
+      timeout-seconds: 3600
+      rewards-enabled: true
+      reward-multiplier: 1.5
+
+# ===============================================================================
+# 🎁 REWARD SYSTEM
+# ===============================================================================
+
+reward-system:
+  enabled: false
+  require-vault: false
+  
+  # Reward intervals
+  intervals:
+    5: # 5 minutes
+      commands:
+        - "eco give {player} 10"
+      messages:
+        - "&aYou received $10 for being AFK!"
+    
+    15: # 15 minutes
+      commands:
+        - "eco give {player} 50"
+        - "give {player} diamond 1"
+      messages:
+        - "&aYou received $50 and a diamond!"
+  
+  # Anti-abuse measures
+  max-daily-rewards: 144 # 24 hours worth at 10min intervals
+  require-active-time-minutes: 30
+  account-age-requirement-days: 1
+  playtime-requirement-hours: 5
+  ip-based-limits: true
+
+# ===============================================================================
+# ✨ VISUAL EFFECTS SYSTEM
+# ===============================================================================
+
+visual-effects:
+  enabled: false
+  
+  # Hologram settings
+  holograms:
+    enabled: false
+    provider: "DecentHolograms" # DecentHolograms, HolographicDisplays
+    height-offset: 2.5
+    update-interval-seconds: 5
+    show-to-all-players: true
+    per-player-visibility: false
+    
+    # Hologram content
+    lines:
+      - "&c[AFK]"
+      - "&7{player}"
+      - "&eAFK for {time}"
+  
+  # Particle effects
+  particles:
+    enabled: false
+    type: "CLOUD"
+    count: 5
+    speed: 0.1
+    offset-x: 0.5
+    offset-y: 1.0
+    offset-z: 0.5
+    update-interval-ticks: 20
+  
+  # Tab list modifications
+  tab-list:
+    enabled: true
+    afk-prefix: "&7[AFK] "
+    afk-suffix: ""
+  
+  # Player name modifications
+  name-tags:
+    enabled: false
+    afk-prefix: "&7[AFK] "
+
+# ===============================================================================
+# 💾 DATABASE INTEGRATION
+# ===============================================================================
+
+database:
+  enabled: false
+  type: "SQLite" # SQLite, MySQL, H2
+  
+  # SQLite settings
+  sqlite:
+    file-name: "antiafkplus.db"
+    connection-timeout: 30000
+  
+  # MySQL settings
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "antiafkplus"
+    username: "root"
+    password: "password"
+    connection-pool-size: 5
+    connection-timeout: 30000
+    ssl: false
+  
+  # H2 settings
+  h2:
+    file-name: "antiafkplus"
+    memory-mode: false
+  
+  # Data management
+  data-retention-days: 30
+  cleanup-interval-hours: 24
+  backup-enabled: true
+  backup-interval-hours: 6
+
+# ===============================================================================
+# 📈 ANALYTICS AND REPORTING
+# ===============================================================================
+
+analytics:
+  enabled: false
+  
+  # Data collection
+  collect-player-statistics: true
+  collect-performance-metrics: true
+  collect-pattern-data: true
+  
+  # Reporting
+  generate-daily-reports: true
+  generate-weekly-reports: true
+  export-format: "JSON" # JSON, CSV, XML
+  
+  # Web dashboard (future feature)
+  web-dashboard:
+    enabled: false
+    port: 8080
+    bind-address: "127.0.0.1"
+    authentication-required: true
+
+# ===============================================================================
+# 🔗 INTEGRATION SETTINGS
+# ===============================================================================
+
+integrations:
+  # PlaceholderAPI
+  placeholderapi:
+    enabled: true
+    custom-placeholders:
+      - "%antiafkplus_status%"
+      - "%antiafkplus_afktime%"
+      - "%antiafkplus_activity_score%"
+      - "%antiafkplus_pattern_confidence%"
+  
+  # Vault (Economy)
+  vault:
+    enabled: false
+    currency-name: "coins"
+  
+  # DiscordSRV
+  discordsrv:
+    enabled: false
+    send-afk-notifications: true
+    send-pattern-alerts: true
+    webhook-url: ""
+  
+  # WorldGuard
+  worldguard:
+    enabled: false
+    region-flags:
+      - "afk-allowed"
+      - "afk-timeout"
+      - "afk-rewards"
+  
+  # Floodgate (Bedrock support)
+  floodgate:
+    enabled: true
+    adapt-ui-for-bedrock: true
+    detect-input-mode: true
+
+# ===============================================================================
+# 🔐 PERMISSIONS AND COMMANDS
+# ===============================================================================
+
+permissions:
+  # Command permissions
+  list-command-permission: "antiafkplus.list"
+  
+  # Admin permissions
+  admin-commands: "antiafkplus.admin"
+  reload-config: "antiafkplus.reload"
+  view-statistics: "antiafkplus.stats"
+  
+  # Bypass permissions
+  bypass-all: "antiafkplus.bypass"
+  bypass-detection: "antiafkplus.bypass.detection"
+  bypass-patterns: "antiafkplus.bypass.patterns"
+  bypass-autoclick: "antiafkplus.bypass.autoclick"
+  bypass-item-pickup: "antiafkplus.bypass.itempickup"
+
+# ===============================================================================
+# 🏁 MIGRATION AND COMPATIBILITY
+# ===============================================================================
+
+migration-info:
+  # Automatically populated during version upgrades
+  # migrated-from: "1.4"
+  # migration-date: 1640995200000
+
+compatibility:
+  # Legacy configuration support
+  support-legacy-config: true
+  
+  # Plugin compatibility
+  compatible-plugins:
+    - "Essentials"
+    - "LuckPerms"
+    - "WorldGuard"
+    - "PlaceholderAPI"
+    - "Vault"
+    - "DiscordSRV"
+
+# ===============================================================================
+# 🔧 ADVANCED TECHNICAL SETTINGS
+# ===============================================================================
+
+technical:
+  # Platform detection
+  auto-detect-platform: true
+  force-platform: "" # BUKKIT, SPIGOT, PAPER, PURPUR, FOLIA
+  
+  # Threading
+  async-processing: true
+  thread-pool-size: 4
+  
+  # Memory management
+  enable-garbage-collection-hints: true
+  object-pool-size: 100
+  
+  # Networking
+  packet-optimization: true
+  bulk-operations: true
+
+# ===============================================================================
+# END OF CONFIGURATION
+# ===============================================================================
+# 
+# 🎉 Thank you for using AntiAFKPlus Enterprise!
+# 
+# For support and updates:
+# 📖 Documentation: https://github.com/koyere/AntiAFKPlus
+# 💬 Discord: https://discord.gg/xKUjn3EJzR
+# 🐛 Issues: https://github.com/koyere/AntiAFKPlus/issues
+# 
+# ===============================================================================
