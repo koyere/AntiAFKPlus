@@ -1,4 +1,29 @@
-# 🚀 AntiAFKPlus v2.0.0-ENTERPRISE
+# 🚀 AntiAFKPlus v2.1.0
+
+**Bug Fix Release - Essential Improvements**
+
+---
+
+## 🐛 Bug Fixes
+
+### ⚙️ **Configuration Management**
+- **Fixed `/afkplus reload` command** - Now properly reloads all configuration files and settings
+- **Improved config validation** - Better error handling and validation during reload
+- **Fixed startup messages** - Removed color codes from console logs for cleaner output
+
+### 🎣 **AFK Detection Improvements**  
+- **Added fishing detection** - Fishing machines and AFK fishing farms are now properly detected
+- **Enhanced activity tracking** - PlayerFishEvent now triggers anti-AFK systems
+- **Better automation detection** - Catches fish, items, and reel-in actions count as player activity
+
+### 🔧 **Code Quality**
+- **Version consistency** - Updated all version references to 2.1
+- **Cleaner logging** - Console messages no longer show formatting codes
+- **Import optimization** - Better code organization and reduced redundancy
+
+---
+
+# 🚀 AntiAFKPlus v2.0
 
 **Major Release - Complete Plugin Redesign**
 

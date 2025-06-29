@@ -42,8 +42,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.0";
-    private static final String API_VERSION = "2.0";
+    private static final String PLUGIN_VERSION = "2.1";
+    private static final String API_VERSION = "2.1";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
@@ -94,7 +94,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             }
 
             fullyInitialized = true;
-            getLogger().info("§aAntiAFKPlus v" + PLUGIN_VERSION + " enabled successfully!");
+            getLogger().info("AntiAFKPlus v" + PLUGIN_VERSION + " enabled successfully!");
 
         } catch (Exception e) {
             getLogger().severe("§cCritical error during initialization!");
