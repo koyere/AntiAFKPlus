@@ -41,9 +41,8 @@ public class AFKPlusCommand implements CommandExecutor, TabCompleter { // Implem
                 return true;
             }
 
-            // Reload configuration files
-            this.configManager.loadConfigValues(); // Corrected method name
-            this.configManager.loadMessages();     // Also reload messages
+            // Reload configuration files using the proper reload method
+            this.configManager.reloadConfiguration();
 
             // Send confirmation message, preferably from messages.yml
             String reloadedMsg = this.configManager.getMessage("config-reloaded", "&aAntiAFKPlus configuration and messages have been reloaded.");

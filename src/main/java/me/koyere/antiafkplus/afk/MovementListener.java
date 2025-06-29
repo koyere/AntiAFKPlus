@@ -7,6 +7,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.event.player.PlayerFishEvent;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -165,6 +166,25 @@ public class MovementListener implements Listener {
             getAfkManager().clearPlayerData(event.getPlayer());
         }
         clearPlayerData(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerFish(PlayerFishEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("antiafkplus.bypass")) return;
+        
+        // Only count successful fishing attempts (catching fish, items, or pulling in rod)
+        PlayerFishEvent.State state = event.getState();
+        if (state == PlayerFishEvent.State.CAUGHT_FISH || 
+            state == PlayerFishEvent.State.CAUGHT_ENTITY || 
+            state == PlayerFishEvent.State.IN_GROUND ||
+            state == PlayerFishEvent.State.REEL_IN) {
+            
+            if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
+                getAfkManager().onPlayerActivity(player);
+            }
+            updateLastMovementTimestamp(player);
+        }
     }
 
     // Enhanced detection methods

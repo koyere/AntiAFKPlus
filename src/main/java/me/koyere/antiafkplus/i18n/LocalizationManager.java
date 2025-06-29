@@ -42,10 +42,7 @@ public class LocalizationManager {
     private final Pattern placeholderPattern = Pattern.compile("\\{([^}]+)\\}");
     
     // Supported languages (built-in)
-    private final Set<String> builtInLanguages = Set.of(
-        "en", "es", "fr", "de", "it", "pt", "ru", "zh", "ja", "ko", 
-        "nl", "pl", "sv", "no", "da", "fi", "tr", "ar", "he", "hi"
-    );
+    private final Set<String> builtInLanguages = Set.of("en");
     
     public LocalizationManager(AntiAFKPlus plugin) {
         this.plugin = plugin;
@@ -55,9 +52,7 @@ public class LocalizationManager {
         setupLanguageDirectory();
         loadLanguages();
         
-        logger.info("🌍 Localization system initialized with " + languages.size() + " languages");
-        logger.info("   Default language: " + defaultLanguage);
-        logger.info("   Available languages: " + String.join(", ", languages.keySet()));
+        // Localization system initialized
     }
     
     /**
@@ -110,18 +105,8 @@ public class LocalizationManager {
      * Setup the language directory and extract built-in language files.
      */
     private void setupLanguageDirectory() {
-        File langDir = new File(plugin.getDataFolder(), "languages");
-        if (!langDir.exists()) {
-            langDir.mkdirs();
-        }
-        
-        // Extract built-in language files
-        for (String langCode : builtInLanguages) {
-            File langFile = new File(langDir, langCode + ".yml");
-            if (!langFile.exists() || developmentMode) {
-                extractLanguageFile(langCode, langFile);
-            }
-        }
+        // Disabled - use traditional messages.yml only
+        // No language directory or multiple language files created
     }
     
     /**
@@ -134,7 +119,7 @@ public class LocalizationManager {
             if (inputStream != null) {
                 Files.copy(inputStream, destination.toPath(), 
                           java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                logger.info("📄 Extracted language file: " + langCode + ".yml");
+                // Language file extracted
             } else {
                 // Create minimal language file if resource doesn't exist
                 createMinimalLanguageFile(langCode, destination);
@@ -162,7 +147,7 @@ public class LocalizationManager {
         
         try {
             config.save(destination);
-            logger.info("📄 Created minimal language file: " + langCode + ".yml");
+            // Minimal language file created
         } catch (IOException e) {
             logger.warning("Failed to create language file for " + langCode + ": " + e.getMessage());
         }
@@ -259,33 +244,22 @@ public class LocalizationManager {
     }
     
     /**
-     * Load all available language files.
+     * Load English language only.
      */
     private void loadLanguages() {
+        // Only load English language
+        defaultLanguage = "en";
+        
+        // Check if English language file exists
         File langDir = new File(plugin.getDataFolder(), "languages");
-        if (!langDir.exists()) {
-            return;
-        }
+        File englishFile = new File(langDir, "en.yml");
         
-        File[] langFiles = langDir.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (langFiles == null) {
-            return;
-        }
-        
-        for (File langFile : langFiles) {
-            String langCode = langFile.getName().replace(".yml", "");
-            loadLanguageFile(langCode, langFile);
-        }
-        
-        // Ensure default language is available
-        if (!languages.containsKey(defaultLanguage)) {
-            logger.warning("Default language '" + defaultLanguage + "' not found! Falling back to English.");
-            defaultLanguage = "en";
-            
-            if (!languages.containsKey("en")) {
-                logger.severe("English language file not found! Creating emergency fallback.");
-                createEmergencyLanguage();
-            }
+        if (langDir.exists() && englishFile.exists()) {
+            loadLanguageFile("en", englishFile);
+        } else {
+            // Create emergency English language if no file exists
+            // Creating emergency English fallback
+            createEmergencyLanguage();
         }
     }
     
@@ -320,7 +294,7 @@ public class LocalizationManager {
             }
             
             languages.put(langCode, langData);
-            logger.info("📄 Loaded language: " + langCode + " (" + langData.getDisplayName() + ")");
+            // Language loaded
             
         } catch (Exception e) {
             logger.warning("Failed to load language file " + langCode + ": " + e.getMessage());
@@ -363,7 +337,7 @@ public class LocalizationManager {
         emergency.addMessage("errors.internal-error", "An internal error occurred.");
         
         languages.put("en", emergency);
-        logger.info("✅ Emergency English language created");
+        // Emergency English language created
     }
     
     // ============= PUBLIC API =============
@@ -607,7 +581,7 @@ public class LocalizationManager {
         loadConfiguration();
         loadLanguages();
         
-        logger.info("🔄 Localization system reloaded with " + languages.size() + " languages");
+        // Localization system reloaded
     }
     
     /**

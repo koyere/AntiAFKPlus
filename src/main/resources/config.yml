@@ -1,9 +1,9 @@
 # ===============================================================================
-#                           AntiAFKPlus Enterprise v2.0
+#                           AntiAFKPlus v2.0
 #                        Configuration File - COMPLETE EDITION
 # ===============================================================================
 # 
-# 🌟 ENTERPRISE FEATURES:
+# 🌟 ADVANCED FEATURES:
 # ✅ Modular architecture with enable/disable controls
 # ✅ Folia/Paper/Spigot/Bukkit auto-detection and compatibility
 # ✅ Bedrock Edition compatibility (Floodgate/Geyser support)
@@ -11,7 +11,7 @@
 # ✅ Zero-lag performance optimization with adaptive intervals
 # ✅ Advanced pattern detection and behavioral analysis
 # ✅ Professional API for third-party integration
-# ✅ Enterprise-grade database support
+# ✅ Professional database support
 # ✅ Visual effects and hologram integration
 # ✅ Zone-based AFK management with WorldGuard
 # ✅ Reward system with economic integration
@@ -23,7 +23,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY - Used for automatic migration)
-version: "2.0.0-ENTERPRISE"
+version: "2.0"
 
 # ===============================================================================
 # 📦 MODULE SYSTEM - Enable/Disable Features
@@ -727,7 +727,7 @@ technical:
 # END OF CONFIGURATION
 # ===============================================================================
 # 
-# 🎉 Thank you for using AntiAFKPlus Enterprise!
+# 🎉 Thank you for using AntiAFKPlus!
 # 
 # For support and updates:
 # 📖 Documentation: https://github.com/koyere/AntiAFKPlus

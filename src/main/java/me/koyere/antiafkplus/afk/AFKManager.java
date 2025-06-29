@@ -135,7 +135,7 @@ public class AFKManager {
                 }
             }
         }.runTaskTimer(plugin, intervalTicks, intervalTicks);
-        plugin.getLogger().info("Enhanced AFK check task started with an interval of " + (intervalTicks / 20) + " seconds.");
+        // AFK check task started silently
     }
 
     private boolean performEnhancedAFKCheck(Player player) {

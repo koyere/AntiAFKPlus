@@ -69,10 +69,7 @@ public class PerformanceOptimizer {
         initializeOptimizations();
         startMonitoring();
         
-        logger.info("⚡ Performance optimizer initialized");
-        logger.info("   Auto-optimization: " + (autoOptimizationEnabled ? "✅ Enabled" : "❌ Disabled"));
-        logger.info("   Max TPS impact: " + maxTpsImpact + "ms/tick");
-        logger.info("   Max memory usage: " + (maxMemoryUsage / 1024 / 1024) + "MB");
+        // Performance optimizer initialized silently
     }
     
     /**
@@ -128,7 +125,7 @@ public class PerformanceOptimizer {
         config.set("performance.player-categorization.low-activity-threshold", 2);
         
         plugin.saveConfig();
-        logger.info("📄 Created default performance configuration");
+        // Default performance configuration created silently
     }
     
     /**
@@ -150,7 +147,7 @@ public class PerformanceOptimizer {
             initializeCaching();
         }
         
-        logger.info("🔧 Performance optimizations initialized");
+        // Performance optimizations initialized silently
     }
     
     /**
@@ -164,7 +161,7 @@ public class PerformanceOptimizer {
             listPool.offer(new ArrayList<>());
         }
         
-        logger.info("💾 Object pools initialized");
+        // Object pools initialized silently
     }
     
     /**
@@ -177,7 +174,7 @@ public class PerformanceOptimizer {
         adaptiveIntervals_map.put("autoclick-detection", 200); // 10 seconds default
         adaptiveIntervals_map.put("cache-cleanup", 1200); // 60 seconds default
         
-        logger.info("📊 Adaptive intervals initialized");
+        // Adaptive intervals initialized silently
     }
     
     /**
@@ -188,7 +185,7 @@ public class PerformanceOptimizer {
         scheduler.runTaskTimerAsync(() -> cleanupCache(), 
             cacheCleanupInterval / 50, cacheCleanupInterval / 50);
         
-        logger.info("🗄️ Caching system initialized");
+        // Caching system initialized silently
     }
     
     /**
@@ -206,7 +203,7 @@ public class PerformanceOptimizer {
             
         }, optimizationInterval / 50, optimizationInterval / 50);
         
-        logger.info("📈 Performance monitoring started");
+        // Performance monitoring started silently
     }
     
     /**
@@ -344,8 +341,6 @@ public class PerformanceOptimizer {
      * Perform memory optimization.
      */
     private void performMemoryOptimization() {
-        logger.info("🧹 Performing memory optimization...");
-        
         // Clear caches
         int cacheSize = cache.size();
         cache.clear();
@@ -356,15 +351,16 @@ public class PerformanceOptimizer {
         // Suggest garbage collection (doesn't force it)
         System.gc();
         
-        logger.info("✅ Memory optimization complete (cleared " + cacheSize + " cache entries)");
+        // Only log if debug logging is enabled
+        if (config().getBoolean("performance.debug-logging", false)) {
+            logger.info("🧹 Memory optimization complete (cleared " + cacheSize + " cache entries)");
+        }
     }
     
     /**
      * Perform CPU optimization.
      */
     private void performCPUOptimization() {
-        logger.info("⚡ Performing CPU optimization...");
-        
         // Increase intervals to reduce processing load
         for (String component : adaptiveIntervals_map.keySet()) {
             int currentInterval = adaptiveIntervals_map.get(component);
@@ -376,7 +372,10 @@ public class PerformanceOptimizer {
             // Skip detailed processing for inactive players
         }
         
-        logger.info("✅ CPU optimization complete");
+        // Only log if debug logging is enabled
+        if (config().getBoolean("performance.debug-logging", false)) {
+            logger.info("⚡ CPU optimization complete");
+        }
     }
     
     /**

@@ -39,9 +39,6 @@ public class PlatformScheduler {
             initializeFoliaSupport();
         }
         
-        logger.info("🔧 Platform detected: " + platformType.getDisplayName());
-        logger.info("   Folia support: " + (supportsFolia ? "✅ Active" : "❌ Not needed"));
-        logger.info("   Async chunks: " + (supportsAsyncChunks ? "✅ Supported" : "❌ Not available"));
     }
     
     /**
@@ -111,7 +108,6 @@ public class PlatformScheduler {
                 .getMethod("getGlobalRegionScheduler")
                 .invoke(Bukkit.getServer());
             
-            logger.info("✅ Folia scheduler support initialized successfully");
             
         } catch (Exception e) {
             logger.warning("❌ Failed to initialize Folia support: " + e.getMessage());

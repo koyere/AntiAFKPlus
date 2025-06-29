@@ -67,7 +67,6 @@ public class ModuleManager {
         registerModuleState("folia-compatibility", plugin.getConfig().getBoolean("modules.folia-compatibility.enabled", true));
         registerModuleState("bedrock-compatibility", plugin.getConfig().getBoolean("modules.bedrock-compatibility.enabled", true));
         
-        logger.info("Registered " + moduleStates.size() + " modules");
     }
     
     /**
@@ -86,15 +85,12 @@ public class ModuleManager {
     public void initializeModules() {
         long startTime = System.currentTimeMillis();
         
-        logger.info("Initializing " + enabledModules.size() + " enabled modules...");
         
         // In a real implementation, this would initialize actual module instances
         for (String moduleName : enabledModules) {
-            logger.info("Module '" + moduleName + "' initialized");
         }
         
         totalInitializationTime = System.currentTimeMillis() - startTime;
-        logger.info("Module initialization completed in " + totalInitializationTime + "ms");
     }
     
     /**
@@ -103,15 +99,12 @@ public class ModuleManager {
     public void shutdown() {
         long startTime = System.currentTimeMillis();
         
-        logger.info("Shutting down modules...");
         
         // In a real implementation, this would shutdown module instances
         for (String moduleName : enabledModules) {
-            logger.info("Module '" + moduleName + "' shutdown");
         }
         
         totalShutdownTime = System.currentTimeMillis() - startTime;
-        logger.info("Module shutdown completed in " + totalShutdownTime + "ms");
     }
     
     /**

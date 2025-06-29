@@ -25,10 +25,12 @@ import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.io.File;
+
 /**
- * AntiAFKPlus Enterprise v2.0 - Main Plugin Class
+ * AntiAFKPlus v2.0 - Main Plugin Class
  * 
- * Professional-grade AFK detection and management system with enterprise features:
+ * Professional-grade AFK detection and management system with advanced features:
  * • Modular architecture with enable/disable controls
  * • Folia/Paper/Spigot/Bukkit multi-platform compatibility
  * • Bedrock Edition support via Floodgate/Geyser
@@ -40,7 +42,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.0.0-ENTERPRISE";
+    private static final String PLUGIN_VERSION = "2.0";
     private static final String API_VERSION = "2.0";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
@@ -79,70 +81,23 @@ public final class AntiAFKPlus extends JavaPlugin {
         instance = this;
 
         try {
-            // Enterprise 6-Phase Initialization System
-            getLogger().info("§6=== AntiAFKPlus Enterprise v" + PLUGIN_VERSION + " ===");
-            getLogger().info("§6Starting enterprise initialization...");
-
-            // Phase 1: Core Infrastructure
-            if (!initializePhase1_CoreInfrastructure()) {
-                getLogger().severe("§cPhase 1 failed! Disabling plugin.");
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-
-            // Phase 2: Platform Detection & Scheduling
-            if (!initializePhase2_PlatformCompatibility()) {
-                getLogger().severe("§cPhase 2 failed! Disabling plugin.");
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-
-            // Phase 3: Configuration & Localization
-            if (!initializePhase3_ConfigurationAndLocalization()) {
-                getLogger().severe("§cPhase 3 failed! Disabling plugin.");
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-
-            // Phase 4: Module System
-            if (!initializePhase4_ModuleSystem()) {
-                getLogger().severe("§cPhase 4 failed! Disabling plugin.");
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-
-            // Phase 5: Integration & API
-            if (!initializePhase5_IntegrationAndAPI()) {
-                getLogger().severe("§cPhase 5 failed! Disabling plugin.");
-                getServer().getPluginManager().disablePlugin(this);
-                return;
-            }
-
-            // Phase 6: Finalization
-            if (!initializePhase6_Finalization()) {
-                getLogger().severe("§cPhase 6 failed! Disabling plugin.");
+            // Initialize all components
+            if (!initializePhase1_CoreInfrastructure() ||
+                !initializePhase2_PlatformCompatibility() ||
+                !initializePhase3_ConfigurationAndLocalization() ||
+                !initializePhase4_ModuleSystem() ||
+                !initializePhase5_IntegrationAndAPI() ||
+                !initializePhase6_Finalization()) {
+                getLogger().severe("§cInitialization failed! Disabling plugin.");
                 getServer().getPluginManager().disablePlugin(this);
                 return;
             }
 
             fullyInitialized = true;
-            long initTime = System.currentTimeMillis() - startupTime;
-
-            getLogger().info("§a=== ENTERPRISE INITIALIZATION COMPLETE ===");
-            getLogger().info("§aAntiAFKPlus Enterprise v" + PLUGIN_VERSION + " loaded successfully!");
-            getLogger().info("§aTotal initialization time: " + initTime + "ms");
-            getLogger().info("§aAll " + moduleManager.getEnabledModuleCount() + " modules initialized");
-            getLogger().info("§aPlatform: " + platformScheduler.getPlatformType().getDisplayName());
-            getLogger().info("§aLanguages: " + localizationManager.getAvailableLanguages().size());
-            if (bedrockCompatibility != null) {
-                getLogger().info("§aBedrock support: Enabled");
-            } else {
-                getLogger().info("§aBedrock support: Disabled");
-            }
-            getLogger().info("§a=== READY FOR PRODUCTION ===");
+            getLogger().info("§aAntiAFKPlus v" + PLUGIN_VERSION + " enabled successfully!");
 
         } catch (Exception e) {
-            getLogger().severe("§cCritical error during enterprise initialization!");
+            getLogger().severe("§cCritical error during initialization!");
             getLogger().severe("§cError: " + e.getMessage());
             e.printStackTrace();
             getServer().getPluginManager().disablePlugin(this);
@@ -151,7 +106,7 @@ public final class AntiAFKPlus extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        getLogger().info("§6=== AntiAFKPlus Enterprise Shutdown ===");
+        getLogger().info("§6=== AntiAFKPlus Shutdown ===");
         getLogger().info("§6Gracefully shutting down all systems...");
 
         try {
@@ -208,7 +163,7 @@ public final class AntiAFKPlus extends JavaPlugin {
 
             // AFKLogger is static, no shutdown needed
 
-            getLogger().info("§aEnterprise shutdown completed successfully.");
+            getLogger().info("§aShutdown completed successfully.");
 
         } catch (Exception e) {
             getLogger().severe("§cError during shutdown: " + e.getMessage());
@@ -216,11 +171,11 @@ public final class AntiAFKPlus extends JavaPlugin {
         } finally {
             // Nullify all references for garbage collection
             nullifyReferences();
-            getLogger().info("§aAntiAFKPlus Enterprise v" + PLUGIN_VERSION + " has been disabled.");
+            getLogger().info("§aAntiAFKPlus v" + PLUGIN_VERSION + " has been disabled.");
         }
     }
 
-    // ============= ENTERPRISE INITIALIZATION PHASES =============
+    // ============= INITIALIZATION PHASES =============
 
     /**
      * Phase 1: Core Infrastructure
@@ -228,16 +183,14 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase1_CoreInfrastructure() {
         try {
-            getLogger().info("§6Phase 1: Initializing core infrastructure...");
-
             // Initialize AFKLogger (placeholder for now)
             this.afkLogger = null;
             
-            // Check for version migration before initialization
-            checkVersionMigration();
-
-            // Ensure default configuration exists
+            // Ensure default configuration exists first
             saveDefaultConfig();
+
+            // Check for version migration after default config is saved
+            checkVersionMigration();
 
             // Initialize configuration manager
             this.configManager = new ConfigManager(this);
@@ -245,11 +198,10 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Set debug mode from config
             this.debugEnabled = getConfig().getBoolean("debug", false);
 
-            getLogger().info("§aPhase 1 complete: Core infrastructure initialized");
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 1 failed: " + e.getMessage());
+            getLogger().severe("§cConfiguration initialization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -261,17 +213,12 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase2_PlatformCompatibility() {
         try {
-            getLogger().info("§6Phase 2: Initializing platform compatibility...");
-
             // Initialize platform scheduler (auto-detects Folia, Paper, Spigot, Bukkit)
             this.platformScheduler = new PlatformScheduler(this);
-
-            getLogger().info("§aPhase 2 complete: Platform compatibility initialized");
-            getLogger().info("§aDetected platform: " + platformScheduler.getPlatformType().getDisplayName());
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 2 failed: " + e.getMessage());
+            getLogger().severe("§cPlatform initialization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -283,17 +230,12 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase3_ConfigurationAndLocalization() {
         try {
-            getLogger().info("§6Phase 3: Initializing configuration and localization...");
-
             // Initialize localization manager
             this.localizationManager = new LocalizationManager(this);
-
-            getLogger().info("§aPhase 3 complete: Configuration and localization initialized");
-            getLogger().info("§aSupported languages: " + localizationManager.getAvailableLanguages().size());
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 3 failed: " + e.getMessage());
+            getLogger().severe("§cLocalization initialization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -305,8 +247,6 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase4_ModuleSystem() {
         try {
-            getLogger().info("§6Phase 4: Initializing module system...");
-
             // Initialize performance optimizer first (needed by modules)
             this.performanceOptimizer = new PerformanceOptimizer(this);
 
@@ -315,13 +255,10 @@ public final class AntiAFKPlus extends JavaPlugin {
 
             // Load and initialize all modules
             moduleManager.initializeModules();
-
-            getLogger().info("§aPhase 4 complete: Module system initialized");
-            getLogger().info("§aLoaded modules: " + moduleManager.getEnabledModuleCount());
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 4 failed: " + e.getMessage());
+            getLogger().severe("§cModule system initialization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -333,8 +270,6 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase5_IntegrationAndAPI() {
         try {
-            getLogger().info("§6Phase 5: Initializing integration and API...");
-
             // Initialize Bedrock compatibility
             if (getConfig().getBoolean("bedrock-compatibility.enabled", true)) {
                 this.bedrockCompatibility = new BedrockCompatibility(this);
@@ -349,14 +284,12 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Initialize PlaceholderAPI integration
             if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
                 new PlaceholderHook(this).register();
-                getLogger().info("§aPlaceholderAPI integration enabled");
             }
 
-            getLogger().info("§aPhase 5 complete: Integration and API initialized");
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 5 failed: " + e.getMessage());
+            getLogger().severe("§cIntegration initialization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -368,26 +301,20 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase6_Finalization() {
         try {
-            getLogger().info("§6Phase 6: Finalizing initialization...");
-
             // Register commands
             registerCommands();
 
             // Initialize bStats metrics
             try {
                 new bStatsManager(this);
-                getLogger().info("§abStats metrics initialized");
             } catch (Exception e) {
                 getLogger().warning("Failed to initialize bStats: " + e.getMessage());
             }
 
-            // Performance monitoring starts automatically in constructor
-
-            getLogger().info("§aPhase 6 complete: Finalization complete");
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPhase 6 failed: " + e.getMessage());
+            getLogger().severe("§cFinalization failed: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
@@ -416,7 +343,7 @@ public final class AntiAFKPlus extends JavaPlugin {
         if (this.configManager.isAutoclickDetectionEnabled()) {
             this.autoClickListenerInstance = new AutoClickListener(this);
             getServer().getPluginManager().registerEvents(this.autoClickListenerInstance, this);
-            getLogger().info("§aAutoClickListener enabled");
+            // AutoClickListener enabled silently
         }
     }
 
@@ -476,25 +403,32 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Fresh installation
             getConfig().set("version", PLUGIN_VERSION);
             saveConfig();
-            getLogger().info("Fresh installation detected. Initializing v" + PLUGIN_VERSION + " configuration.");
             return;
         }
 
         String currentVersion = getConfig().getString("version", "1.0");
-
-        if (isVersionOlderThan(currentVersion, PLUGIN_VERSION)) {
-            migrationRequired = true;
-            getLogger().info("§e=== AntiAFKPlus Migration ===");
-            getLogger().info("§eDetected upgrade from v" + currentVersion + " to v" + PLUGIN_VERSION);
-            getLogger().info("§ePerforming automatic configuration migration...");
-
-            performConfigMigration(currentVersion);
-
+        
+        // Check if config is incomplete (has less than 5 main sections)
+        boolean isIncompleteConfig = getConfig().getKeys(false).size() < 5;
+        
+        if (isVersionOlderThan(currentVersion, PLUGIN_VERSION) || isIncompleteConfig) {
+            // Force complete config regeneration for incomplete configs
+            if (isIncompleteConfig) {
+                getLogger().info("Incomplete configuration detected. Regenerating complete config...");
+                // Delete current config file to force complete regeneration
+                File configFile = new File(getDataFolder(), "config.yml");
+                if (configFile.exists()) {
+                    configFile.delete();
+                }
+                // Reload will now use the complete default config
+                saveDefaultConfig();
+                reloadConfig();
+            } else {
+                performConfigMigration(currentVersion);
+            }
+            
             getConfig().set("version", PLUGIN_VERSION);
             saveConfig();
-
-            getLogger().info("§aMigration completed successfully!");
-            getLogger().info("§a=== Migration Complete ===");
         }
     }
 
@@ -503,29 +437,15 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private void performConfigMigration(String fromVersion) {
         try {
-            if (isVersionOlderThan(fromVersion, "2.0")) {
-                getLogger().info("§eMigrating from v1.x to v2.0...");
-
-                // Add enterprise configuration structure
-                if (!getConfig().contains("modules")) {
-                    getConfig().set("modules.core-detection.enabled", true);
-                    getConfig().set("modules.core-events.enabled", true);
-                    getConfig().set("modules.core-api.enabled", true);
-                    getConfig().set("modules.core-commands.enabled", true);
-                    getLogger().info("§aAdded modular architecture settings.");
-                }
-
-                // Add migration tracking
-                if (!getConfig().contains("migration-info")) {
-                    getConfig().set("migration-info.migrated-from", fromVersion);
-                    getConfig().set("migration-info.migration-date", System.currentTimeMillis());
-                    getLogger().info("§aAdded migration tracking information.");
-                }
-
-                getLogger().info("§av1.x to v2.0 migration completed.");
+            // Simple migration - just add essential module settings if missing
+            if (!getConfig().contains("modules")) {
+                getConfig().set("modules.core-detection.enabled", true);
+                getConfig().set("modules.core-events.enabled", true);
+                getConfig().set("modules.core-api.enabled", true);
+                getConfig().set("modules.core-commands.enabled", true);
             }
         } catch (Exception e) {
-            getLogger().severe("Error during configuration migration: " + e.getMessage());
+            getLogger().warning("Migration error: " + e.getMessage());
         }
     }
 
@@ -534,8 +454,12 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean isVersionOlderThan(String version1, String version2) {
         try {
-            String[] v1Parts = version1.split("\\.");
-            String[] v2Parts = version2.split("\\.");
+            // Clean versions (remove suffixes like -ENTERPRISE)
+            String clean1 = version1.split("-")[0];
+            String clean2 = version2.split("-")[0];
+            
+            String[] v1Parts = clean1.split("\\.");
+            String[] v2Parts = clean2.split("\\.");
 
             int maxLength = Math.max(v1Parts.length, v2Parts.length);
 
@@ -549,12 +473,12 @@ public final class AntiAFKPlus extends JavaPlugin {
 
             return false;
         } catch (NumberFormatException e) {
-            getLogger().warning("Invalid version format detected during migration. Assuming upgrade needed.");
+            // If version parsing fails, assume upgrade needed
             return true;
         }
     }
 
-    // ============= PUBLIC GETTER METHODS (ENTERPRISE API) =============
+    // ============= PUBLIC GETTER METHODS (API) =============
 
     /**
      * Gets the static instance of the plugin.
@@ -640,7 +564,7 @@ public final class AntiAFKPlus extends JavaPlugin {
         return movementListener;
     }
 
-    // ============= ENTERPRISE UTILITY METHODS =============
+    // ============= UTILITY METHODS =============
 
     /**
      * Gets the plugin version.

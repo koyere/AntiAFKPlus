@@ -54,10 +54,7 @@ public class BedrockCompatibility implements Listener {
         // Register event listener
         Bukkit.getPluginManager().registerEvents(this, plugin);
         
-        logger.info("🔧 Bedrock compatibility initialized");
-        logger.info("   Floodgate: " + (floodgateAvailable ? "✅ Available" : "❌ Not found"));
-        logger.info("   Geyser: " + (geyserAvailable ? "✅ Available" : "❌ Not found"));
-        logger.info("   Custom detection: " + (customDetectionEnabled ? "✅ Enabled" : "❌ Disabled"));
+        // Bedrock compatibility initialized silently
     }
     
     /**
@@ -109,7 +106,6 @@ public class BedrockCompatibility implements Listener {
         config.set("bedrock-compatibility.message-adaptations.use-actionbar-sparingly", true);
         
         plugin.saveConfig();
-        logger.info("📄 Created default Bedrock compatibility configuration");
     }
     
     /**
@@ -119,14 +115,12 @@ public class BedrockCompatibility implements Listener {
         // Check for Floodgate
         if (Bukkit.getPluginManager().getPlugin("floodgate") != null) {
             floodgateAvailable = true;
-            logger.info("✅ Floodgate detected - Bedrock player detection enabled");
         }
         
         // Check for Geyser
         if (Bukkit.getPluginManager().getPlugin("Geyser-Spigot") != null ||
             Bukkit.getPluginManager().getPlugin("Geyser-Bukkit") != null) {
             geyserAvailable = true;
-            logger.info("✅ Geyser detected - Enhanced Bedrock support available");
         }
     }
     
@@ -149,7 +143,7 @@ public class BedrockCompatibility implements Listener {
             isFloodgatePlayerMethod = floodgateInstance.getClass().getMethod("isFloodgatePlayer", UUID.class);
             getFloodgatePlayerMethod = floodgateInstance.getClass().getMethod("getPlayer", UUID.class);
             
-            logger.info("✅ Floodgate API integration initialized successfully");
+            // Floodgate API integration initialized
             
         } catch (Exception e) {
             logger.warning("❌ Failed to initialize Floodgate integration: " + e.getMessage());
@@ -377,9 +371,7 @@ public class BedrockCompatibility implements Listener {
         
         bedrockPlayerInfo.put(uuid, info);
         
-        logger.info("📱 Bedrock player detected: " + player.getName() + 
-                   " (Method: " + result.getDetectionMethod() + 
-                   ", Confidence: " + result.getConfidence() + "%)");
+        // Bedrock player registered silently
         
         // Apply Bedrock-specific adaptations
         applyBedrockAdaptations(player, info);
@@ -401,7 +393,7 @@ public class BedrockCompatibility implements Listener {
         // Apply UI adaptations (this would be used by other modules)
         // The actual UI adaptation happens in the modules that create menus
         
-        logger.info("🔧 Applied Bedrock adaptations for " + player.getName());
+        // Bedrock adaptations applied
     }
     
     /**
