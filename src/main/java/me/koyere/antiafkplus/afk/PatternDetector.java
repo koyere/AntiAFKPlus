@@ -261,13 +261,16 @@ public class PatternDetector {
 
         // Take action based on violation count
         if (violations >= MAX_PATTERN_VIOLATIONS) {
-            // Force set player as AFK due to suspicious patterns
-            afkManager.forceSetManualAFKState(player, true);
+            // Schedule synchronous execution for AFK state change
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                // Force set player as AFK due to suspicious patterns
+                afkManager.forceSetManualAFKState(player, true);
+                
+                // Send message to player
+                player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. You have been marked as AFK.");
+            });
 
-            // Send message to player
-            player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. You have been marked as AFK.");
-
-            // Log the action
+            // Log the action (this can stay async)
             AFKLogger.logActivity("Forced AFK due to pattern violations: " + player.getName() +
                     " (" + detectionReason + ")");
 
