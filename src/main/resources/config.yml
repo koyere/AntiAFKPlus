@@ -78,7 +78,7 @@ modules:
     invulnerability-delay: 5000
   
   afk-zones:
-    enabled: false
+    enabled: true
     performance-monitoring: false
     # WorldGuard integration
     require-worldguard: true
@@ -463,7 +463,7 @@ player-protection:
 # ===============================================================================
 
 zone-management:
-  enabled: false
+  enabled: true
   require-worldguard: true
   
   # Default zone settings
@@ -479,7 +479,7 @@ zone-management:
       afk-allowed: false
       timeout-seconds: 60
       kick-action: "TELEPORT"
-      teleport-location: "world,0,64,0"
+      teleport-location: "world_normal_exploration,167,104,206"
     
     afk-pool:
       afk-allowed: true

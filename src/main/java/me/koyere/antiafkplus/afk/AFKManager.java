@@ -7,6 +7,8 @@ import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
 import me.koyere.antiafkplus.events.PlayerAFKWarningEvent;
 import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -361,7 +363,11 @@ public class AFKManager {
                     forceSetManualAFKState(player, true);
                     break;
                 case TELEPORT:
-                    // Could implement teleportation logic
+                    // Teleport player instead of kicking
+                    if (player.isOnline()) {
+                        teleportPlayer(player, kickEvent.getCustomActionData());
+                        AFKLogger.logActivity(player.getName() + " teleported instead of kicked (AFK)");
+                    }
                     break;
                 case GAMEMODE:
                     // Could implement gamemode change
@@ -380,6 +386,77 @@ public class AFKManager {
                     }
                     break;
             }
+        }
+    }
+
+    /**
+     * Safely teleports a player to specified coordinates.
+     * Format: "world,x,y,z" or "world,x,y,z,yaw,pitch"
+     * 
+     * @param player The player to teleport
+     * @param locationString The location string from config (can be null)
+     */
+    private void teleportPlayer(Player player, String locationString) {
+        if (player == null || !player.isOnline()) {
+            AFKLogger.logActivity("Cannot teleport offline player");
+            return;
+        }
+
+        // Use default spawn if no location specified
+        if (locationString == null || locationString.trim().isEmpty()) {
+            Location spawnLocation = player.getWorld().getSpawnLocation();
+            player.teleport(spawnLocation);
+            player.sendMessage("§7[AntiAFK+] §aTeleported to spawn due to AFK.");
+            AFKLogger.logActivity(player.getName() + " teleported to world spawn (AFK)");
+            return;
+        }
+
+        try {
+            String[] parts = locationString.split(",");
+            if (parts.length < 4) {
+                AFKLogger.logActivity("Invalid teleport location format: " + locationString);
+                return;
+            }
+
+            String worldName = parts[0].trim();
+            World world = Bukkit.getWorld(worldName);
+            
+            if (world == null) {
+                AFKLogger.logActivity("World not found: " + worldName + ". Using current world.");
+                world = player.getWorld();
+            }
+
+            double x = Double.parseDouble(parts[1].trim());
+            double y = Double.parseDouble(parts[2].trim());
+            double z = Double.parseDouble(parts[3].trim());
+
+            // Optional yaw and pitch
+            float yaw = 0.0f;
+            float pitch = 0.0f;
+            if (parts.length >= 6) {
+                yaw = Float.parseFloat(parts[4].trim());
+                pitch = Float.parseFloat(parts[5].trim());
+            }
+
+            Location teleportLocation = new Location(world, x, y, z, yaw, pitch);
+            
+            // Safety check: ensure location is safe (not in void, etc.)
+            if (y < 0) {
+                teleportLocation.setY(world.getSpawnLocation().getY());
+            }
+
+            player.teleport(teleportLocation);
+            player.sendMessage("§7[AntiAFK+] §aTeleported due to AFK timeout.");
+            AFKLogger.logActivity(player.getName() + " teleported to " + worldName + " (" + x + "," + y + "," + z + ") due to AFK");
+
+        } catch (NumberFormatException e) {
+            AFKLogger.logActivity("Invalid coordinates in teleport location: " + locationString);
+            // Fallback to spawn
+            Location spawnLocation = player.getWorld().getSpawnLocation();
+            player.teleport(spawnLocation);
+            player.sendMessage("§7[AntiAFK+] §aTeleported to spawn due to AFK.");
+        } catch (Exception e) {
+            AFKLogger.logActivity("Error teleporting player " + player.getName() + ": " + e.getMessage());
         }
     }
 
