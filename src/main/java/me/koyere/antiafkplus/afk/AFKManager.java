@@ -347,6 +347,20 @@ public class AFKManager {
                 plugin.getConfigManager().getMessageKicked()
         );
 
+        // Check if zone management is enabled and configure teleportation
+        if (plugin.getConfig().getBoolean("zone-management.enabled", false)) {
+            // Check if player is in spawn zone (or any configured zone)
+            String zoneName = determinePlayerZone(player);
+            if (zoneName != null && plugin.getConfig().contains("zone-management.zones." + zoneName)) {
+                String action = plugin.getConfig().getString("zone-management.zones." + zoneName + ".kick-action", "kick");
+                if ("TELEPORT".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TELEPORT);
+                    String teleportLocation = plugin.getConfig().getString("zone-management.zones." + zoneName + ".teleport-location", "");
+                    kickEvent.setCustomActionData(teleportLocation);
+                }
+            }
+        }
+
         Bukkit.getPluginManager().callEvent(kickEvent);
 
         if (!kickEvent.isCancelled()) {
@@ -684,6 +698,19 @@ public class AFKManager {
         }
 
         plugin.getLogger().info("Enhanced AFKManager v2.0 shutdown complete.");
+    }
+
+    /**
+     * Determines which AFK zone the player is currently in.
+     * For now, assumes all players are in the "spawn" zone.
+     * In a full implementation, this would check player coordinates against zone boundaries.
+     */
+    private String determinePlayerZone(Player player) {
+        // Simple implementation: check if spawn zone is configured
+        if (plugin.getConfig().contains("zone-management.zones.spawn")) {
+            return "spawn";
+        }
+        return null;
     }
 
     // Inner class for enhanced activity tracking
