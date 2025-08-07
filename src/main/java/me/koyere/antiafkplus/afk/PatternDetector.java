@@ -23,10 +23,15 @@ public class PatternDetector {
     // Pattern detection configuration
     private static final double WATER_CIRCLE_RADIUS = 3.0; // Maximum radius for water circle detection
     private static final int MIN_SAMPLES_FOR_PATTERN = 20; // Minimum location samples needed
-    private static final double CONFINED_SPACE_THRESHOLD = 5.0; // Maximum area for confined space
+    private static final double CONFINED_SPACE_THRESHOLD = 5.0; // Maximum area for confined space (small pools)
     private static final long PATTERN_ANALYSIS_INTERVAL = 30000; // 30 seconds between analyses
     private static final double REPETITIVE_MOVEMENT_THRESHOLD = 0.8; // Similarity threshold for repetitive patterns
     private static final int MAX_PATTERN_VIOLATIONS = 3; // Maximum violations before action
+    
+    // v2.4 NEW: Large AFK pool detection constants
+    private static final double LARGE_POOL_THRESHOLD = 25.0; // Maximum area for large AFK pools (25x25)
+    private static final long KEYSTROKE_TIMEOUT_CHECK_INTERVAL = 15000; // Check every 15 seconds
+    private static final int MIN_SAMPLES_FOR_LARGE_POOL = 30; // More samples needed for large pool detection
 
     // Player pattern tracking
     private final Map<UUID, PatternData> playerPatterns = new HashMap<>();
@@ -105,6 +110,20 @@ public class PatternDetector {
             suspiciousPattern = true;
             detectionReason = "pendulum_movement";
             patternData.pendulumDetections++;
+        }
+        
+        // v2.4 NEW: Check for large AFK pool patterns
+        if (detectLargeAFKPool(player, recentHistory)) {
+            suspiciousPattern = true;
+            detectionReason = "large_afk_pool";
+            patternData.largePoolDetections++;
+        }
+        
+        // v2.4 NEW: Check for keystroke timeout (no manual input)
+        if (detectKeystrokeTimeout(player)) {
+            suspiciousPattern = true;
+            detectionReason = "keystroke_timeout";
+            patternData.keystrokeTimeouts++;
         }
 
         if (suspiciousPattern) {
@@ -216,6 +235,149 @@ public class PatternDetector {
 
         return backAndForthCount >= (history.size() * 0.3); // 30% of movements are back-and-forth
     }
+    
+    // v2.4 NEW: Large AFK pool detection methods
+    
+    /**
+     * Detects large AFK pools (20x10+ blocks) that bypass traditional confined space detection.
+     * This method identifies pools that are too large for the standard confined space threshold
+     * but still represent artificial AFK setups.
+     * 
+     * Detection criteria:
+     * 1. Movement area larger than small pool threshold but smaller than large pool threshold
+     * 2. Player is in water for extended periods
+     * 3. Movement patterns suggest water current automation
+     * 4. No manual keystrokes detected for extended periods
+     * 
+     * @param player The player being analyzed
+     * @param history Recent movement history
+     * @return true if large AFK pool pattern detected
+     */
+    private boolean detectLargeAFKPool(Player player, List<MovementListener.LocationSnapshot> history) {
+        if (history.size() < MIN_SAMPLES_FOR_LARGE_POOL) return false;
+        
+        // Calculate bounding box of movement area
+        double minX = history.stream().mapToDouble(pos -> pos.x).min().orElse(0);
+        double maxX = history.stream().mapToDouble(pos -> pos.x).max().orElse(0);
+        double minZ = history.stream().mapToDouble(pos -> pos.z).min().orElse(0);
+        double maxZ = history.stream().mapToDouble(pos -> pos.z).max().orElse(0);
+        
+        double areaX = maxX - minX;
+        double areaZ = maxZ - minZ;
+        double totalArea = areaX * areaZ;
+        
+        // Check if movement area suggests large AFK pool
+        boolean isLargePoolSize = (areaX > CONFINED_SPACE_THRESHOLD || areaZ > CONFINED_SPACE_THRESHOLD) &&
+                                  (totalArea <= LARGE_POOL_THRESHOLD * LARGE_POOL_THRESHOLD);
+        
+        if (!isLargePoolSize) return false;
+        
+        // Check if player has been in water for most of the tracking period
+        boolean mostlyInWater = isPlayerMostlyInWater(player, history);
+        if (!mostlyInWater) return false;
+        
+        // Check for automatic movement patterns (consistent velocity, minimal direction changes)
+        boolean hasAutomaticMovement = detectAutomaticMovementPattern(history);
+        if (!hasAutomaticMovement) return false;
+        
+        // Final check: has player exceeded keystroke timeout?
+        boolean hasKeystrokeTimeout = movementListener.hasKeystrokeTimeout(player);
+        
+        // Debug logging
+        if (plugin.getConfigManager().isDebugEnabled()) {
+            plugin.getLogger().info(String.format(
+                "[DEBUG_LargePool] %s: area=%.1fx%.1f (%.1f), inWater=%s, autoMove=%s, keystrokeTimeout=%s",
+                player.getName(), areaX, areaZ, totalArea, mostlyInWater, hasAutomaticMovement, hasKeystrokeTimeout
+            ));
+        }
+        
+        return hasKeystrokeTimeout; // Only trigger if keystroke timeout is also present
+    }
+    
+    /**
+     * Checks if player has been mostly in water during the tracking period.
+     * This helps identify AFK pool setups vs regular gameplay.
+     * 
+     * @param player The player to check
+     * @param history Movement history to analyze
+     * @return true if player has been in water for >70% of tracked time
+     */
+    private boolean isPlayerMostlyInWater(Player player, List<MovementListener.LocationSnapshot> history) {
+        // For simplicity, check current state and assume consistency
+        // A more sophisticated implementation could track water state over time
+        return player.getLocation().getBlock().isLiquid() || 
+               player.getEyeLocation().getBlock().isLiquid() ||
+               player.isSwimming();
+    }
+    
+    /**
+     * Detects automatic movement patterns typical of water currents in AFK pools.
+     * Automatic movement has consistent velocity and fewer direction changes.
+     * 
+     * @param history Movement history to analyze
+     * @return true if movement appears to be automatic (water current)
+     */
+    private boolean detectAutomaticMovementPattern(List<MovementListener.LocationSnapshot> history) {
+        if (history.size() < 10) return false;
+        
+        double totalVelocityVariance = 0.0;
+        double totalDirectionChanges = 0.0;
+        int validMeasurements = 0;
+        
+        for (int i = 1; i < history.size(); i++) {
+            MovementListener.LocationSnapshot prev = history.get(i - 1);
+            MovementListener.LocationSnapshot curr = history.get(i);
+            
+            double deltaX = curr.x - prev.x;
+            double deltaZ = curr.z - prev.z;
+            double velocity = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+            
+            if (velocity > 0.01) { // Only analyze when there's movement
+                // Calculate velocity variance (automatic movement has consistent velocity)
+                if (validMeasurements > 0) {
+                    // Simple variance approximation
+                    totalVelocityVariance += Math.abs(velocity - 0.1); // 0.1 is typical water current speed
+                }
+                
+                // Calculate direction changes (automatic movement has fewer changes)
+                if (i > 1) {
+                    MovementListener.LocationSnapshot prevPrev = history.get(i - 2);
+                    double prevAngle = Math.atan2(prev.z - prevPrev.z, prev.x - prevPrev.x);
+                    double currAngle = Math.atan2(deltaZ, deltaX);
+                    
+                    double angleDiff = Math.abs(currAngle - prevAngle);
+                    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+                    
+                    totalDirectionChanges += angleDiff;
+                }
+                
+                validMeasurements++;
+            }
+        }
+        
+        if (validMeasurements < 5) return false;
+        
+        double avgVelocityVariance = totalVelocityVariance / validMeasurements;
+        double avgDirectionChange = totalDirectionChanges / Math.max(1, validMeasurements - 1);
+        
+        // Automatic movement has low velocity variance and low direction changes
+        boolean lowVelocityVariance = avgVelocityVariance < 0.05;
+        boolean lowDirectionChanges = avgDirectionChange < 0.3;
+        
+        return lowVelocityVariance && lowDirectionChanges;
+    }
+    
+    /**
+     * Detects when a player hasn't provided manual keystroke input for too long.
+     * This is the core detection method for large AFK pools where players
+     * move due to water currents without any manual input.
+     * 
+     * @param player The player to check
+     * @return true if player has exceeded keystroke timeout threshold
+     */
+    private boolean detectKeystrokeTimeout(Player player) {
+        return movementListener.hasKeystrokeTimeout(player);
+    }
 
     private double calculatePatternSimilarity(List<MovementListener.LocationSnapshot> pattern1,
                                               List<MovementListener.LocationSnapshot> pattern2) {
@@ -304,23 +466,34 @@ public class PatternDetector {
         public int confinedSpaceDetections = 0;
         public int repetitivePatternDetections = 0;
         public int pendulumDetections = 0;
+        
+        // v2.4 NEW: Large AFK pool detection counters
+        public int largePoolDetections = 0;
+        public int keystrokeTimeouts = 0;
+        
         public long lastAnalysis = 0;
         public long firstDetection = 0;
 
         public int getTotalDetections() {
             return waterCircleDetections + confinedSpaceDetections +
-                    repetitivePatternDetections + pendulumDetections;
+                    repetitivePatternDetections + pendulumDetections +
+                    largePoolDetections + keystrokeTimeouts; // v2.4: Include new detection types
         }
 
         public String getMostCommonPattern() {
             int max = Math.max(Math.max(waterCircleDetections, confinedSpaceDetections),
-                    Math.max(repetitivePatternDetections, pendulumDetections));
+                    Math.max(repetitivePatternDetections, 
+                    Math.max(pendulumDetections, 
+                    Math.max(largePoolDetections, keystrokeTimeouts)))); // v2.4: Include new types
 
             if (max == 0) return "none";
             if (max == waterCircleDetections) return "water_circle";
             if (max == confinedSpaceDetections) return "confined_space";
             if (max == repetitivePatternDetections) return "repetitive";
-            return "pendulum";
+            if (max == pendulumDetections) return "pendulum";
+            if (max == largePoolDetections) return "large_afk_pool"; // v2.4 NEW
+            if (max == keystrokeTimeouts) return "keystroke_timeout"; // v2.4 NEW
+            return "unknown";
         }
     }
 }

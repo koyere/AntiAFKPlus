@@ -10,6 +10,7 @@ import org.bukkit.event.player.*;
 import org.bukkit.event.player.PlayerFishEvent;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -25,6 +26,10 @@ public class MovementListener implements Listener {
     private final Map<UUID, Long> lastSwimStateChange = new HashMap<>();
     private final Map<UUID, Long> lastFlyStateChange = new HashMap<>();
     private final Map<UUID, Long> lastCommandTime = new HashMap<>();
+    
+    // v2.4 NEW: Keystroke detection for large AFK pools
+    private final Map<UUID, Long> lastKeystrokeTime = new HashMap<>();
+    private final Map<UUID, Boolean> lastMovementWasAutomatic = new HashMap<>();
 
     // Configuration thresholds for micro-movement detection
     private static final double MICRO_MOVEMENT_THRESHOLD = 0.1; // Minimum movement to count as activity
@@ -32,6 +37,10 @@ public class MovementListener implements Listener {
     private static final long JUMP_SPAM_THRESHOLD = 1000; // Milliseconds between jumps to detect spam
     private static final int MAX_JUMPS_PER_PERIOD = 10; // Maximum jumps in spam detection period
     private static final long JUMP_RESET_PERIOD = 30000; // Reset jump counter every 30 seconds
+    
+    // v2.4 NEW: Keystroke timeout detection constants
+    private static final long DEFAULT_KEYSTROKE_TIMEOUT_MS = 180000; // 3 minutes without keystrokes
+    private static final double AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD = 0.15; // Water current movement speed
 
     // Constructor does not need AFKManager if it gets it via AntiAFKPlus.getInstance()
     public MovementListener() {}
@@ -68,6 +77,9 @@ public class MovementListener implements Listener {
         boolean jumpActivity = detectJumpActivity(player, event);
         boolean swimStateChange = detectSwimStateChange(player);
         boolean flyStateChange = detectFlyStateChange(player);
+        
+        // v2.4 NEW: Detect if movement is from manual keystroke or automatic (water current)
+        boolean isManualKeystroke = detectManualKeystroke(player, event);
 
         // Update location data for pattern detection
         updatePlayerLocationData(player, event);
@@ -78,6 +90,11 @@ public class MovementListener implements Listener {
                 getAfkManager().onPlayerActivity(player);
             }
             updateLastMovementTimestamp(player);
+            
+            // v2.4 NEW: Only update keystroke time if movement appears to be manual
+            if (isManualKeystroke) {
+                updateLastKeystrokeTime(player);
+            }
 
             // Update specific activity timestamps
             if (headRotation) {
@@ -271,6 +288,151 @@ public class MovementListener implements Listener {
 
         return false;
     }
+    
+    // v2.4 NEW: Manual keystroke detection method
+    
+    /**
+     * Determines if a player's movement appears to be from manual keystroke input
+     * rather than automatic movement (like water currents in large AFK pools).
+     * 
+     * This uses velocity analysis and movement patterns to distinguish between:
+     * - Manual WASD key movement (irregular, directional changes)
+     * - Automatic water current movement (consistent velocity, predictable direction)
+     * 
+     * @param player The player being analyzed
+     * @param event The movement event
+     * @return true if movement appears to be from manual input
+     */
+    private boolean detectManualKeystroke(Player player, PlayerMoveEvent event) {
+        if (event.getTo() == null || event.getFrom() == null) {
+            return false;
+        }
+        
+        UUID uuid = player.getUniqueId();
+        
+        // Calculate movement vector and velocity
+        double deltaX = event.getTo().getX() - event.getFrom().getX();
+        double deltaZ = event.getTo().getZ() - event.getFrom().getZ();
+        double horizontalVelocity = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
+        
+        // Check if player is in water (automatic movement is more likely)
+        boolean inWater = player.getLocation().getBlock().isLiquid() || 
+                         player.getEyeLocation().getBlock().isLiquid();
+        
+        // Get previous movement data for pattern analysis
+        PlayerLocationData locationData = lastLocationData.get(uuid);
+        if (locationData == null || locationData.locationHistory.isEmpty()) {
+            // No previous data, assume manual for now
+            lastMovementWasAutomatic.put(uuid, false);
+            return true;
+        }
+        
+        // Analyze movement characteristics
+        boolean appearsManual = false;
+        
+        // 1. Velocity-based detection
+        if (inWater) {
+            // In water: manual movement typically has higher velocity or direction changes
+            if (horizontalVelocity > AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD) {
+                appearsManual = true; // Fast movement in water suggests swimming
+            }
+        } else {
+            // On land: any significant movement is likely manual
+            if (horizontalVelocity > MICRO_MOVEMENT_THRESHOLD) {
+                appearsManual = true;
+            }
+        }
+        
+        // 2. Direction change analysis (manual movement has more direction changes)
+        if (locationData.locationHistory.size() >= 3) {
+            List<LocationSnapshot> recent = locationData.locationHistory.subList(
+                    Math.max(0, locationData.locationHistory.size() - 3),
+                    locationData.locationHistory.size()
+            );
+            
+            double directionChanges = calculateDirectionChanges(recent);
+            if (directionChanges > 0.5) { // Threshold for direction variability
+                appearsManual = true;
+            }
+        }
+        
+        // 3. Check for head rotation (strong indicator of manual control)
+        if (detectHeadRotation(player, event)) {
+            appearsManual = true;
+        }
+        
+        // 4. Context-based adjustments
+        Boolean wasAutomatic = lastMovementWasAutomatic.get(uuid);
+        if (wasAutomatic != null && wasAutomatic && !appearsManual) {
+            // If previous movement was automatic and current shows no manual signs,
+            // likely still automatic (water current)
+            appearsManual = false;
+        }
+        
+        // Store result for next analysis
+        lastMovementWasAutomatic.put(uuid, !appearsManual);
+        
+        // Debug logging if enabled
+        AntiAFKPlus plugin = AntiAFKPlus.getInstance();
+        if (plugin != null && plugin.getConfigManager().isDebugEnabled()) {
+            if (horizontalVelocity > 0.05) { // Only log if there's significant movement
+                plugin.getLogger().info(String.format(
+                    "[DEBUG_Keystroke] %s: velocity=%.3f, inWater=%s, manual=%s",
+                    player.getName(), horizontalVelocity, inWater, appearsManual
+                ));
+            }
+        }
+        
+        return appearsManual;
+    }
+    
+    /**
+     * Calculates direction change variance in recent movement history.
+     * Higher values indicate more erratic/manual movement patterns.
+     * 
+     * @param recentHistory List of recent location snapshots
+     * @return Direction change metric (0.0 to 1.0+)
+     */
+    private double calculateDirectionChanges(List<LocationSnapshot> recentHistory) {
+        if (recentHistory.size() < 3) return 0.0;
+        
+        double totalAngleChange = 0.0;
+        double previousAngle = Double.NaN;
+        
+        for (int i = 1; i < recentHistory.size(); i++) {
+            LocationSnapshot prev = recentHistory.get(i - 1);
+            LocationSnapshot curr = recentHistory.get(i);
+            
+            double deltaX = curr.x - prev.x;
+            double deltaZ = curr.z - prev.z;
+            
+            if (Math.abs(deltaX) > 0.01 || Math.abs(deltaZ) > 0.01) { // Only if there's movement
+                double currentAngle = Math.atan2(deltaZ, deltaX);
+                
+                if (!Double.isNaN(previousAngle)) {
+                    double angleDiff = Math.abs(currentAngle - previousAngle);
+                    if (angleDiff > Math.PI) {
+                        angleDiff = 2 * Math.PI - angleDiff; // Normalize
+                    }
+                    totalAngleChange += angleDiff;
+                }
+                
+                previousAngle = currentAngle;
+            }
+        }
+        
+        return totalAngleChange / Math.PI; // Normalize to roughly 0-1 range
+    }
+    
+    /**
+     * Updates the last keystroke timestamp for a player.
+     * Called when we detect what appears to be manual input.
+     * 
+     * @param player The player who provided manual input
+     */
+    private void updateLastKeystrokeTime(Player player) {
+        lastKeystrokeTime.put(player.getUniqueId(), System.currentTimeMillis());
+    }
 
     private boolean detectFlyStateChange(Player player) {
         UUID uuid = player.getUniqueId();
@@ -331,6 +493,9 @@ public class MovementListener implements Listener {
         data.lastUpdate = System.currentTimeMillis();
 
         lastLocationData.put(uuid, data);
+        
+        // v2.4 NEW: Initialize keystroke tracking for new players
+        updateLastKeystrokeTime(player);
     }
 
     private void clearPlayerData(Player player) {
@@ -343,6 +508,10 @@ public class MovementListener implements Listener {
         lastSwimStateChange.remove(uuid);
         lastFlyStateChange.remove(uuid);
         lastCommandTime.remove(uuid);
+        
+        // v2.4 NEW: Clear keystroke tracking data
+        lastKeystrokeTime.remove(uuid);
+        lastMovementWasAutomatic.remove(uuid);
     }
 
     private void updateLastMovementTimestamp(Player player) {
@@ -369,6 +538,57 @@ public class MovementListener implements Listener {
 
     public PlayerLocationData getPlayerLocationData(Player player) {
         return lastLocationData.get(player.getUniqueId());
+    }
+    
+    // v2.4 NEW: Keystroke detection methods
+    
+    /**
+     * Gets the timestamp of the last manual keystroke detected for a player.
+     * This is used to detect players who are only moving due to water currents
+     * without any manual input (large AFK pools).
+     * 
+     * @param player The player to check
+     * @return Last keystroke timestamp, or 0 if never detected
+     */
+    public long getLastKeystrokeTime(Player player) {
+        return lastKeystrokeTime.getOrDefault(player.getUniqueId(), 0L);
+    }
+    
+    /**
+     * Gets the keystroke timeout threshold from configuration.
+     * Falls back to default if not configured.
+     * 
+     * @return Keystroke timeout in milliseconds
+     */
+    public long getKeystrokeTimeoutMs() {
+        AntiAFKPlus plugin = AntiAFKPlus.getInstance();
+        if (plugin != null && plugin.getConfigManager() != null) {
+            return plugin.getConfig().getLong("pattern-detection-settings.keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT_MS);
+        }
+        return DEFAULT_KEYSTROKE_TIMEOUT_MS;
+    }
+    
+    /**
+     * Checks if a player has exceeded the keystroke timeout threshold.
+     * Used by PatternDetector for large AFK pool detection.
+     * 
+     * @param player The player to check
+     * @return true if player hasn't provided manual input for too long
+     */
+    public boolean hasKeystrokeTimeout(Player player) {
+        long lastKeystroke = getLastKeystrokeTime(player);
+        if (lastKeystroke == 0L) {
+            // If we've never detected a keystroke, use join time as baseline
+            PlayerLocationData data = lastLocationData.get(player.getUniqueId());
+            if (data != null && data.lastUpdate > 0) {
+                lastKeystroke = data.lastUpdate;
+            } else {
+                return false; // Not enough data
+            }
+        }
+        
+        long timeSinceKeystroke = System.currentTimeMillis() - lastKeystroke;
+        return timeSinceKeystroke > getKeystrokeTimeoutMs();
     }
 
     // Inner classes for data structures

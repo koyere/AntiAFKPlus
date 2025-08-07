@@ -58,6 +58,11 @@ modules:
     pattern-analysis-interval-ms: 30000
     repetitive-movement-threshold: 0.8
     max-pattern-violations: 3
+    # v2.4 NEW: Large AFK pool detection (addresses 20x10+ block pools)
+    large-pool-detection: true
+    large-pool-threshold: 25.0
+    keystroke-timeout-detection: true
+    keystroke-timeout-ms: 180000
   
   autoclick-detection:
     enabled: true
@@ -343,6 +348,12 @@ pattern-detection-settings:
   pattern-analysis-interval-ms: 30000
   repetitive-movement-threshold: 0.8
   max-pattern-violations: 3
+  
+  # v2.4 NEW: Large AFK pool detection settings
+  large-pool-threshold: 25.0 # Maximum area for large AFK pools (25x25 blocks)
+  min-samples-for-large-pool: 30 # More samples needed for reliable detection
+  keystroke-timeout-ms: 180000 # 3 minutes without manual keystrokes
+  automatic-movement-velocity-threshold: 0.15 # Threshold for water current detection
 
 # Movement detection settings
 movement-detection-settings:
