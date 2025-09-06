@@ -40,6 +40,9 @@ public class AFKManager {
     private final Map<UUID, String> afkDetectionReasons = new HashMap<>(); // Why player was marked AFK
     private final Map<UUID, PlayerActivityData> playerActivityData = new HashMap<>(); // Enhanced activity tracking
     private final Map<UUID, Integer> warningCounts = new HashMap<>(); // Count of warnings sent per player
+    
+    // Professional fix: Prevent repeated kick/teleport actions
+    private final Set<UUID> playersAlreadyActioned = new HashSet<>(); // Players who already received final AFK action
 
     private BukkitTask afkCheckTask;
 
@@ -114,8 +117,16 @@ public class AFKManager {
                             afkDetectionReasons.put(uuid, detectionReason);
                         }
 
-                        long timeSinceDetection = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
-                        kickPlayerAfterAFK(player, timeSinceDetection);
+                        // Professional fix: Only execute final action once per AFK session
+                        if (!playersAlreadyActioned.contains(uuid)) {
+                            long timeSinceDetection = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
+                            
+                            // Only take action if player has been AFK long enough (prevents immediate actions)
+                            if (timeSinceDetection >= 1000) { // At least 1 second delay for safety
+                                kickPlayerAfterAFK(player, timeSinceDetection);
+                                playersAlreadyActioned.add(uuid); // Mark as actioned to prevent repeated calls
+                            }
+                        }
                     } else {
                         checkWarnings(player);
                         if (afkPlayers.contains(uuid)) {
@@ -132,6 +143,9 @@ public class AFKManager {
                             afkDetectionTimes.remove(uuid);
                             afkDetectionReasons.remove(uuid);
                             warningCounts.remove(uuid);
+                            
+                            // Professional fix: Clear actioned state when player becomes active again
+                            playersAlreadyActioned.remove(uuid);
                         }
                     }
                 }
@@ -624,6 +638,9 @@ public class AFKManager {
 
             unmarkAsAFKInternal(player);
 
+            // Professional fix: Clear actioned state when manually unmarked
+            playersAlreadyActioned.remove(uuid);
+
             if (wasManuallyAfk) {
                 AFKLogger.logAFKExit(player, apiReason, -1);
             } else if (wasGenerallyAfk) {
@@ -640,6 +657,9 @@ public class AFKManager {
             forceSetManualAFKState(player, false);
         }
 
+        // Professional fix: Clear actioned state when player shows activity
+        playersAlreadyActioned.remove(uuid);
+
         // Update activity tracking
         updatePlayerActivityData(player);
     }
@@ -654,6 +674,9 @@ public class AFKManager {
         afkDetectionReasons.remove(uuid);
         playerActivityData.remove(uuid);
         warningCounts.remove(uuid);
+        
+        // Professional fix: Clear actioned state when player data is cleared
+        playersAlreadyActioned.remove(uuid);
 
         // Clear pattern detector data
         patternDetector.clearPlayerData(player);

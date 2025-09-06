@@ -28,7 +28,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 
 /**
- * AntiAFKPlus v2.0 - Main Plugin Class
+ * AntiAFKPlus v2.4.1 - Main Plugin Class
  * 
  * Professional-grade AFK detection and management system with advanced features:
  * • Modular architecture with enable/disable controls
@@ -42,8 +42,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.4";
-    private static final String API_VERSION = "2.4";
+    private static final String PLUGIN_VERSION = "2.4.1";
+    private static final String API_VERSION = "2.4.1";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
