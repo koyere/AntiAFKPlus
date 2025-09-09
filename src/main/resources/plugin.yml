@@ -1,6 +1,6 @@
-# Plugin definition for AntiAFKPlus v2.4.1
+# Plugin definition for AntiAFKPlus v2.4.2
 name: AntiAFKPlus
-version: 2.4.1
+version: 2.4.2
 main: me.koyere.antiafkplus.AntiAFKPlus
 api-version: '1.16'
 description: Advanced AFK management plugin v2.0 with enhanced pattern detection, behavioral analysis, and anti-exploit systems.
@@ -110,7 +110,7 @@ permissions:
     default: true
 
 # Plugin metadata for v2.0
-folia-supported: false
+folia-supported: true
 provides: [AntiAFK, AFKDetection, PatternDetection]
 authors: [Koyere]
 contributors: []
