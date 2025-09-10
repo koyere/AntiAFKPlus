@@ -11,8 +11,8 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -37,7 +37,7 @@ public class AutoClickListener implements Listener {
     private long minIdleTimeToTriggerMs;
     private String autoclickAction;
 
-    private BukkitTask cleanupTask;
+    private PlatformScheduler.ScheduledTask cleanupTask;
 
     public AutoClickListener(AntiAFKPlus plugin) {
         this.plugin = plugin;
@@ -45,17 +45,16 @@ public class AutoClickListener implements Listener {
         this.configManager = plugin.getConfigManager();
         loadConfigurableSettings();
 
-        this.cleanupTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                long veryOldCutoff = System.currentTimeMillis() - (3600_000 * 6); // 6 hours
-                clickHistory.entrySet().removeIf(entry -> {
-                    List<Long> timestamps = entry.getValue();
-                    if (timestamps.isEmpty()) return true;
-                    return timestamps.get(timestamps.size() - 1) < veryOldCutoff && timestamps.size() < (configManager.getAutoclickClickThreshold() * 2); // Use getter
-                });
-            }
-        }.runTaskTimerAsynchronously(plugin, 20L * 60 * 30, 20L * 60 * 30);
+        Runnable cleanupBody = () -> {
+            long veryOldCutoff = System.currentTimeMillis() - (3600_000 * 6); // 6 hours
+            clickHistory.entrySet().removeIf(entry -> {
+                List<Long> timestamps = entry.getValue();
+                if (timestamps.isEmpty()) return true;
+                return timestamps.get(timestamps.size() - 1) < veryOldCutoff && timestamps.size() < (configManager.getAutoclickClickThreshold() * 2);
+            });
+        };
+        this.cleanupTask = plugin.getPlatformScheduler()
+                .runTaskTimerAsync(cleanupBody, 20L * 60 * 30, 20L * 60 * 30);
     }
 
     private void loadConfigurableSettings() {
@@ -103,15 +102,12 @@ public class AutoClickListener implements Listener {
                     history.clear();
                     break;
                 case "KICK":
-                    final String kickReason = configManager.getMessageAutoclickKickReason(); // Use new getter
-                    new BukkitRunnable() {
-                        @Override
-                        public void run() {
-                            if (player.isOnline()) {
-                                player.kickPlayer(kickReason);
-                            }
+                    final String kickReason = configManager.getMessageAutoclickKickReason();
+                    plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
+                        if (player.isOnline()) {
+                            player.kickPlayer(kickReason);
                         }
-                    }.runTask(plugin);
+                    });
                     history.clear();
                     break;
                 case "LOG":

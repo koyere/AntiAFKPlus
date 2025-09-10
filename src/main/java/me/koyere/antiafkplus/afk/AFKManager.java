@@ -10,8 +10,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -44,7 +43,7 @@ public class AFKManager {
     // Professional fix: Prevent repeated kick/teleport actions
     private final Set<UUID> playersAlreadyActioned = new HashSet<>(); // Players who already received final AFK action
 
-    private BukkitTask afkCheckTask;
+    private PlatformScheduler.ScheduledTask afkCheckTask;
 
     public AFKManager(AntiAFKPlus plugin, MovementListener movementListener) {
         this.plugin = plugin;
@@ -64,9 +63,7 @@ public class AFKManager {
             return;
         }
 
-        this.afkCheckTask = new BukkitRunnable() {
-            @Override
-            public void run() {
+        Runnable taskBody = () -> {
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
 
@@ -149,8 +146,10 @@ public class AFKManager {
                         }
                     }
                 }
-            }
-        }.runTaskTimer(plugin, intervalTicks, intervalTicks);
+            };
+
+        this.afkCheckTask = plugin.getPlatformScheduler()
+                .runTaskTimer(taskBody, intervalTicks, intervalTicks);
         // AFK check task started silently
     }
 

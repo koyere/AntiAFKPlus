@@ -436,6 +436,14 @@ public class PlatformScheduler {
         }
         // For Folia native tasks, individual task cancellation would need to be implemented
     }
+
+    /**
+     * Gracefully shutdown scheduler resources (Folia fallback executor, etc.).
+     * Should be called from plugin onDisable().
+     */
+    public void shutdown() {
+        cancelAllTasks();
+    }
     
     // ============= INNER CLASSES =============
     

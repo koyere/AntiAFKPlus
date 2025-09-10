@@ -147,7 +147,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Shutdown platform scheduler
             if (platformScheduler != null) {
                 getLogger().info("§6Shutting down platform scheduler...");
-                // platformScheduler.shutdown(); // Method may not exist yet
+                platformScheduler.shutdown();
             }
 
             // Shutdown legacy components

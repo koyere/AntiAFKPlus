@@ -14,8 +14,8 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,8 +43,8 @@ public class AntiAFKActivityDetector implements Listener {
     private static final int SUSPICIOUS_ACTIVITY_THRESHOLD = 30; // Actions per window
     private static final long PATTERN_RESET_INTERVAL = 300000; // 5 minutes
 
-    private BukkitTask cleanupTask;
-    private BukkitTask patternAnalysisTask;
+    private PlatformScheduler.ScheduledTask cleanupTask;
+    private PlatformScheduler.ScheduledTask patternAnalysisTask;
 
     public AntiAFKActivityDetector(AntiAFKPlus plugin) {
         this.plugin = plugin;
@@ -56,42 +56,35 @@ public class AntiAFKActivityDetector implements Listener {
     }
 
     private void startCleanupTask() {
-        this.cleanupTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                long currentTime = System.currentTimeMillis();
-                long cutoff = currentTime - PATTERN_RESET_INTERVAL;
+        Runnable cleanupBody = () -> {
+            long currentTime = System.currentTimeMillis();
+            long cutoff = currentTime - PATTERN_RESET_INTERVAL;
 
-                // Clean old activity records
-                lastBlockBreakTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
-                lastFishingActivityTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
-                lastInteractionTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+            lastBlockBreakTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+            lastFishingActivityTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+            lastInteractionTime.entrySet().removeIf(entry -> entry.getValue() < cutoff);
 
-                // Reset activity patterns periodically
-                playerActivityPatterns.entrySet().removeIf(entry -> {
-                    ActivityPattern pattern = entry.getValue();
-                    if (currentTime - pattern.lastReset > PATTERN_RESET_INTERVAL) {
-                        pattern.resetCounters();
-                        pattern.lastReset = currentTime;
-                    }
-                    return pattern.isEmpty();
-                });
-
-                if (configManager.isDebugEnabled()) {
-                    plugin.getLogger().info("[DEBUG_Cleanup] Activity detector cleanup completed. " +
-                            "Tracking " + playerActivityPatterns.size() + " players.");
+            playerActivityPatterns.entrySet().removeIf(entry -> {
+                ActivityPattern pattern = entry.getValue();
+                if (currentTime - pattern.lastReset > PATTERN_RESET_INTERVAL) {
+                    pattern.resetCounters();
+                    pattern.lastReset = currentTime;
                 }
+                return pattern.isEmpty();
+            });
+
+            if (configManager.isDebugEnabled()) {
+                plugin.getLogger().info("[DEBUG_Cleanup] Activity detector cleanup completed. " +
+                        "Tracking " + playerActivityPatterns.size() + " players.");
             }
-        }.runTaskTimerAsynchronously(plugin, 6000L, 6000L); // Every 5 minutes
+        };
+        this.cleanupTask = plugin.getPlatformScheduler().runTaskTimerAsync(cleanupBody, 6000L, 6000L);
     }
 
     private void startPatternAnalysisTask() {
-        this.patternAnalysisTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                analyzeActivityPatterns();
-            }
-        }.runTaskTimerAsynchronously(plugin, 20L * 30, 20L * 15); // Start after 30s, run every 15s
+        Runnable analysisBody = this::analyzeActivityPatterns;
+        this.patternAnalysisTask = plugin.getPlatformScheduler()
+                .runTaskTimerAsync(analysisBody, 20L * 30, 20L * 15);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -294,11 +287,9 @@ public class AntiAFKActivityDetector implements Listener {
                 additionalData
         );
 
-        // Call event synchronously on main thread
-        Bukkit.getScheduler().runTask(plugin, () -> {
+        // Call event in the player's region/entity thread (Folia-safe)
+        plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
             Bukkit.getPluginManager().callEvent(event);
-
-            // Handle the event result if not cancelled
             if (!event.isCancelled()) {
                 handlePatternDetectionResult(player, event);
             }
@@ -321,7 +312,7 @@ public class AntiAFKActivityDetector implements Listener {
                 String kickMessage = event.getCustomMessage() != null ?
                         event.getCustomMessage() :
                         "§cKicked for suspicious AFK activity: " + event.getPatternType().getDisplayName();
-                Bukkit.getScheduler().runTask(plugin, () -> {
+                plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
                     if (player.isOnline()) {
                         player.kickPlayer(kickMessage);
                     }

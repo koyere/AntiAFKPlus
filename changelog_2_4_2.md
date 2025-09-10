@@ -1,9 +1,9 @@
 # AntiAFKPlus v2.4.2 Changelog
 
-## 🎯 Folia 1.21.8 Complete Compatibility Fix
+## 🎯 Complete Folia 1.21.8 Compatibility
 
 ### Problem Resolved
-**Issue**: Plugin failed to initialize on Folia 1.21.8 servers with `UnsupportedOperationException` and `runAtFixedRate` method signature errors.
+**Issue**: The plugin failed to initialize on Folia 1.21.8 with `UnsupportedOperationException` (due to BukkitScheduler usage) and reflection errors in `runAtFixedRate`.
 
 **Root Cause**: PlatformScheduler was using incorrect method signatures for Folia's `GlobalRegionScheduler` API, causing reflection failures during task scheduling.
 
@@ -15,46 +15,60 @@ Module system initialization failed: Cannot schedule repeating task on Folia wit
 
 ### Technical Solution Implemented
 
-#### 🔧 **Fixed Method Signatures**
-- **Before**: `runAtFixedRate(plugin.getClass(), Consumer.class, long.class, long.class, TimeUnit.class)`
-- **After**: `runAtFixedRate(Plugin.class, Consumer.class, long.class, long.class)`
-- **Key Fix**: Removed `TimeUnit.class` parameter (doesn't exist in Folia API)
-- **Ticks Handling**: Use ticks directly instead of millisecond conversion
+#### 🔧 Correct Folia Method Signatures
+- Before: `runAtFixedRate(plugin.getClass(), Consumer.class, long.class, long.class, TimeUnit.class)`
+- After: `runAtFixedRate(Plugin.class, Consumer.class, long.class, long.class)`
+- Key: no `TimeUnit` parameter and timing in ticks directly (no ms conversion)
 
-#### 🛡️ **Enhanced Fallback System**
-- **Safety Net**: Fallback executor now always initialized before reflection attempts
-- **Error Resilience**: Graceful degradation when native Folia API fails
-- **Thread Management**: Dedicated daemon thread pool for Folia fallback operations
+#### 🛡️ Stronger Fallback
+- Always create a `ScheduledExecutorService` fallback before reflection
+- Graceful degradation if native Folia API fails
+- Dedicated daemon thread pool for fallback operations
 
-#### ⚡ **Additional API Corrections**
-- Fixed `runDelayed` and `run` method signatures for single-execution tasks
+#### ⚡ Additional API Fixes
+- Adjusted `runDelayed` and `run` signatures for single-execution tasks
 - Corrected `RegionScheduler` and `EntityScheduler` parameter types
-- Updated Consumer parameter to use proper `Consumer<ScheduledTask>` type
+- Consistent use of `Consumer<ScheduledTask>`
 
-### What's Fixed
-- ✅ **Complete Folia 1.21.8 compatibility** - Plugin initializes and runs perfectly
-- ✅ **No startup crashes** - Eliminated all `UnsupportedOperationException` errors
-- ✅ **PerformanceOptimizer working** - Cache cleanup and monitoring tasks now function
-- ✅ **All AFK features operational** - Detection, commands, and configuration work normally
-- ✅ **Zero impact on other servers** - Paper, Spigot, Bukkit, Purpur remain unchanged
+#### 🔁 Task Migration to PlatformScheduler (Folia-safe)
+- Replaced `BukkitScheduler/BukkitRunnable` with `PlatformScheduler` where applicable:
+  - `AFKManager`: periodic AFK check loop → `runTaskTimer(...)`
+  - `PatternDetector`: periodic analysis → `runTaskTimerAsync(...)`
+  - `AntiAFKActivityDetector`: cleanup and analysis → `runTaskTimerAsync(...)`; kicks/events via `runTaskForEntity(...)`
+  - `MovementListener` (async chat): sync with `runTaskForEntity(player, ...)`
+  - `AutoClickListener`: cleanup → `runTaskTimerAsync(...)`; kick via `runTaskForEntity(...)`
 
-### Platform Compatibility Matrix
-| Server Type | Status | Notes |
-|-------------|---------|-------|
-| Paper/Spigot/Bukkit | ✅ Perfect | No changes, existing functionality preserved |
-| Purpur | ✅ Perfect | Compatible through Paper base |
-| Folia 1.21.8+ | ✅ Perfect | **NEW**: Complete native support with proper API usage |
+#### 🧹 Clean Plugin Shutdown
+- Added `PlatformScheduler.shutdown()` and call it in `onDisable()` to close the fallback executor and avoid locked JARs on Windows
+
+### What’s Fixed
+- ✅ Full Folia 1.21.8 compatibility: initializes and runs correctly
+- ✅ No `UnsupportedOperationException`: removed BukkitScheduler usage in Folia context
+- ✅ Timers and tasks migrated to `PlatformScheduler`: pattern analysis, detectors and checks operational
+- ✅ Commands and AFK detection working
+- ✅ Zero impact on other servers: Paper, Spigot, Bukkit, Purpur unchanged
+
+### Compatibility
+- Paper/Spigot/Bukkit: ✅ unchanged, functionality preserved
+- Purpur: ✅ compatible via Paper base
+- Folia 1.21.8+: ✅ complete native support with correct API usage
 
 ### Technical Details
 **Files Modified**:
-- `PlatformScheduler.java`: Corrected all Folia scheduler method signatures
-- `plugin.yml`: Maintained `folia-supported: true` declaration
+- `platform/PlatformScheduler.java`: Folia signatures, stronger fallback and `shutdown()`
+- `AntiAFKPlus.java`: call `platformScheduler.shutdown()` in `onDisable()`
+- `afk/AFKManager.java`: timer → `PlatformScheduler.runTaskTimer(...)`
+- `afk/PatternDetector.java`: timer → `runTaskTimerAsync(...)`; actions → `runTaskForEntity(...)`
+- `afk/AntiAFKActivityDetector.java`: timers → `runTaskTimerAsync(...)`; events/kick → `runTaskForEntity(...)`
+- `afk/MovementListener.java`: async chat → `runTaskForEntity(...)`
+- `listener/AutoClickListener.java`: cleanup → `runTaskTimerAsync(...)`; kick → `runTaskForEntity(...)`
+- `plugin.yml`: keep `folia-supported: true`
 
 **API Compliance**:
-- Native Folia `GlobalRegionScheduler` integration
+- Native `GlobalRegionScheduler` integration via reflection
 - Proper `Consumer<ScheduledTask>` parameter usage
-- Correct tick-based timing (no TimeUnit conversion)
-- Robust fallback to Java `ScheduledExecutorService`
+- Tick-based timing (no `TimeUnit` conversions)
+- Robust fallback with `ScheduledExecutorService`
 
 ---
 
@@ -65,15 +79,18 @@ Module system initialization failed: Cannot schedule repeating task on Folia wit
 
 ### Upgrade Instructions
 1. Download AntiAFKPlus v2.4.2
-2. Replace the old JAR file in your `/plugins` folder
-3. Restart your server
-4. **No configuration changes required**
-5. Verify startup logs show "✅ Folia support initialized successfully" on Folia servers
+2. Replace the old JAR in `/plugins`
+3. Restart the server
+4. No configuration changes required
+5. On Folia, verify the log: “✅ Folia support initialized successfully”
 
 ### Testing Validation
-- ✅ **Folia 1.21.8**: Complete initialization without errors
-- ✅ **Paper/Spigot**: Existing functionality preserved 
-- ✅ **Performance**: All caching and optimization tasks operational
-- ✅ **AFK Detection**: Full feature set working across all platforms
+- ✅ Folia 1.21.8: initializes without errors (real user log)
+- ✅ Paper/Spigot: functionality preserved
+- ✅ Performance: timers operational without exceptions
+- ✅ AFK Detection: full feature set working across platforms
+
+### Future Notes (optional)
+- Potential refactor: per-player AFK check executed per entity/region to align 100% with Folia threading model.
 
 **Professional-grade Folia compatibility achieved with zero regression on existing platforms!**

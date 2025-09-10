@@ -118,7 +118,7 @@ public class MovementListener implements Listener {
         AntiAFKPlus plugin = AntiAFKPlus.getInstance();
         if (plugin == null || !plugin.isEnabled()) return;
 
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
+        plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
             if (player.hasPermission("antiafkplus.bypass")) return;
             if (plugin.getAfkManager() != null) {
                 plugin.getAfkManager().onPlayerActivity(player);

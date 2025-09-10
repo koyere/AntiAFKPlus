@@ -5,8 +5,7 @@ import me.koyere.antiafkplus.AntiAFKPlus;
 import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 
 import java.util.*;
 
@@ -37,7 +36,7 @@ public class PatternDetector {
     private final Map<UUID, PatternData> playerPatterns = new HashMap<>();
     private final Map<UUID, Integer> patternViolations = new HashMap<>();
 
-    private BukkitTask analysisTask;
+    private PlatformScheduler.ScheduledTask analysisTask;
 
     public PatternDetector(AntiAFKPlus plugin, MovementListener movementListener, AFKManager afkManager) {
         this.plugin = plugin;
@@ -47,12 +46,9 @@ public class PatternDetector {
     }
 
     private void startPatternAnalysis() {
-        this.analysisTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                analyzeAllPlayerPatterns();
-            }
-        }.runTaskTimerAsynchronously(plugin, 20L * 30, 20L * 10); // Start after 30s, run every 10s
+        Runnable analysisBody = this::analyzeAllPlayerPatterns;
+        this.analysisTask = plugin.getPlatformScheduler()
+                .runTaskTimerAsync(analysisBody, 20L * 30, 20L * 10);
     }
 
     private void analyzeAllPlayerPatterns() {
@@ -424,11 +420,8 @@ public class PatternDetector {
         // Take action based on violation count
         if (violations >= MAX_PATTERN_VIOLATIONS) {
             // Schedule synchronous execution for AFK state change
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                // Force set player as AFK due to suspicious patterns
+            plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
                 afkManager.forceSetManualAFKState(player, true);
-                
-                // Send message to player
                 player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. You have been marked as AFK.");
             });
 
