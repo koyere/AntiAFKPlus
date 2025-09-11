@@ -1,14 +1,14 @@
-# Plugin definition for AntiAFKPlus v2.4.2
+# Plugin definition for AntiAFKPlus v2.5
 name: AntiAFKPlus
-version: 2.4.2
+version: 2.5
 main: me.koyere.antiafkplus.AntiAFKPlus
 api-version: '1.16'
-description: Advanced AFK management plugin v2.0 with enhanced pattern detection, behavioral analysis, and anti-exploit systems.
+description: Advanced AFK management plugin v2.5 with enhanced pattern detection, behavioral analysis, and anti-exploit systems.
 author: Koyere
 website: https://github.com/koyere/AntiAFKPlus
 
 # Soft dependency: PlaceholderAPI for enhanced placeholder support
-softdepend: [PlaceholderAPI]
+softdepend: [PlaceholderAPI, WorldGuard]
 
 # Enhanced v2.0 features in description
 load: POSTWORLD
@@ -24,6 +24,15 @@ commands:
     description: "Enhanced AFK command with advanced detection and subcommands."
     usage: "/<command> [list|status [player]|stats|patterns]"
     aliases: [away]
+  afkback:
+    description: "Return from AFK zone to your previous location"
+    usage: "/afkback"
+    permission: antiafkplus.credit.return
+    aliases: [afkreturn, returnfromafk]
+  afkcredits:
+    description: "Check your AFK credit balance"
+    usage: "/afkcredits [reload]"
+    permission: antiafkplus.credit.check
 
 permissions:
   # Wildcard permission for all AntiAFKPlus v2.0 features
@@ -108,6 +117,32 @@ permissions:
   antiafkplus.detection.behavioral:
     description: "Enables behavioral analysis tracking for this player."
     default: true
+
+  # --- Credit System (v2.5) permissions (declared here for forward compatibility) ---
+  antiafkplus.credit.earn:
+    description: "Allows earning AFK credits"
+    default: true
+  antiafkplus.credit.use:
+    description: "Allows using AFK credits to delay AFK action"
+    default: true
+  antiafkplus.credit.return:
+    description: "Allows using AFK return commands"
+    default: true
+  antiafkplus.credit.check:
+    description: "Allows checking credit balance"
+    default: true
+  antiafkplus.credit.ratio.vip:
+    description: "VIP credit earning ratio"
+    default: false
+  antiafkplus.credit.ratio.premium:
+    description: "Premium credit earning ratio"
+    default: false
+  antiafkplus.credit.ratio.admin:
+    description: "Admin credit earning ratio"
+    default: op
+  antiafkplus.credit.admin:
+    description: "Full credit system administration"
+    default: op
 
 # Plugin metadata for v2.0
 folia-supported: true

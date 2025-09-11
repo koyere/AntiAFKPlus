@@ -238,5 +238,57 @@ messages:
 
   # Player protection system (Phase 2.0D)
   protection-invulnerable: "&a[AntiAFK] You are now invulnerable while AFK."
+
+  # --- Credit System (v2.5, Fase 1) ---
+  credit-system:
+    earned: "&a+ &f{minutes}m &7AFK credits earned! &8(&f{total}m &7total)"
+    consuming-start: "&eUsing AFK credits to delay action..."
+    consumed: "&c- &f{minutes}m &7AFK credits used &8(&f{remaining}m &7left)"
+    low-warning: "&e⚠ &7Low AFK credits: &f{remaining}m &7remaining"
+    exhausted: "&c❌ &7AFK credits exhausted. You will be moved."
+    zone-teleport: "&7[AntiAFK+] &aTeleported to AFK zone."
+    errors:
+      system-disabled: "&7[AntiAFK+] &cCredit system is disabled."
+      invalid-location: "&7[AntiAFK+] &cInvalid AFK zone location configured."
+    return:
+      success: "&7[AntiAFK+] &aReturned to your previous location!"
+      not-in-zone: "&7[AntiAFK+] &cYou must be in the AFK zone to use this command."
+      no-saved-location: "&7[AntiAFK+] &cNo saved location found."
+      cooldown: "&7[AntiAFK+] &cPlease wait &f{seconds}s &cbefore using this command again."
+      too-far: "&7[AntiAFK+] &cYou are too far from the AFK zone to return."
+      unsafe-location: "&7[AntiAFK+] &cYour previous location is no longer safe. Teleported to spawn."
+    decay-warning: "&e⚠ &7Your AFK credits will expire in &f{days} &7days"
+    decayed: "&c❌ &7Your AFK credits have expired"
+
+    # Status
+    status:
+      balance: "&7AFK Credits: &f{minutes}m &8(&f{hours}h {remaining_minutes}m&8)"
+      ratio: "&7Credit Ratio: &f{active}m &7active = &f{credit}m &7AFK credit"
+      max-credits: "&7Maximum Credits: &f{max}m"
+
+    # History (SQL backend only)
+    history:
+      unavailable: "&7[AntiAFK+] &eHistory is only available with SQL backend enabled."
+      header: "&6=== AFK Credit History: &f{player} &6(Last {count}) ==="
+      entry: "&7- &f{time} &8| &e{type} &8| &7{delta}m &8| &7bal: &f{balance}m &8| &7{note}"
+      empty: "&7No credit transactions found."
+
+    # Admin command feedback
+    admin:
+      gave: "&aGave &f{minutes}m &ato &f{player}"
+      took: "&eTook &f{minutes}m &efrom &f{player}"
+      set: "&aSet &f{player} &abalance to &f{minutes}m"
+      reset: "&aCredits reset for &f{player}"
+
+    # Usage and validation
+    usage:
+      history: "&cUsage: /afkcredits history <player> [limit]"
+      modify: "&cUsage: /afkcredits <give|take|set> <player> <minutes>"
+      minutes-number: "&cMinutes must be a number"
+
+    # Zone protection messages (optional)
+    protection:
+      pvp-prevented: "&7[AntiAFK+] &eAFK zone: PVP is disabled here."
+      damage-prevented: "&7[AntiAFK+] &eAFK zone: damage prevented."
   protection-vulnerable: "&c[AntiAFK] You are no longer invulnerable."
   protection-movement-blocked: "&e[AntiAFK] Movement blocked while AFK."

@@ -580,4 +580,92 @@ public interface AntiAFKPlusAPI {
      * @return Plugin information
      */
     PluginInfo getPluginInfo();
+
+    // ============= CREDIT SYSTEM (v2.5) =============
+
+    /**
+     * Get player's AFK credit balance in minutes.
+     */
+    long getCreditBalance(org.bukkit.entity.Player player);
+
+    /**
+     * Check if player has at least the requested credit minutes.
+     */
+    boolean hasCredits(org.bukkit.entity.Player player, long minutes);
+
+    /**
+     * Add credit minutes to player (capped by max-credits).
+     */
+    boolean addCredits(org.bukkit.entity.Player player, long minutes);
+
+    /**
+     * Consume credit minutes if available.
+     */
+    boolean consumeCredits(org.bukkit.entity.Player player, long minutes);
+
+    /**
+     * Set player's credit balance (capped by max-credits).
+     */
+    boolean setCreditBalance(org.bukkit.entity.Player player, long minutes);
+
+    /**
+     * Get configured credit earning ratio string for player (e.g. "5:1").
+     */
+    String getCreditRatio(org.bukkit.entity.Player player);
+
+    /**
+     * Get player max-credits according to permissions.
+     */
+    long getMaxCredits(org.bukkit.entity.Player player);
+
+    /**
+     * Whether player is flagged as in AFK zone (credit system flow).
+     */
+    boolean isInAFKZone(org.bukkit.entity.Player player);
+
+    /**
+     * Resolve AFK zone location that would be used for teleportation.
+     */
+    org.bukkit.Location getAFKZoneLocation(org.bukkit.entity.Player player);
+
+    /**
+     * Get player's original location stored at the moment credit consumption started.
+     */
+    org.bukkit.Location getOriginalLocation(org.bukkit.entity.Player player);
+
+    /**
+     * Attempt to return player from AFK zone to original location.
+     */
+    boolean returnFromAFKZone(org.bukkit.entity.Player player);
+
+    /**
+     * Get recent credit transactions for a player (most recent first).
+     * Returns empty list if history is not available (file backend).
+     * @param player player
+     * @param limit max number of records (1-50 suggested)
+     */
+    java.util.List<me.koyere.antiafkplus.api.data.CreditTransaction> getCreditHistory(org.bukkit.entity.Player player, int limit);
+
+    /**
+     * Convenience overload with default limit of 10.
+     */
+    default java.util.List<me.koyere.antiafkplus.api.data.CreditTransaction> getCreditHistory(org.bukkit.entity.Player player) {
+        return getCreditHistory(player, 10);
+    }
+
+    /**
+     * Get the expiration instant for player's credits, if decay is enabled and applicable.
+     * Returns null if decay is disabled or not enough data is available.
+     */
+    java.time.Instant getCreditExpiration(org.bukkit.entity.Player player);
+
+    /**
+     * Register a listener for credit earned events.
+     */
+    me.koyere.antiafkplus.api.events.EventRegistration registerCreditEarnedListener(java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditEarnedEvent> listener);
+
+    /**
+     * Register a listener for credit consumed events.
+     */
+    me.koyere.antiafkplus.api.events.EventRegistration registerCreditConsumedListener(java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditConsumedEvent> listener);
 }

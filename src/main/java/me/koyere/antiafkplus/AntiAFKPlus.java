@@ -21,6 +21,9 @@ import me.koyere.antiafkplus.i18n.LocalizationManager;
 import me.koyere.antiafkplus.compatibility.BedrockCompatibility;
 import me.koyere.antiafkplus.performance.PerformanceOptimizer;
 import me.koyere.antiafkplus.utils.AFKLogger;
+import me.koyere.antiafkplus.credit.CreditManager;
+import me.koyere.antiafkplus.credit.CreditListener;
+import me.koyere.antiafkplus.integrations.WorldGuardIntegration;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -42,8 +45,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.4.2";
-    private static final String API_VERSION = "2.4.2";
+    private static final String PLUGIN_VERSION = "2.5";
+    private static final String API_VERSION = "2.5";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
@@ -60,6 +63,8 @@ public final class AntiAFKPlus extends JavaPlugin {
     private BedrockCompatibility bedrockCompatibility;
     private PerformanceOptimizer performanceOptimizer;
     private AFKLogger afkLogger;
+    private CreditManager creditManager;
+    private WorldGuardIntegration worldGuardIntegration;
 
     // Command Handlers
     private AFKCommand afkCommandHandler;
@@ -142,6 +147,12 @@ public final class AntiAFKPlus extends JavaPlugin {
             if (localizationManager != null) {
                 getLogger().info("§6Shutting down localization system...");
                 // localizationManager.shutdown(); // Method may not exist yet
+            }
+
+            // Shutdown credit system
+            if (creditManager != null) {
+                getLogger().info("§6Shutting down credit system...");
+                creditManager.shutdown();
             }
 
             // Shutdown platform scheduler
@@ -275,6 +286,13 @@ public final class AntiAFKPlus extends JavaPlugin {
                 this.bedrockCompatibility = new BedrockCompatibility(this);
             }
 
+            // Initialize WorldGuard integration (reflection-based)
+            if (getConfig().getBoolean("modules.worldguard-integration.enabled", false) ||
+                getConfig().getBoolean("zone-management.require-worldguard", false) ||
+                getConfig().getBoolean("integrations.worldguard.enabled", false)) {
+                this.worldGuardIntegration = new WorldGuardIntegration(this);
+            }
+
             // Initialize legacy components for backward compatibility
             initializeLegacyComponents();
 
@@ -284,6 +302,16 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Initialize PlaceholderAPI integration
             if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
                 new PlaceholderHook(this).register();
+            }
+
+            // Initialize Credit System (v2.5 core - Phase 1)
+            if (getConfig().getBoolean("modules.credit-system.enabled", false) &&
+                getConfig().getBoolean("credit-system.enabled", false)) {
+                this.creditManager = new me.koyere.antiafkplus.credit.CreditManager(this);
+                getServer().getPluginManager().registerEvents(new me.koyere.antiafkplus.credit.CreditListener(this, this.creditManager), this);
+                // Protección básica de zona AFK (opcional vía config)
+                getServer().getPluginManager().registerEvents(new me.koyere.antiafkplus.credit.AFKZoneProtectionListener(this, this.creditManager), this);
+                getLogger().info("§aCredit System initialized (Phase 1)");
             }
 
             return true;
@@ -368,6 +396,16 @@ public final class AntiAFKPlus extends JavaPlugin {
         } else {
             getLogger().severe("Failed to register 'afkplus' command! Check plugin.yml.");
         }
+
+        // Register /afkback command (credit system)
+        if (getCommand("afkback") != null) {
+            getCommand("afkback").setExecutor(new me.koyere.antiafkplus.command.AFKBackCommand(this));
+        }
+
+        // Register /afkcredits command (credit system)
+        if (getCommand("afkcredits") != null) {
+            getCommand("afkcredits").setExecutor(new me.koyere.antiafkplus.command.AFKCreditsCommand(this));
+        }
     }
 
     /**
@@ -381,6 +419,7 @@ public final class AntiAFKPlus extends JavaPlugin {
         this.bedrockCompatibility = null;
         this.performanceOptimizer = null;
         this.afkLogger = null;
+        this.worldGuardIntegration = null;
 
         // Legacy components
         this.api = null;
@@ -391,6 +430,7 @@ public final class AntiAFKPlus extends JavaPlugin {
         this.afkPlusCommandHandler = null;
         this.autoClickListenerInstance = null;
         this.antiAFKActivityDetectorInstance = null;
+        this.creditManager = null;
     }
 
     // ============= VERSION MIGRATION SYSTEM =============
@@ -563,6 +603,16 @@ public final class AntiAFKPlus extends JavaPlugin {
     public MovementListener getMovementListener() {
         return movementListener;
     }
+
+    /**
+     * Gets the CreditManager (may be null if credit module is disabled).
+     */
+    public me.koyere.antiafkplus.credit.CreditManager getCreditManager() {
+        return creditManager;
+    }
+
+    /** WorldGuard integration helper (may be null). */
+    public WorldGuardIntegration getWorldGuardIntegration() { return worldGuardIntegration; }
 
     // ============= UTILITY METHODS =============
 

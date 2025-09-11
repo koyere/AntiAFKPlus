@@ -1,5 +1,5 @@
 # ===============================================================================
-#                           AntiAFKPlus v2.0
+#                           AntiAFKPlus v2.5
 #                        Configuration File - COMPLETE EDITION
 # ===============================================================================
 # 
@@ -23,7 +23,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY - Used for automatic migration)
-version: "2.0"
+version: "2.5"
 
 # ===============================================================================
 # 📦 MODULE SYSTEM - Enable/Disable Features
@@ -149,6 +149,11 @@ modules:
   
   bedrock-compatibility:
     enabled: true
+    performance-monitoring: false
+
+  # Credit system module (v2.5) — forward-declared for compatibility
+  credit-system:
+    enabled: false
     performance-monitoring: false
   
   # Performance logging for all modules
@@ -376,6 +381,77 @@ activity-scoring-weights:
   item-use: 1.2
   combat: 2.0
   inventory: 1.3
+
+# ===============================================================================
+# 💰 AFK CREDIT SYSTEM (v2.5 - module disabled by default)
+# ===============================================================================
+
+credit-system:
+  enabled: false
+
+  # Credit earning ratios (active_minutes:credit_minutes)
+  credit-ratios:
+    default: "5:1"
+    vip: "4:1"
+    premium: "3:1"
+    admin: "2:1"
+
+  # Credit limits (in minutes)
+  max-credits:
+    default: 120
+    vip: 180
+    premium: 240
+    admin: 480
+
+  # Earning requirements
+  earning-requirements:
+    minimum-session-minutes: 5
+    activity-threshold: 0.3
+
+  # Default AFK zone (if not using zone-management)
+  afk-zone:
+    enabled: true
+    world: "world"
+    location: "0,100,0"
+    # Optional protection settings while in AFK zone (credit-system)
+    protection:
+      prevent-damage: false
+      prevent-pvp: false
+      prevent-mob-spawning: false
+
+  # Basic notifications
+  notifications:
+    credit-earned: true
+    credit-consumed: true
+    credit-exhausted: true
+    low-credits-warning: true
+    low-credits-threshold: 15
+
+  # Return command configuration
+  return-command:
+    enabled: true
+    cooldown-seconds: 10
+    auto-return:
+      on-activity: false
+      activity-delay-seconds: 30
+    max-distance-from-zone: 50
+    validate-original-location: true
+
+  # Credit expiration (decay)
+  credit-decay:
+    enabled: false
+    expire-after-days: 7
+    warning-days: 2
+    cleanup-interval-hours: 24
+
+  # Simple file-based persistence for credit balances
+  database:
+    enabled: false
+    save-interval-minutes: 5
+
+  # Integrations
+  integration:
+    reward-system-bonus: true
 
 # ===============================================================================
 # 📊 EVENT SYSTEM

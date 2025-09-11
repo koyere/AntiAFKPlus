@@ -66,6 +66,9 @@ public class ModuleManager {
         // Platform compatibility modules
         registerModuleState("folia-compatibility", plugin.getConfig().getBoolean("modules.folia-compatibility.enabled", true));
         registerModuleState("bedrock-compatibility", plugin.getConfig().getBoolean("modules.bedrock-compatibility.enabled", true));
+
+        // Credit system (v2.5)
+        registerModuleState("credit-system", plugin.getConfig().getBoolean("modules.credit-system.enabled", false));
         
     }
     

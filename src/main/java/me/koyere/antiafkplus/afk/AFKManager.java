@@ -728,10 +728,14 @@ public class AFKManager {
      * In a full implementation, this would check player coordinates against zone boundaries.
      */
     private String determinePlayerZone(Player player) {
-        // Simple implementation: check if spawn zone is configured
-        if (plugin.getConfig().contains("zone-management.zones.spawn")) {
-            return "spawn";
+        // Prefer WorldGuard integration when available
+        var wg = plugin.getWorldGuardIntegration();
+        if (wg != null && wg.isAvailable() && plugin.getConfig().getBoolean("zone-management.enabled", false)) {
+            String z = wg.determineZoneAt(player);
+            if (z != null) return z;
         }
+        // Fallback: spawn zone if configured
+        if (plugin.getConfig().contains("zone-management.zones.spawn")) return "spawn";
         return null;
     }
 

@@ -122,6 +122,44 @@ public class PlaceholderHook extends PlaceholderExpansion {
                 long timeSinceActivitySeconds = timeSinceActivityMillis / 1000L;
                 return String.valueOf(timeSinceActivitySeconds);
 
+            // --- Credit System Placeholders (v2.5) ---
+            case "credits": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                return String.valueOf(cm.getBalance(player));
+            }
+            case "credits_hours": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                long minutes = cm.getBalance(player);
+                long hours = minutes / 60;
+                return String.valueOf(hours);
+            }
+            case "max_credits": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                return String.valueOf(cm.getMaxCredits(player));
+            }
+            case "credit_ratio": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                return cm.getRatioString(player);
+            }
+            case "in_afk_zone": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "false";
+                return cm.isInAfkZone(player) ? "true" : "false";
+            }
+            case "credits_expire_days": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                java.time.Instant exp = cm.getExpirationInstant(player);
+                if (exp == null) return "";
+                long days = java.time.Duration.between(java.time.Instant.now(), exp).toDays();
+                if (days < 0) days = 0;
+                return String.valueOf(days);
+            }
+
             default:
                 // Unknown identifier for this expansion.
                 return null;

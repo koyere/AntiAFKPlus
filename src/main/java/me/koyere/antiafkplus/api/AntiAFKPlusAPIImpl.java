@@ -638,13 +638,24 @@ public class AntiAFKPlusAPIImpl implements AntiAFKPlusAPI {
     public EventRegistration registerWarningListener(Consumer<AFKWarningEvent> listener) {
         return registerEventListener("afk-warning", listener);
     }
-    
+
     private EventRegistration registerEventListener(String eventType, Object listener) {
         EventRegistration registration = new EventRegistration(eventType, listener);
         eventListeners.computeIfAbsent(eventType, k -> new HashSet<>()).add(registration);
         
         plugin.debug("Registered event listener for " + eventType);
         return registration;
+    }
+
+    // Credit events registration
+    @Override
+    public EventRegistration registerCreditEarnedListener(java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditEarnedEvent> listener) {
+        return registerEventListener("credit-earned", listener);
+    }
+
+    @Override
+    public EventRegistration registerCreditConsumedListener(java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditConsumedEvent> listener) {
+        return registerEventListener("credit-consumed", listener);
     }
     
     @Override
@@ -835,6 +846,91 @@ public class AntiAFKPlusAPIImpl implements AntiAFKPlusAPI {
             new HashMap<>() // system info
         );
     }
+
+    // ============= CREDIT SYSTEM (v2.5) =============
+
+    @Override
+    public long getCreditBalance(Player player) {
+        var cm = plugin.getCreditManager();
+        if (cm == null) return 0L;
+        return cm.getBalance(player);
+    }
+
+    @Override
+    public boolean hasCredits(Player player, long minutes) {
+        var cm = plugin.getCreditManager();
+        return cm != null && cm.hasCredits(player, minutes);
+    }
+
+    @Override
+    public boolean addCredits(Player player, long minutes) {
+        var cm = plugin.getCreditManager();
+        return cm != null && cm.addCredits(player, minutes);
+    }
+
+    @Override
+    public boolean consumeCredits(Player player, long minutes) {
+        var cm = plugin.getCreditManager();
+        return cm != null && cm.consumeCredits(player, minutes);
+    }
+
+    @Override
+    public boolean setCreditBalance(Player player, long minutes) {
+        var cm = plugin.getCreditManager();
+        return cm != null && cm.setCreditBalance(player, minutes);
+    }
+
+    @Override
+    public String getCreditRatio(Player player) {
+        var cm = plugin.getCreditManager();
+        return cm != null ? cm.getRatioString(player) : "5:1";
+    }
+
+    @Override
+    public long getMaxCredits(Player player) {
+        var cm = plugin.getCreditManager();
+        return cm != null ? cm.getMaxCredits(player) : 0L;
+    }
+
+    @Override
+    public boolean isInAFKZone(Player player) {
+        var cm = plugin.getCreditManager();
+        return cm != null && cm.isInAfkZone(player);
+    }
+
+    @Override
+    public Location getAFKZoneLocation(Player player) {
+        var cm = plugin.getCreditManager();
+        return cm != null ? cm.getAFKZoneLocation(player) : null;
+    }
+
+    @Override
+    public Location getOriginalLocation(Player player) {
+        var cm = plugin.getCreditManager();
+        return cm != null ? cm.getOriginalLocation(player) : null;
+    }
+
+    @Override
+    public boolean returnFromAFKZone(Player player) {
+        var cm = plugin.getCreditManager();
+        if (cm == null) return false;
+        var result = cm.returnFromAFKZone(player);
+        return result == me.koyere.antiafkplus.credit.CreditManager.ReturnResult.SUCCESS;
+    }
+
+    @Override
+    public java.util.List<me.koyere.antiafkplus.api.data.CreditTransaction> getCreditHistory(Player player, int limit) {
+        var cm = plugin.getCreditManager();
+        if (cm == null || !cm.isHistoryAvailable()) return java.util.Collections.emptyList();
+        return cm.getHistory(player, Math.max(1, Math.min(50, limit)));
+    }
+
+    @Override
+    public java.time.Instant getCreditExpiration(Player player) {
+        var cm = plugin.getCreditManager();
+        if (cm == null) return null;
+        return cm.getExpirationInstant(player);
+    }
     
     /**
      * Clear player data on disconnect.
@@ -849,5 +945,37 @@ public class AntiAFKPlusAPIImpl implements AntiAFKPlusAPI {
         customTimeouts.remove(uuid);
         
         plugin.debug("Cleared API data for " + player.getName());
+    }
+
+    // ============= INTERNAL CREDIT EVENT DISPATCHERS =============
+
+    public void fireCreditEarned(me.koyere.antiafkplus.api.events.CreditEarnedEvent event) {
+        var listeners = eventListeners.get("credit-earned");
+        if (listeners == null) return;
+        for (EventRegistration reg : listeners) {
+            if (!reg.isUnregistered() && reg.getListener() instanceof java.util.function.Consumer) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditEarnedEvent> c =
+                            (java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditEarnedEvent>) reg.getListener();
+                    c.accept(event);
+                } catch (Throwable ignored) {}
+            }
+        }
+    }
+
+    public void fireCreditConsumed(me.koyere.antiafkplus.api.events.CreditConsumedEvent event) {
+        var listeners = eventListeners.get("credit-consumed");
+        if (listeners == null) return;
+        for (EventRegistration reg : listeners) {
+            if (!reg.isUnregistered() && reg.getListener() instanceof java.util.function.Consumer) {
+                try {
+                    @SuppressWarnings("unchecked")
+                    java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditConsumedEvent> c =
+                            (java.util.function.Consumer<me.koyere.antiafkplus.api.events.CreditConsumedEvent>) reg.getListener();
+                    c.accept(event);
+                } catch (Throwable ignored) {}
+            }
+        }
     }
 }
