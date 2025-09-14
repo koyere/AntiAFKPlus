@@ -360,7 +360,7 @@ public class AFKManager {
                 plugin.getConfigManager().getMessageKicked()
         );
 
-        // Check if zone management is enabled and configure teleportation
+        // Check if zone management is enabled and configure kick action override
         if (plugin.getConfig().getBoolean("zone-management.enabled", false)) {
             // Check if player is in spawn zone (or any configured zone)
             String zoneName = determinePlayerZone(player);
@@ -370,7 +370,31 @@ public class AFKManager {
                     kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TELEPORT);
                     String teleportLocation = plugin.getConfig().getString("zone-management.zones." + zoneName + ".teleport-location", "");
                     kickEvent.setCustomActionData(teleportLocation);
+                } else if ("TRANSFER".equalsIgnoreCase(action) || "TRANSFER_SERVER".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TRANSFER_SERVER);
+                    // Prefer per-zone server if provided; fallback to global target-server
+                    String transferServer = plugin.getConfig().getString("zone-management.zones." + zoneName + ".transfer-server",
+                            plugin.getConfig().getString("server-transfer.target-server", ""));
+                    kickEvent.setCustomActionData(transferServer);
+                } else if ("KICK".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.KICK);
+                } else if ("MARK_AFK_ONLY".equalsIgnoreCase(action) || "MARK".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
+                } else if ("GAMEMODE".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
+                } else if ("COMMAND".equalsIgnoreCase(action)) {
+                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
                 }
+            }
+        }
+
+        // If no zone override applied (still default KICK) and server-transfer is enabled, set default TRANSFER_SERVER
+        if (kickEvent.getCustomAction() == PlayerAFKKickEvent.KickAction.KICK) {
+            boolean stEnabled = plugin.getConfig().getBoolean("server-transfer.enabled", false);
+            String target = plugin.getConfig().getString("server-transfer.target-server", "");
+            if (stEnabled && target != null && !target.trim().isEmpty()) {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TRANSFER_SERVER);
+                kickEvent.setCustomActionData(target);
             }
         }
 
@@ -394,6 +418,58 @@ public class AFKManager {
                     if (player.isOnline()) {
                         teleportPlayer(player, kickEvent.getCustomActionData());
                         AFKLogger.logActivity(player.getName() + " teleported instead of kicked (AFK)");
+                    }
+                    break;
+                case TRANSFER_SERVER:
+                    // Transferir a otro servidor con soporte de cuenta atrás (si está habilitado)
+                    if (player.isOnline()) {
+                        String target = kickEvent.getCustomActionData();
+
+                        Runnable doTransfer = () -> {
+                            boolean ok = false;
+                            try {
+                                if (plugin.getServerTransferService() != null) {
+                                    ok = plugin.getServerTransferService().transferPlayer(player, target);
+                                }
+                            } catch (Exception e) {
+                                ok = false;
+                            }
+
+                            if (!ok) {
+                                // Fallback configurable: por defecto, KICK
+                                String fb = plugin.getConfig().getString("server-transfer.fallback-action", "KICK");
+                                if ("NONE".equalsIgnoreCase(fb)) {
+                                    return;
+                                } else if ("TELEPORT".equalsIgnoreCase(fb)) {
+                                    teleportPlayer(player, plugin.getConfig().getString("server-transfer.fallback-teleport-location", ""));
+                                } else {
+                                    if (player.isOnline()) {
+                                        player.kickPlayer(kickEvent.getKickMessage());
+                                        AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
+                                    }
+                                }
+                            }
+                        };
+
+                        boolean pipelineEnabled = plugin.getConfig().getBoolean("server-transfer.pipeline.enabled", false);
+                        java.util.List<String> steps = plugin.getConfig().getStringList("server-transfer.actions");
+                        boolean hasSteps = steps != null && !steps.isEmpty();
+                        if (pipelineEnabled && hasSteps && plugin.getActionPipelineService() != null) {
+                            String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
+                            player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+                            plugin.getActionPipelineService().startPipelineFromConfig(player, doTransfer);
+                        } else {
+                            boolean countdownEnabled = plugin.getConfig().getBoolean("server-transfer.countdown.enabled", false);
+                            int cdSeconds = Math.max(0, plugin.getConfig().getInt("server-transfer.countdown.seconds", 10));
+                            if (countdownEnabled && cdSeconds > 0 && plugin.getCountdownSequenceService() != null) {
+                                String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
+                                player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+                                plugin.getCountdownSequenceService().startServerTransferCountdown(player, doTransfer);
+                            } else {
+                                // Transferencia inmediata en el hilo de la entidad
+                                plugin.getPlatformScheduler().runTaskForEntity(player, doTransfer);
+                            }
+                        }
                     }
                     break;
                 case GAMEMODE:
@@ -547,6 +623,14 @@ public class AFKManager {
         }
 
         warningsSent.remove(uuid);
+
+        // Cancelar cualquier cuenta atrás en curso (Fase 2) y pipelines (Fase 4)
+        if (plugin.getCountdownSequenceService() != null) {
+            plugin.getCountdownSequenceService().cancel(player);
+        }
+        if (plugin.getActionPipelineService() != null) {
+            plugin.getActionPipelineService().cancel(player);
+        }
 
         String notAfkBroadcastMessage = plugin.getConfigManager().getMessagePlayerNoLongerAFK()
                 .replace("{player}", player.getName());

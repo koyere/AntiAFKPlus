@@ -1,6 +1,6 @@
-# AntiAFKPlus v2.5
+# AntiAFKPlus v2.6
 
-**Professional-grade AFK detection and management system with AFK Credit System**
+**Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
 ✅ **Minecraft 1.16 – 1.21.8** | ✅ **Folia/Paper/Spigot/Bukkit/Purpur** | ✅ **Java & Bedrock Edition** | ✅ **Zero-lag Performance**
 
@@ -235,6 +235,87 @@ zone-management:
 - **Touch-friendly** command interfaces and feedback
 
 ---
+
+## 🔁 Server Transfer & Scripted Sequences (v2.6)
+
+AntiAFKPlus can transfer AFK players to another server (Bungee/Velocity via Plugin Messaging), with optional per‑second countdown and fully scripted pipelines.
+
+### Behavior & Order
+- Final AFK action order:
+  1) Credit System: If credits exist, cancel the final action and consume credits; no transfer runs.
+  2) Zone Management: If a zone defines `kick-action`, it takes priority (`TELEPORT`, `TRANSFER`, `KICK`, etc.).
+  3) Global Server Transfer: If enabled and a `target-server` is set, the plugin uses `TRANSFER_SERVER` by default.
+- If the player becomes active before completion, countdown/pipeline cancels automatically.
+
+### Global Configuration
+```yaml
+server-transfer:
+  enabled: true                 # Enable server transfer action
+  target-server: "lobby"        # Target server name (proxy)
+  proxy-channel: "auto"         # auto | bungeecord | namespaced
+
+  # Fallback if transfer fails or no channel available
+  fallback-action: "KICK"       # KICK | TELEPORT | NONE
+  fallback-teleport-location: "world,0,100,0"  # Only for TELEPORT
+
+  # Retry policy
+  retry-attempts: 0
+  retry-delay-ticks: 10
+
+  # Countdown (per-second titles/subtitles/sounds)
+  countdown:
+    enabled: false
+    seconds: 10
+    title: "&cYou are AFK"
+    subtitle: "&eMoving in {seconds}s"
+    sound:
+      enabled: true
+      name: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      volume: 1.0
+      pitch: 1.0
+
+  # Scripted pipeline (executes steps in order)
+  pipeline:
+    enabled: false
+  actions:
+    - "TITLE: &cYou are AFK"
+    - "SUBTITLE: &eMoving in {seconds}s"
+    - "SOUND: ENTITY_EXPERIENCE_ORB_PICKUP,1.0,1.0"
+    - "WAIT: 1s"
+    - "MESSAGE: &7Transferring..."
+    - "TRANSFER: lobby"
+```
+
+Notes:
+- If `pipeline.enabled` and `actions` are set, the pipeline runs first.
+- Otherwise, if `countdown.enabled` is true, a per-second countdown runs.
+- Otherwise, the transfer executes immediately.
+- No new commands or permissions are required for v2.6.
+
+### Zone-based Transfer (WorldGuard)
+```yaml
+zone-management:
+  enabled: true
+  zones:
+    spawn:
+      kick-action: "TRANSFER"     # Use server transfer
+      transfer-server: "lobby"    # Per-zone target (fallback to global target-server if empty)
+```
+
+### Messages
+Add or customize in `messages.yml`:
+```yaml
+messages:
+  server-transfer:
+    transferring: "&7[AntiAFK+] &aTransferring you to &f{server}&a..."
+    unavailable: "&7[AntiAFK+] &cServer transfer unavailable."
+    failed: "&7[AntiAFK+] &cCould not transfer you."
+```
+
+### Compatibility
+- BungeeCord and Velocity (with Bungee compatibility) via Plugin Messaging.
+- Folia-safe using platform scheduler; no BukkitScheduler in Folia context.
+- Fully backward compatible; disabled by default.
 
 ## 💻 Developer API (80+ Methods)
 
@@ -473,7 +554,7 @@ performance:
 **Developed by Koyere**  
 Licensed under **MIT License** - Open source and free to use for all server types.
 
-**Current Version**: v2.5 (AFK Credit System)  
+**Current Version**: v2.6 (Server Transfer & Sequences)  
 **Enterprise Features**: Available in all releases  
 **Community Support**: Active development and updates
 

@@ -170,6 +170,12 @@ messages:
   kick-action-command: "&e[AntiAFK] Administrative action taken due to inactivity."
   kick-action-mark-afk: "&e[AntiAFK] You have been marked as AFK due to inactivity."
 
+  # --- Server Transfer (Fase 1 - Mensajes base) ---
+  server-transfer:
+    transferring: "&7[AntiAFK+] &aTransferring you to &f{server}&a..."
+    unavailable: "&7[AntiAFK+] &cServer transfer unavailable."
+    failed: "&7[AntiAFK+] &cCould not transfer you."
+
   # --- Administrative and Debug Messages ---
 
   # Admin notifications for suspicious activity

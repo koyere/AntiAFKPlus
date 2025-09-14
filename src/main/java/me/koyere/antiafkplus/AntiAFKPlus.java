@@ -24,6 +24,9 @@ import me.koyere.antiafkplus.utils.AFKLogger;
 import me.koyere.antiafkplus.credit.CreditManager;
 import me.koyere.antiafkplus.credit.CreditListener;
 import me.koyere.antiafkplus.integrations.WorldGuardIntegration;
+import me.koyere.antiafkplus.transfer.ServerTransferService;
+import me.koyere.antiafkplus.transfer.CountdownSequenceService;
+import me.koyere.antiafkplus.transfer.ActionPipelineService;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -45,8 +48,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.5";
-    private static final String API_VERSION = "2.5";
+    private static final String PLUGIN_VERSION = "2.6";
+    private static final String API_VERSION = "2.6";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
@@ -65,6 +68,9 @@ public final class AntiAFKPlus extends JavaPlugin {
     private AFKLogger afkLogger;
     private CreditManager creditManager;
     private WorldGuardIntegration worldGuardIntegration;
+    private ServerTransferService serverTransferService;
+    private CountdownSequenceService countdownSequenceService;
+    private ActionPipelineService actionPipelineService;
 
     // Command Handlers
     private AFKCommand afkCommandHandler;
@@ -314,6 +320,19 @@ public final class AntiAFKPlus extends JavaPlugin {
                 getLogger().info("§aCredit System initialized (Phase 1)");
             }
 
+            // Initialize Server Transfer (v2.6 - Phase 1 backbone)
+            this.serverTransferService = new ServerTransferService(this);
+            this.countdownSequenceService = new CountdownSequenceService(this);
+            this.actionPipelineService = new ActionPipelineService(this);
+            // Registrar canales siempre: es inocuo y mejora robustez
+            try {
+                Bukkit.getMessenger().registerOutgoingPluginChannel(this, ServerTransferService.LEGACY_CHANNEL);
+                Bukkit.getMessenger().registerOutgoingPluginChannel(this, ServerTransferService.NAMESPACE_CHANNEL);
+                getLogger().info("§aServer transfer channels registered (BungeeCord & bungeecord:main)");
+            } catch (Exception e) {
+                getLogger().warning("Failed to register plugin messaging channels: " + e.getMessage());
+            }
+
             return true;
 
         } catch (Exception e) {
@@ -561,6 +580,21 @@ public final class AntiAFKPlus extends JavaPlugin {
     public PlatformScheduler getPlatformScheduler() {
         return platformScheduler;
     }
+
+    /**
+     * Gets the server transfer service (may be used when TRANSFER_SERVER action is executed).
+     */
+    public ServerTransferService getServerTransferService() {
+        return serverTransferService;
+    }
+
+    /** Countdown runner for per-player sequences (Fase 2). */
+    public CountdownSequenceService getCountdownSequenceService() {
+        return countdownSequenceService;
+    }
+
+    /** Action pipeline for scripted sequences (Fase 4). */
+    public ActionPipelineService getActionPipelineService() { return actionPipelineService; }
 
     /**
      * Gets the localization manager.

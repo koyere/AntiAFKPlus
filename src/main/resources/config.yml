@@ -23,7 +23,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY - Used for automatic migration)
-version: "2.5"
+version: "2.6"
 
 # ===============================================================================
 # 📦 MODULE SYSTEM - Enable/Disable Features
@@ -516,6 +516,41 @@ autoclick-detection-settings:
   click-threshold: 20
   min-idle-time-ms: 60000
   action: "LOG"
+
+# ===============================================================================
+# 🔁 SERVER TRANSFER (Fase 1 - Backbone)
+# ===============================================================================
+
+server-transfer:
+  enabled: false               # Habilita la acción TRANSFER_SERVER
+  target-server: ""            # Nombre del servidor destino (proxy)
+  proxy-channel: "auto"        # auto | bungeecord | namespaced
+  # Acción de respaldo si la transferencia falla o no hay canal disponible
+  # Valores: KICK | TELEPORT | NONE
+  fallback-action: "KICK"
+  # Ubicación opcional para fallback TELEPORT (world,x,y,z[,yaw,pitch])
+  fallback-teleport-location: ""
+  # Reintentos si no hay canal disponible inmediatamente
+  retry-attempts: 0
+  retry-delay-ticks: 10
+  
+  # Cuenta atrás (Fase 2)
+  countdown:
+    enabled: false
+    seconds: 10
+    title: "&cYou are AFK"
+    subtitle: "&eMoving in {seconds}s"
+    sound:
+      enabled: true
+      name: "ENTITY_EXPERIENCE_ORB_PICKUP"
+      volume: 1.0
+      pitch: 1.0
+
+  # Pipeline de acciones (Fase 4)
+  pipeline:
+    enabled: false
+  # Lista de pasos. Soporta: TITLE:..., SUBTITLE:..., MESSAGE:..., SOUND: NAME[,volume[,pitch]], WAIT: 1s|100|500ms, TRANSFER: server
+  actions: []
 
 # ===============================================================================
 # 🛡️ PLAYER PROTECTION SYSTEM
