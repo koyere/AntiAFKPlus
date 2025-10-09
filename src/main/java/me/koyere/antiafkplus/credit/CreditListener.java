@@ -22,16 +22,32 @@ public class CreditListener implements Listener {
         this.creditManager = creditManager;
     }
 
+    /**
+     * Intercepts the AFK kick/teleport event when credits are available.
+     *
+     * PROFESSIONAL FIX: Instead of cancelling the event (which prevents teleportation),
+     * we start credit consumption and let the system handle teleportation ONLY when
+     * credits are exhausted. This fixes the intermittent teleport issue.
+     *
+     * @param event The AFK kick event
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAfkKick(PlayerAFKKickEvent event) {
         if (!creditManager.isEnabled()) return;
         var player = event.getPlayer();
 
-        // Si hay créditos, cancelar la acción y comenzar consumo por-minuto
+        // Check if player has permission to use credits
+        if (!player.hasPermission("antiafkplus.credit.use")) return;
+
+        // If player has credits available, delay the kick/teleport action
         if (creditManager.getData(player.getUniqueId()).getBalanceMinutes() > 0) {
+            // Cancel the immediate kick/teleport
             event.setCancelled(true);
+
+            // Start consuming credits (will teleport when exhausted)
             creditManager.beginConsumeOnAfk(player);
         }
+        // If no credits, allow the event to proceed normally (kick/teleport)
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

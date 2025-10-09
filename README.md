@@ -1,4 +1,4 @@
-# AntiAFKPlus v2.6
+# AntiAFKPlus v2.7
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
@@ -525,12 +525,12 @@ performance:
 ## 🚀 Version History & Compatibility
 
 ### Latest Releases
+- **v2.7** (2025-10-07): Critical bug fixes - teleportation, disabled worlds, thread safety, system isolation
+- **v2.6** (2025-09-15): Server transfer system with BungeeCord/Velocity support
 - **v2.5** (2025-09-11): AFK Credit System, WorldGuard integration, AFK zone protection, SQL history
 - **v2.4.2** (2025-09-09): Complete Folia 1.21.8 compatibility, method signature fixes
 - **v2.4.1** (2025-09-06): Critical bug fix for repeated kick/teleport actions
 - **v2.4** (2025-08-07): Large AFK pool detection, keystroke timeout analysis
-- **v2.3** (2024): Enhanced pattern detection and behavioral analysis
-- **v2.0** (2024): Complete rewrite with modular architecture
 
 ### Platform Compatibility Matrix
 | Platform | Version Support | Status | Notes |
@@ -554,7 +554,7 @@ performance:
 **Developed by Koyere**  
 Licensed under **MIT License** - Open source and free to use for all server types.
 
-**Current Version**: v2.6 (Server Transfer & Sequences)  
+**Current Version**: v2.7 (Critical Bug Fixes)  
 **Enterprise Features**: Available in all releases  
 **Community Support**: Active development and updates
 

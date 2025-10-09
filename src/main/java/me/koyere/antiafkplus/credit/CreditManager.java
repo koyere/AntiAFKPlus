@@ -32,12 +32,23 @@ public class CreditManager {
     private PlatformScheduler.ScheduledTask saveTask;
     private CreditStorage storage;
 
+    /**
+     * Initializes the Credit Manager.
+     * PROFESSIONAL FIX: Only starts tasks if the system is enabled, ensuring complete
+     * isolation when disabled and preventing any interference with the AFK system.
+     *
+     * @param plugin The main plugin instance
+     */
     public CreditManager(AntiAFKPlus plugin) {
         this.plugin = plugin;
-        initializeStorage();
-        startEarningTask();
-        startDecayTask();
-        startSaveTask();
+
+        // Only initialize if enabled - ensures complete isolation when disabled
+        if (isEnabled()) {
+            initializeStorage();
+            startEarningTask();
+            startDecayTask();
+            startSaveTask();
+        }
     }
 
     public void shutdown() {

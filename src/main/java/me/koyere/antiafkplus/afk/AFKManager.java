@@ -79,8 +79,38 @@ public class AFKManager {
                     List<String> enabledWorlds = plugin.getConfigManager().getEnabledWorlds();
                     String currentWorldName = player.getWorld().getName();
 
-                    if (disabledWorlds.contains(currentWorldName)) continue;
-                    if (!enabledWorlds.isEmpty() && !enabledWorlds.contains(currentWorldName)) continue;
+                    // PROFESSIONAL FIX: Clear AFK state when player is in disabled world
+                    // This prevents warnings and actions from persisting in disabled worlds
+                    if (disabledWorlds.contains(currentWorldName)) {
+                        // If player has AFK state, clear it completely
+                        if (afkPlayers.contains(uuid) || manualAfkUsernames.contains(uuid)) {
+                            AFKLogger.logActivity(player.getName() + " entered disabled world '" + currentWorldName + "', clearing AFK state.");
+
+                            // Clear all AFK-related data
+                            unmarkAsAFKInternal(player);
+                            forceSetManualAFKState(player, false);
+                            playersAlreadyActioned.remove(uuid);
+                            warningCounts.remove(uuid);
+                            afkDetectionTimes.remove(uuid);
+                            afkDetectionReasons.remove(uuid);
+                        }
+                        continue;
+                    }
+
+                    // If enabled-worlds is configured and player is not in one, clear state
+                    if (!enabledWorlds.isEmpty() && !enabledWorlds.contains(currentWorldName)) {
+                        if (afkPlayers.contains(uuid) || manualAfkUsernames.contains(uuid)) {
+                            AFKLogger.logActivity(player.getName() + " is in non-enabled world '" + currentWorldName + "', clearing AFK state.");
+
+                            unmarkAsAFKInternal(player);
+                            forceSetManualAFKState(player, false);
+                            playersAlreadyActioned.remove(uuid);
+                            warningCounts.remove(uuid);
+                            afkDetectionTimes.remove(uuid);
+                            afkDetectionReasons.remove(uuid);
+                        }
+                        continue;
+                    }
 
                     // Update player activity data
                     updatePlayerActivityData(player);
@@ -788,6 +818,33 @@ public class AFKManager {
 
     public PatternDetector getPatternDetector() {
         return patternDetector;
+    }
+
+    /**
+     * PROFESSIONAL FIX: Public method to execute AFK action (kick/teleport) from external sources.
+     * This allows PatternDetector to properly execute configured actions instead of just marking AFK.
+     *
+     * @param player The player to apply the action to
+     * @param detectionReason The reason for triggering the action (e.g., "pattern_violation")
+     */
+    public void executeAFKAction(Player player, String detectionReason) {
+        if (player == null || !player.isOnline()) return;
+
+        UUID uuid = player.getUniqueId();
+
+        // Mark as AFK first
+        if (!afkPlayers.contains(uuid)) {
+            markAsAFKInternal(player, "auto (" + detectionReason + ")", detectionReason);
+            afkDetectionTimes.put(uuid, System.currentTimeMillis());
+            afkDetectionReasons.put(uuid, detectionReason);
+        }
+
+        // Execute the configured action (kick/teleport/etc.) only once
+        if (!playersAlreadyActioned.contains(uuid)) {
+            long timeSinceDetection = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
+            kickPlayerAfterAFK(player, timeSinceDetection);
+            playersAlreadyActioned.add(uuid);
+        }
     }
 
     public void shutdown() {

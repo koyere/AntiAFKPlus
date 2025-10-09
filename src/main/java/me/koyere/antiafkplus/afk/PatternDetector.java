@@ -55,6 +55,21 @@ public class PatternDetector {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (player.hasPermission("antiafkplus.bypass")) continue;
 
+            // PROFESSIONAL FIX: Verify if player is in disabled world (same logic as AFKManager)
+            List<String> disabledWorlds = plugin.getConfigManager().getDisabledWorlds();
+            List<String> enabledWorlds = plugin.getConfigManager().getEnabledWorlds();
+            String currentWorldName = player.getWorld().getName();
+
+            // Skip analysis if player is in disabled world
+            if (disabledWorlds.contains(currentWorldName)) {
+                continue;
+            }
+
+            // Skip if enabled-worlds is configured and player is not in one
+            if (!enabledWorlds.isEmpty() && !enabledWorlds.contains(currentWorldName)) {
+                continue;
+            }
+
             MovementListener.PlayerLocationData locationData = movementListener.getPlayerLocationData(player);
             if (locationData == null || locationData.locationHistory.size() < MIN_SAMPLES_FOR_PATTERN) {
                 continue;
@@ -138,23 +153,27 @@ public class PatternDetector {
     private boolean detectWaterCirclePattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < 8) return false;
 
-        // Calculate center point of movement
-        double centerX = history.stream().mapToDouble(pos -> pos.x).average().orElse(0);
-        double centerZ = history.stream().mapToDouble(pos -> pos.z).average().orElse(0);
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // The original list can be modified by other threads during stream operations
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
+        // Calculate center point of movement using thread-safe copy
+        double centerX = safeCopy.stream().mapToDouble(pos -> pos.x).average().orElse(0);
+        double centerZ = safeCopy.stream().mapToDouble(pos -> pos.z).average().orElse(0);
 
         // Check if all movements are within circle radius
-        boolean allWithinRadius = history.stream().allMatch(pos -> {
+        boolean allWithinRadius = safeCopy.stream().allMatch(pos -> {
             double distance = Math.sqrt(Math.pow(pos.x - centerX, 2) + Math.pow(pos.z - centerZ, 2));
             return distance <= WATER_CIRCLE_RADIUS;
         });
 
         if (!allWithinRadius) return false;
 
-        // Check for circular movement pattern
+        // Check for circular movement pattern using thread-safe copy
         int circularMovements = 0;
-        for (int i = 1; i < history.size(); i++) {
-            MovementListener.LocationSnapshot prev = history.get(i - 1);
-            MovementListener.LocationSnapshot curr = history.get(i);
+        for (int i = 1; i < safeCopy.size(); i++) {
+            MovementListener.LocationSnapshot prev = safeCopy.get(i - 1);
+            MovementListener.LocationSnapshot curr = safeCopy.get(i);
 
             // Calculate angle change
             double angle1 = Math.atan2(prev.z - centerZ, prev.x - centerX);
@@ -170,17 +189,20 @@ public class PatternDetector {
             }
         }
 
-        return circularMovements >= (history.size() * 0.6); // 60% of movements should be circular
+        return circularMovements >= (safeCopy.size() * 0.6); // 60% of movements should be circular
     }
 
     private boolean detectConfinedSpacePattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < MIN_SAMPLES_FOR_PATTERN) return false;
 
-        // Calculate bounding box of movement
-        double minX = history.stream().mapToDouble(pos -> pos.x).min().orElse(0);
-        double maxX = history.stream().mapToDouble(pos -> pos.x).max().orElse(0);
-        double minZ = history.stream().mapToDouble(pos -> pos.z).min().orElse(0);
-        double maxZ = history.stream().mapToDouble(pos -> pos.z).max().orElse(0);
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
+        // Calculate bounding box of movement using thread-safe copy
+        double minX = safeCopy.stream().mapToDouble(pos -> pos.x).min().orElse(0);
+        double maxX = safeCopy.stream().mapToDouble(pos -> pos.x).max().orElse(0);
+        double minZ = safeCopy.stream().mapToDouble(pos -> pos.z).min().orElse(0);
+        double maxZ = safeCopy.stream().mapToDouble(pos -> pos.z).max().orElse(0);
 
         double areaX = maxX - minX;
         double areaZ = maxZ - minZ;
@@ -192,11 +214,14 @@ public class PatternDetector {
     private boolean detectRepetitivePattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < 12) return false;
 
-        // Split history into segments and compare similarity
-        int segmentSize = history.size() / 3;
-        List<MovementListener.LocationSnapshot> segment1 = history.subList(0, segmentSize);
-        List<MovementListener.LocationSnapshot> segment2 = history.subList(segmentSize, segmentSize * 2);
-        List<MovementListener.LocationSnapshot> segment3 = history.subList(segmentSize * 2, segmentSize * 3);
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
+        // Split history into segments and compare similarity using thread-safe copy
+        int segmentSize = safeCopy.size() / 3;
+        List<MovementListener.LocationSnapshot> segment1 = new java.util.ArrayList<>(safeCopy.subList(0, segmentSize));
+        List<MovementListener.LocationSnapshot> segment2 = new java.util.ArrayList<>(safeCopy.subList(segmentSize, segmentSize * 2));
+        List<MovementListener.LocationSnapshot> segment3 = new java.util.ArrayList<>(safeCopy.subList(segmentSize * 2, segmentSize * 3));
 
         double similarity12 = calculatePatternSimilarity(segment1, segment2);
         double similarity23 = calculatePatternSimilarity(segment2, segment3);
@@ -251,12 +276,15 @@ public class PatternDetector {
      */
     private boolean detectLargeAFKPool(Player player, List<MovementListener.LocationSnapshot> history) {
         if (history.size() < MIN_SAMPLES_FOR_LARGE_POOL) return false;
-        
-        // Calculate bounding box of movement area
-        double minX = history.stream().mapToDouble(pos -> pos.x).min().orElse(0);
-        double maxX = history.stream().mapToDouble(pos -> pos.x).max().orElse(0);
-        double minZ = history.stream().mapToDouble(pos -> pos.z).min().orElse(0);
-        double maxZ = history.stream().mapToDouble(pos -> pos.z).max().orElse(0);
+
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
+        // Calculate bounding box of movement area using thread-safe copy
+        double minX = safeCopy.stream().mapToDouble(pos -> pos.x).min().orElse(0);
+        double maxX = safeCopy.stream().mapToDouble(pos -> pos.x).max().orElse(0);
+        double minZ = safeCopy.stream().mapToDouble(pos -> pos.z).min().orElse(0);
+        double maxZ = safeCopy.stream().mapToDouble(pos -> pos.z).max().orElse(0);
         
         double areaX = maxX - minX;
         double areaZ = maxZ - minZ;
@@ -269,11 +297,11 @@ public class PatternDetector {
         if (!isLargePoolSize) return false;
         
         // Check if player has been in water for most of the tracking period
-        boolean mostlyInWater = isPlayerMostlyInWater(player, history);
+        boolean mostlyInWater = isPlayerMostlyInWater(player, safeCopy);
         if (!mostlyInWater) return false;
-        
+
         // Check for automatic movement patterns (consistent velocity, minimal direction changes)
-        boolean hasAutomaticMovement = detectAutomaticMovementPattern(history);
+        boolean hasAutomaticMovement = detectAutomaticMovementPattern(safeCopy);
         if (!hasAutomaticMovement) return false;
         
         // Final check: has player exceeded keystroke timeout?
@@ -315,14 +343,17 @@ public class PatternDetector {
      */
     private boolean detectAutomaticMovementPattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < 10) return false;
-        
+
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
         double totalVelocityVariance = 0.0;
         double totalDirectionChanges = 0.0;
         int validMeasurements = 0;
-        
-        for (int i = 1; i < history.size(); i++) {
-            MovementListener.LocationSnapshot prev = history.get(i - 1);
-            MovementListener.LocationSnapshot curr = history.get(i);
+
+        for (int i = 1; i < safeCopy.size(); i++) {
+            MovementListener.LocationSnapshot prev = safeCopy.get(i - 1);
+            MovementListener.LocationSnapshot curr = safeCopy.get(i);
             
             double deltaX = curr.x - prev.x;
             double deltaZ = curr.z - prev.z;
@@ -419,10 +450,11 @@ public class PatternDetector {
 
         // Take action based on violation count
         if (violations >= MAX_PATTERN_VIOLATIONS) {
-            // Schedule synchronous execution for AFK state change
+            // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
+            // This ensures pattern detection triggers the same action as regular AFK detection
             plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
-                afkManager.forceSetManualAFKState(player, true);
-                player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. You have been marked as AFK.");
+                afkManager.executeAFKAction(player, detectionReason);
+                player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.");
             });
 
             // Log the action (this can stay async)
