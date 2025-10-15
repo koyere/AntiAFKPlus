@@ -319,6 +319,53 @@ messages:
 
 ## 💻 Developer API (80+ Methods)
 
+### 📦 Installation via Jitpack
+
+Integrate AntiAFKPlus API into your plugin using Jitpack:
+
+**Maven:**
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.github.koyere</groupId>
+        <artifactId>AntiAFKPlus</artifactId>
+        <version>2.7</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+```
+
+**Gradle:**
+```groovy
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.7'
+}
+```
+
+**Gradle (Kotlin DSL):**
+```kotlin
+repositories {
+    maven("https://jitpack.io")
+}
+
+dependencies {
+    compileOnly("com.github.koyere:AntiAFKPlus:2.7")
+}
+```
+
+📚 **[View complete API documentation →](API.md)**
+
 ### Basic Usage
 ```java
 // Get API instance
