@@ -236,12 +236,15 @@ public class PatternDetector {
     private boolean detectPendulumPattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < 10) return false;
 
+        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
         int backAndForthCount = 0;
 
-        for (int i = 2; i < history.size(); i++) {
-            MovementListener.LocationSnapshot pos1 = history.get(i - 2);
-            MovementListener.LocationSnapshot pos2 = history.get(i - 1);
-            MovementListener.LocationSnapshot pos3 = history.get(i);
+        for (int i = 2; i < safeCopy.size(); i++) {
+            MovementListener.LocationSnapshot pos1 = safeCopy.get(i - 2);
+            MovementListener.LocationSnapshot pos2 = safeCopy.get(i - 1);
+            MovementListener.LocationSnapshot pos3 = safeCopy.get(i);
 
             // Check for back-and-forth movement (A -> B -> A pattern)
             double dist12 = calculateDistance(pos1, pos2);
@@ -254,7 +257,7 @@ public class PatternDetector {
             }
         }
 
-        return backAndForthCount >= (history.size() * 0.3); // 30% of movements are back-and-forth
+        return backAndForthCount >= (safeCopy.size() * 0.3); // 30% of movements are back-and-forth
     }
     
     // v2.4 NEW: Large AFK pool detection methods

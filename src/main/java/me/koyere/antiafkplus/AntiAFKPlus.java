@@ -48,8 +48,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.7";
-    private static final String API_VERSION = "2.7";
+    private static final String PLUGIN_VERSION = "2.7.1";
+    private static final String API_VERSION = "2.7.1";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
