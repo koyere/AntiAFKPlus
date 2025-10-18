@@ -1,3 +1,18 @@
+# 🚀 AntiAFKPlus v2.8
+
+**Major API upgrade**
+
+---
+
+## ✨ Destacados
+- La API ahora expone actividad, historial y estadísticas reales en tiempo real.
+- Los eventos de advertencias y detección se notifican siempre al API y admiten cancelación.
+- Consulta y controla las zonas/mundos permitidos para AFK directamente desde tus plugins.
+
+See `changelog_2_8.md` for a concise summary aimed at server owners.
+
+---
+
 # 🚀 AntiAFKPlus v2.1.0
 
 **Bug Fix Release - Essential Improvements**
@@ -250,3 +265,17 @@
 - Kick players after a configurable time
 - Per-permission AFK times
 - Bypass and reload support
+# 🚀 AntiAFKPlus v2.7.2
+
+**Hotfix - API eventos manual AFK**
+
+---
+
+## ✅ Correcciones
+
+- Restablecido el puente entre `PlayerAFKStateChangeEvent` y `AntiAFKPlusAPI` para que los listeners externos reciban las transiciones manuales y automáticas.
+- Añadido `APIEventListener` registrado durante la inicialización para garantizar que futuras versiones mantengan la sincronización.
+- Ampliado el payload de `AFKStateChangeEvent` con metadatos (`afkReason`, `detectionMethod`, `activityScore`, entre otros) disponibles para desarrolladores.
+- Updated documentation and example dependencies to version `2.7.2`.
+
+---

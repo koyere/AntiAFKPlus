@@ -2,6 +2,8 @@
 
 This guide explains how to integrate the AntiAFKPlus API into your Minecraft plugin.
 
+> **Novedad v2.8**: La API devuelve datos en tiempo real (actividad, estadísticas, zonas) y expone nuevos eventos de advertencias/patrones con soporte de cancelación.
+
 ## Installation
 
 ### Maven
@@ -24,7 +26,7 @@ Then add the dependency:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.7</version>
+        <version>2.8</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -44,7 +46,7 @@ Then add the dependency:
 
 ```groovy
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.7'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.8'
 }
 ```
 
@@ -56,7 +58,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.7")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.8")
 }
 ```
 
@@ -394,7 +396,7 @@ public class EconomyIntegration {
 To use a specific version, change the version number:
 
 ```xml
-<version>2.7</version>  <!-- Latest stable version -->
+<version>2.8</version>  <!-- Latest stable version -->
 <version>2.6</version>  <!-- Previous version -->
 <version>main-SNAPSHOT</version>  <!-- Latest development version (not recommended) -->
 ```

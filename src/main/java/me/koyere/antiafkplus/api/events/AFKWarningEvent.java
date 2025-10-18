@@ -16,6 +16,8 @@ public class AFKWarningEvent {
     private final String warningMessage;
     private final Instant timestamp;
     private boolean cancelled = false;
+    private String customMessage;
+    private boolean sendTitle = true;
     
     public AFKWarningEvent(Player player, Duration timeRemaining, int warningNumber, int totalWarnings,
                           String warningMessage, Instant timestamp) {
@@ -38,4 +40,10 @@ public class AFKWarningEvent {
     public void setCancelled(boolean cancelled) { this.cancelled = cancelled; }
     
     public boolean isFinalWarning() { return warningNumber >= totalWarnings; }
+
+    public String getCustomMessage() { return customMessage; }
+    public void setCustomMessage(String customMessage) { this.customMessage = customMessage; }
+
+    public boolean shouldSendTitle() { return sendTitle; }
+    public void setSendTitle(boolean sendTitle) { this.sendTitle = sendTitle; }
 }

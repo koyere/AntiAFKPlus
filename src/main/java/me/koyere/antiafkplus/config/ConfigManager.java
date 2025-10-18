@@ -274,14 +274,10 @@ public class ConfigManager {
     }
 
     private void loadWorldSettings() {
-        this.enabledWorlds = config.getStringList("enabled-worlds");
-        if (this.enabledWorlds == null) {
-            this.enabledWorlds = Collections.emptyList();
-        }
-        this.disabledWorlds = config.getStringList("disabled-worlds");
-        if (this.disabledWorlds == null) {
-            this.disabledWorlds = Collections.emptyList();
-        }
+        List<String> enabled = config.getStringList("enabled-worlds");
+        List<String> disabled = config.getStringList("disabled-worlds");
+        this.enabledWorlds = enabled != null ? new ArrayList<>(enabled) : new ArrayList<>();
+        this.disabledWorlds = disabled != null ? new ArrayList<>(disabled) : new ArrayList<>();
     }
 
     /**
@@ -339,6 +335,30 @@ public class ConfigManager {
     public Map<String, Integer> getPermissionTimes() { return Collections.unmodifiableMap(permissionTimes); }
     public List<String> getEnabledWorlds() { return Collections.unmodifiableList(enabledWorlds); }
     public List<String> getDisabledWorlds() { return Collections.unmodifiableList(disabledWorlds); }
+
+    public synchronized void setWorldDetectionEnabled(String worldName, boolean enabled) {
+        if (worldName == null || worldName.trim().isEmpty()) {
+            return;
+        }
+
+        String normalized = worldName.trim();
+        if (enabled) {
+            if (!enabledWorlds.contains(normalized)) {
+                enabledWorlds.add(normalized);
+            }
+            disabledWorlds.remove(normalized);
+        } else {
+            if (!disabledWorlds.contains(normalized)) {
+                disabledWorlds.add(normalized);
+            }
+            enabledWorlds.remove(normalized);
+        }
+
+        config.set("enabled-worlds", enabledWorlds);
+        config.set("disabled-worlds", disabledWorlds);
+        plugin.saveConfig();
+        loadWorldSettings();
+    }
 
     // --- Enhanced v2.0 detection getters ---
 

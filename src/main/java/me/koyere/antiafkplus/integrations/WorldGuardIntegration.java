@@ -66,12 +66,12 @@ public class WorldGuardIntegration {
     }
 
     /**
-     * Attempts to resolve the configured zone name for player's current position using WorldGuard regions.
+     * Attempts to resolve the configured zone name for a location using WorldGuard regions.
      * It matches region IDs against keys under zone-management.zones.* (case-insensitive).
      */
-    public String determineZoneAt(Player player) {
-        if (player == null || player.getLocation() == null) return null;
-        Set<String> regionIds = getRegionIdsAt(player.getLocation());
+    public String determineZoneAt(Location location) {
+        if (location == null) return null;
+        Set<String> regionIds = getRegionIdsAt(location);
         if (regionIds.isEmpty()) return null;
         var zonesSection = plugin.getConfig().getConfigurationSection("zone-management.zones");
         if (zonesSection == null) return null;
@@ -87,5 +87,12 @@ public class WorldGuardIntegration {
         }
         return null;
     }
-}
 
+    /**
+     * Convenience wrapper for player-based checks.
+     */
+    public String determineZoneAt(Player player) {
+        if (player == null) return null;
+        return determineZoneAt(player.getLocation());
+    }
+}

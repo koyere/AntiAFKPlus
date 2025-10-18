@@ -2,6 +2,7 @@
 package me.koyere.antiafkplus.afk;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
 import me.koyere.antiafkplus.utils.AFKLogger;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -35,6 +36,8 @@ public class PatternDetector {
     // Player pattern tracking
     private final Map<UUID, PatternData> playerPatterns = new HashMap<>();
     private final Map<UUID, Integer> patternViolations = new HashMap<>();
+    private final Map<UUID, Deque<DetectedPatternRecord>> recentDetections = new HashMap<>();
+    private static final int MAX_STORED_PATTERN_DETECTIONS = 64;
 
     private PlatformScheduler.ScheduledTask analysisTask;
 
@@ -451,13 +454,43 @@ public class PatternDetector {
         AFKLogger.logActivity("Pattern Detection: " + player.getName() + " - " + detectionReason +
                 " (violations: " + violations + ")");
 
+        Map<String, Object> additionalData = new HashMap<>();
+        additionalData.put("reason", detectionReason);
+        additionalData.put("violations", violations);
+        additionalData.put("totalDetections", patternData.getTotalDetections());
+
+        PlayerAFKPatternDetectedEvent patternEvent = new PlayerAFKPatternDetectedEvent(
+                player,
+                mapPatternType(detectionReason),
+                computeConfidence(detectionReason, violations),
+                violations,
+                PATTERN_ANALYSIS_INTERVAL,
+                player.getLocation(),
+                patternData,
+                additionalData
+        );
+
+        plugin.getServer().getPluginManager().callEvent(patternEvent);
+        recordDetectedPattern(player, patternEvent);
+
+        if (patternEvent.isCancelled()) {
+            return;
+        }
+
+        if (processSuggestedAction(player, patternEvent)) {
+            patternViolations.put(uuid, 0);
+            return;
+        }
+
         // Take action based on violation count
         if (violations >= MAX_PATTERN_VIOLATIONS) {
             // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
             // This ensures pattern detection triggers the same action as regular AFK detection
             plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
                 afkManager.executeAFKAction(player, detectionReason);
-                player.sendMessage("§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.");
+                player.sendMessage(patternEvent.getCustomMessage() != null ?
+                        patternEvent.getCustomMessage() :
+                        "§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.");
             });
 
             // Log the action (this can stay async)
@@ -473,6 +506,7 @@ public class PatternDetector {
         UUID uuid = player.getUniqueId();
         playerPatterns.remove(uuid);
         patternViolations.remove(uuid);
+        recentDetections.remove(uuid);
     }
 
     public PatternData getPlayerPatternData(Player player) {
@@ -486,6 +520,138 @@ public class PatternDetector {
         }
         playerPatterns.clear();
         patternViolations.clear();
+        recentDetections.clear();
+    }
+
+    public List<DetectedPatternRecord> getRecentDetections(Player player) {
+        if (player == null) {
+            return Collections.emptyList();
+        }
+        Deque<DetectedPatternRecord> deque = recentDetections.get(player.getUniqueId());
+        if (deque == null || deque.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return new ArrayList<>(deque);
+    }
+
+    private boolean processSuggestedAction(Player player, PlayerAFKPatternDetectedEvent event) {
+        PlayerAFKPatternDetectedEvent.PatternAction action = event.getSuggestedAction();
+        if (action == null) {
+            return false;
+        }
+
+        String defaultMessage = "§c[AntiAFK] Suspicious pattern detected. Please remain active.";
+        switch (action) {
+            case LOG_ONLY:
+                return false;
+            case NO_ACTION:
+                return true;
+            case WARN_PLAYER:
+                player.sendMessage(event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage);
+                return true;
+            case FORCE_AFK:
+                afkManager.forceSetAutoAFKState(player, true, "pattern_" + event.getPatternType().name().toLowerCase());
+                return true;
+            case KICK_PLAYER:
+                if (player.isOnline()) {
+                    player.kickPlayer(event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage);
+                }
+                return true;
+            case TELEPORT_AWAY:
+                afkManager.executeAFKAction(player, "pattern_" + event.getPatternType().name().toLowerCase());
+                return true;
+            case FREEZE_PLAYER:
+                player.sendMessage(event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage);
+                return true;
+            case CUSTOM_COMMAND:
+                if (event.getCustomMessage() != null && !event.getCustomMessage().isEmpty()) {
+                    String command = event.getCustomMessage().replace("{player}", player.getName());
+                    plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), command);
+                    return true;
+                }
+                return false;
+            case NOTIFY_STAFF:
+                String notify = event.getCustomMessage() != null ? event.getCustomMessage()
+                        : ("[AntiAFK] " + player.getName() + " flagged for pattern " + event.getPatternType().name());
+                plugin.getServer().getOnlinePlayers().stream()
+                        .filter(p -> p.hasPermission("antiafkplus.admin"))
+                        .forEach(p -> p.sendMessage(notify));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void recordDetectedPattern(Player player, PlayerAFKPatternDetectedEvent event) {
+        if (player == null || event == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        Deque<DetectedPatternRecord> detections = recentDetections.computeIfAbsent(uuid, k -> new ArrayDeque<>());
+        detections.addLast(new DetectedPatternRecord(
+                event.getPatternType(),
+                event.getConfidence(),
+                System.currentTimeMillis(),
+                event.getViolationCount(),
+                event.getDetectionTimespan(),
+                event.getDetectionLocation(),
+                event.getAdditionalData(),
+                event.isCancelled()
+        ));
+        while (detections.size() > MAX_STORED_PATTERN_DETECTIONS) {
+            detections.removeFirst();
+        }
+    }
+
+    private PlayerAFKPatternDetectedEvent.PatternType mapPatternType(String detectionReason) {
+        if (detectionReason == null) {
+            return PlayerAFKPatternDetectedEvent.PatternType.CUSTOM;
+        }
+        return switch (detectionReason.toLowerCase()) {
+            case "water_circle" -> PlayerAFKPatternDetectedEvent.PatternType.WATER_CIRCLE;
+            case "confined_space" -> PlayerAFKPatternDetectedEvent.PatternType.CONFINED_SPACE;
+            case "repetitive", "repetitive_pattern" -> PlayerAFKPatternDetectedEvent.PatternType.REPETITIVE_MOVEMENT;
+            case "pendulum" -> PlayerAFKPatternDetectedEvent.PatternType.PENDULUM_MOVEMENT;
+            case "large_afk_pool" -> PlayerAFKPatternDetectedEvent.PatternType.COMBINED_PATTERNS;
+            case "keystroke_timeout" -> PlayerAFKPatternDetectedEvent.PatternType.AUTOCLICK_PATTERN;
+            case "mining_pattern" -> PlayerAFKPatternDetectedEvent.PatternType.MINING_PATTERN;
+            default -> PlayerAFKPatternDetectedEvent.PatternType.CUSTOM;
+        };
+    }
+
+    private double computeConfidence(String detectionReason, int violations) {
+        double base;
+        if (detectionReason == null) {
+            base = 0.6;
+        } else {
+            switch (detectionReason.toLowerCase()) {
+                case "water_circle":
+                    base = 0.85;
+                    break;
+                case "confined_space":
+                    base = 0.75;
+                    break;
+                case "repetitive":
+                case "repetitive_pattern":
+                    base = 0.7;
+                    break;
+                case "pendulum":
+                    base = 0.65;
+                    break;
+                case "large_afk_pool":
+                    base = 0.8;
+                    break;
+                case "keystroke_timeout":
+                    base = 0.7;
+                    break;
+                case "mining_pattern":
+                    base = 0.8;
+                    break;
+                default:
+                    base = 0.6;
+            }
+        }
+        return Math.min(1.0, base + Math.max(0, violations - 1) * 0.05);
     }
 
     // Inner class for storing pattern detection data
@@ -522,6 +688,67 @@ public class PatternDetector {
             if (max == largePoolDetections) return "large_afk_pool"; // v2.4 NEW
             if (max == keystrokeTimeouts) return "keystroke_timeout"; // v2.4 NEW
             return "unknown";
+        }
+    }
+
+    public static class DetectedPatternRecord {
+        private final PlayerAFKPatternDetectedEvent.PatternType patternType;
+        private final double confidence;
+        private final long timestamp;
+        private final int violationCount;
+        private final long detectionTimespan;
+        private final Location location;
+        private final Map<String, Object> additionalData;
+        private final boolean cancelled;
+
+        public DetectedPatternRecord(PlayerAFKPatternDetectedEvent.PatternType patternType,
+                                     double confidence,
+                                     long timestamp,
+                                     int violationCount,
+                                     long detectionTimespan,
+                                     Location location,
+                                     Map<String, Object> additionalData,
+                                     boolean cancelled) {
+            this.patternType = patternType;
+            this.confidence = confidence;
+            this.timestamp = timestamp;
+            this.violationCount = violationCount;
+            this.detectionTimespan = detectionTimespan;
+            this.location = location != null ? location.clone() : null;
+            this.additionalData = additionalData != null ? new HashMap<>(additionalData) : Collections.emptyMap();
+            this.cancelled = cancelled;
+        }
+
+        public PlayerAFKPatternDetectedEvent.PatternType getPatternType() {
+            return patternType;
+        }
+
+        public double getConfidence() {
+            return confidence;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public int getViolationCount() {
+            return violationCount;
+        }
+
+        public long getDetectionTimespan() {
+            return detectionTimespan;
+        }
+
+        public Location getLocation() {
+            return location != null ? location.clone() : null;
+        }
+
+        public Map<String, Object> getAdditionalData() {
+            return Collections.unmodifiableMap(additionalData);
+        }
+
+        public boolean isCancelled() {
+            return cancelled;
         }
     }
 }

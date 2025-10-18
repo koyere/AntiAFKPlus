@@ -7,6 +7,7 @@ import me.koyere.antiafkplus.afk.MovementListener;
 import me.koyere.antiafkplus.afk.PatternDetector;
 import me.koyere.antiafkplus.api.AntiAFKPlusAPI;
 import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
+import me.koyere.antiafkplus.api.APIEventListener;
 import me.koyere.antiafkplus.command.AFKCommand;
 import me.koyere.antiafkplus.command.AFKPlusCommand;
 import me.koyere.antiafkplus.config.ConfigManager;
@@ -48,8 +49,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.7.1";
-    private static final String API_VERSION = "2.7.1";
+    private static final String PLUGIN_VERSION = "2.8";
+    private static final String API_VERSION = "2.8";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
@@ -304,6 +305,9 @@ public final class AntiAFKPlus extends JavaPlugin {
 
             // Initialize public API
             this.api = new AntiAFKPlusAPIImpl(this);
+            if (this.api instanceof AntiAFKPlusAPIImpl apiImpl) {
+                getServer().getPluginManager().registerEvents(new APIEventListener(apiImpl), this);
+            }
 
             // Initialize PlaceholderAPI integration
             if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {

@@ -2,6 +2,7 @@
 package me.koyere.antiafkplus.afk;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.data.ActivityType;
 import me.koyere.antiafkplus.config.ConfigManager;
 import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
 import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
@@ -114,7 +115,7 @@ public class AntiAFKActivityDetector implements Listener {
                         0.7, "Repetitive block breaking detected");
             } else {
                 // Normal activity - trigger state change
-                afkManager.onPlayerActivity(player);
+                afkManager.onPlayerActivity(player, ActivityType.BLOCK_BREAK);
             }
 
             if (configManager.isDebugEnabled()) {
@@ -154,7 +155,7 @@ public class AntiAFKActivityDetector implements Listener {
                         0.8, "Automated fishing behavior detected");
             } else {
                 // Normal activity - trigger state change
-                afkManager.onPlayerActivity(player);
+                afkManager.onPlayerActivity(player, ActivityType.FISHING);
             }
 
             if (configManager.isDebugEnabled()) {
@@ -185,7 +186,7 @@ public class AntiAFKActivityDetector implements Listener {
             pattern.lastActivity = currentTime;
 
             // Normal interaction - trigger activity
-            afkManager.onPlayerActivity(player);
+            afkManager.onPlayerActivity(player, ActivityType.INTERACTION);
 
             if (configManager.isDebugEnabled()) {
                 plugin.getLogger().info("[DEBUG_Activity] " + player.getName() +

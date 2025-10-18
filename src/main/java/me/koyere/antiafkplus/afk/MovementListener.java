@@ -1,6 +1,7 @@
 package me.koyere.antiafkplus.afk;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.data.ActivityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -84,31 +85,46 @@ public class MovementListener implements Listener {
         // Update location data for pattern detection
         updatePlayerLocationData(player, event);
 
-        // If any significant activity detected, update activity timestamp
-        if (significantMovement || headRotation || jumpActivity || swimStateChange || flyStateChange) {
-            if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
-                getAfkManager().onPlayerActivity(player);
-            }
-            updateLastMovementTimestamp(player);
-            
-            // v2.4 NEW: Only update keystroke time if movement appears to be manual
-            if (isManualKeystroke) {
-                updateLastKeystrokeTime(player);
-            }
+        boolean recorded = false;
+        AFKManager manager = AntiAFKPlus.getInstance() != null ? AntiAFKPlus.getInstance().getAfkManager() : null;
 
-            // Update specific activity timestamps
+        if (manager != null) {
+            long now = System.currentTimeMillis();
+            if (significantMovement) {
+                manager.onPlayerActivity(player, ActivityType.MOVEMENT);
+                recorded = true;
+            }
             if (headRotation) {
-                lastHeadRotationTime.put(player.getUniqueId(), System.currentTimeMillis());
+                manager.onPlayerActivity(player, ActivityType.HEAD_ROTATION);
+                lastHeadRotationTime.put(player.getUniqueId(), now);
+                recorded = true;
             }
             if (jumpActivity) {
-                lastJumpTime.put(player.getUniqueId(), System.currentTimeMillis());
+                manager.onPlayerActivity(player, ActivityType.JUMP);
+                lastJumpTime.put(player.getUniqueId(), now);
+                recorded = true;
             }
             if (swimStateChange) {
-                lastSwimStateChange.put(player.getUniqueId(), System.currentTimeMillis());
+                manager.onPlayerActivity(player, ActivityType.MOVEMENT);
+                lastSwimStateChange.put(player.getUniqueId(), now);
+                recorded = true;
             }
             if (flyStateChange) {
-                lastFlyStateChange.put(player.getUniqueId(), System.currentTimeMillis());
+                manager.onPlayerActivity(player, ActivityType.MOVEMENT);
+                lastFlyStateChange.put(player.getUniqueId(), now);
+                recorded = true;
             }
+            if (!recorded && isManualKeystroke) {
+                manager.onPlayerActivity(player, ActivityType.CUSTOM);
+                updateLastKeystrokeTime(player);
+                recorded = true;
+            } else if (recorded && isManualKeystroke) {
+                updateLastKeystrokeTime(player);
+            }
+        }
+
+        if (recorded) {
+            updateLastMovementTimestamp(player);
         }
     }
 
@@ -121,7 +137,7 @@ public class MovementListener implements Listener {
         plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
             if (player.hasPermission("antiafkplus.bypass")) return;
             if (plugin.getAfkManager() != null) {
-                plugin.getAfkManager().onPlayerActivity(player);
+                plugin.getAfkManager().onPlayerActivity(player, ActivityType.CHAT);
             }
             updateLastMovementTimestamp(player);
         });
@@ -132,7 +148,7 @@ public class MovementListener implements Listener {
         if (event.getWhoClicked() instanceof Player player) {
             if (player.hasPermission("antiafkplus.bypass")) return;
             if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
-                getAfkManager().onPlayerActivity(player);
+                getAfkManager().onPlayerActivity(player, ActivityType.INVENTORY);
             }
             updateLastMovementTimestamp(player);
         }
@@ -143,7 +159,7 @@ public class MovementListener implements Listener {
         Player player = event.getPlayer();
         if (player.hasPermission("antiafkplus.bypass")) return;
         if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
-            getAfkManager().onPlayerActivity(player);
+            getAfkManager().onPlayerActivity(player, ActivityType.INTERACTION);
         }
         updateLastMovementTimestamp(player);
     }
@@ -163,7 +179,7 @@ public class MovementListener implements Listener {
         lastCommandTime.put(player.getUniqueId(), System.currentTimeMillis());
 
         if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
-            getAfkManager().onPlayerActivity(player);
+            getAfkManager().onPlayerActivity(player, ActivityType.COMMAND);
         }
         updateLastMovementTimestamp(player);
     }
@@ -198,7 +214,7 @@ public class MovementListener implements Listener {
             state == PlayerFishEvent.State.REEL_IN) {
             
             if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
-                getAfkManager().onPlayerActivity(player);
+                getAfkManager().onPlayerActivity(player, ActivityType.FISHING);
             }
             updateLastMovementTimestamp(player);
         }

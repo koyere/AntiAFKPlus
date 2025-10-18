@@ -1,4 +1,4 @@
-# AntiAFKPlus v2.7
+# AntiAFKPlus v2.8
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
@@ -336,7 +336,7 @@ Integrate AntiAFKPlus API into your plugin using Jitpack:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.7</version>
+        <version>2.8</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -349,7 +349,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.7'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.8'
 }
 ```
 
@@ -360,7 +360,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.7")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.8")
 }
 ```
 
@@ -485,10 +485,16 @@ api.removeAFKExemption(player, AFKExemption.TEMPORARY);
 boolean hasExemption = api.hasAFKExemption(player, AFKExemption.PERMANENT);
 
 // Zone and region management
-AFKZoneInfo zoneInfo = api.getAFKZoneInfo("spawn");
-List<AFKZoneInfo> allZones = api.getAllAFKZones();
-api.createAFKZone("vip_zone", world, location, settings);
+Optional<AFKZoneInfo> zoneInfo = api.getAFKZoneAt(player.getLocation());
+boolean allowedHere = api.isAFKAllowedAt(player.getLocation());
+api.setAFKDetectionEnabled(player.getWorld(), false); // disable AFK detection temporarily
 ```
+
+### Nuevo en la API v2.8
+- Estadísticas en vivo: `getAFKStatistics`, `getPlayerStatistics`, `getPerformanceMetrics` ahora devuelven datos reales del servidor.
+- Seguimiento de actividad: `getActivityInfo`, `getActivityStatistics` y `recordActivity` reflejan los eventos registrados por el núcleo.
+- Gestión de zonas: `getAFKZoneAt` e `isAFKAllowedAt` resuelven la configuración de `zone-management` y WorldGuard.
+- Advertencias y patrones: los listeners (`registerAFKStateListener`, `registerWarningListener`, `registerPatternDetectionListener`) reciben eventos completos con posibilidad de cancelar. 
 
 ---
 
@@ -572,7 +578,7 @@ performance:
 ## 🚀 Version History & Compatibility
 
 ### Latest Releases
-- **v2.7** (2025-10-07): Critical bug fixes - teleportation, disabled worlds, thread safety, system isolation
+- **v2.8** (2025-10-18): API overhaul with real-time activity metrics, zone info and statistics
 - **v2.6** (2025-09-15): Server transfer system with BungeeCord/Velocity support
 - **v2.5** (2025-09-11): AFK Credit System, WorldGuard integration, AFK zone protection, SQL history
 - **v2.4.2** (2025-09-09): Complete Folia 1.21.8 compatibility, method signature fixes
@@ -601,7 +607,7 @@ performance:
 **Developed by Koyere**  
 Licensed under **MIT License** - Open source and free to use for all server types.
 
-**Current Version**: v2.7 (Critical Bug Fixes)  
+**Current Version**: v2.8 (API Overhaul)  
 **Enterprise Features**: Available in all releases  
 **Community Support**: Active development and updates
 

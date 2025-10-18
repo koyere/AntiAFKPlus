@@ -2,6 +2,8 @@
 package me.koyere.antiafkplus.afk;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
+import me.koyere.antiafkplus.api.data.ActivityType;
 import me.koyere.antiafkplus.events.PlayerAFKKickEvent;
 import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
 import me.koyere.antiafkplus.events.PlayerAFKWarningEvent;
@@ -12,6 +14,11 @@ import org.bukkit.World;
 import org.bukkit.entity.Player;
 import me.koyere.antiafkplus.platform.PlatformScheduler;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +31,10 @@ import java.util.UUID;
  * with advanced pattern detection, behavioral analysis, and comprehensive event system.
  */
 public class AFKManager {
+
+    private static final long ACTIVITY_HISTORY_WINDOW_MS = Duration.ofMinutes(30).toMillis();
+    private static final long ACTIVITY_SCORE_WINDOW_MS = Duration.ofMinutes(5).toMillis();
+    private static final int MAX_STORED_ACTIVITIES = 512;
 
     private final AntiAFKPlus plugin;
     private final MovementListener movementListener;
@@ -112,8 +123,8 @@ public class AFKManager {
                         continue;
                     }
 
-                    // Update player activity data
-                    updatePlayerActivityData(player);
+                    // Refresh cached activity statistics window
+                    refreshPlayerActivityData(player);
 
                     if (manualAfkUsernames.contains(uuid)) {
                         long voluntaryAfkLimitMillis = plugin.getConfigManager().getMaxVoluntaryAfkTimeSeconds() * 1000L;
@@ -246,50 +257,26 @@ public class AFKManager {
         return PlayerAFKStateChangeEvent.AFKReason.MOVEMENT_DETECTED; // Default
     }
 
-    private void updatePlayerActivityData(Player player) {
-        UUID uuid = player.getUniqueId();
-        PlayerActivityData data = playerActivityData.computeIfAbsent(uuid, k -> new PlayerActivityData());
-
-        long currentTime = System.currentTimeMillis();
-        data.lastUpdate = currentTime;
-
-        // Update activity counters
-        long lastMovement = movementListener.getLastMovementTimestamp(player);
-        long lastHeadRotation = movementListener.getLastHeadRotationTime(player);
-        long lastJump = movementListener.getLastJumpTime(player);
-        long lastCommand = movementListener.getLastCommandTime(player);
-
-        // Count recent activities (last 5 minutes)
-        long fiveMinutesAgo = currentTime - 300000;
-
-        if (lastMovement > fiveMinutesAgo) data.recentMovements++;
-        if (lastHeadRotation > fiveMinutesAgo) data.recentHeadRotations++;
-        if (lastJump > fiveMinutesAgo) data.recentJumps++;
-        if (lastCommand > fiveMinutesAgo) data.recentCommands++;
-
-        // Reset counters periodically
-        if (currentTime - data.lastReset > 300000) { // Every 5 minutes
-            data.recentMovements = 0;
-            data.recentHeadRotations = 0;
-            data.recentJumps = 0;
-            data.recentCommands = 0;
-            data.lastReset = currentTime;
+    private void refreshPlayerActivityData(Player player) {
+        if (player == null) {
+            return;
         }
-
-        // Calculate activity score (higher = more active)
-        data.activityScore = calculateActivityScore(data);
+        PlayerActivityData data = playerActivityData.get(player.getUniqueId());
+        if (data != null) {
+            data.refresh();
+        }
     }
 
-    private double calculateActivityScore(PlayerActivityData data) {
-        // Weighted activity score based on different types of activity
-        double score = 0.0;
-
-        score += data.recentMovements * 1.0;      // Base movement
-        score += data.recentHeadRotations * 1.5;  // Head rotation is more intentional
-        score += data.recentJumps * 0.8;          // Jumps can be automated
-        score += data.recentCommands * 2.0;       // Commands are highly intentional
-
-        return Math.min(score, 100.0); // Cap at 100
+    private void recordPlayerActivity(Player player, ActivityType activityType, long timestamp) {
+        if (player == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        PlayerActivityData data = playerActivityData.computeIfAbsent(uuid, k -> new PlayerActivityData());
+        data.recordActivity(activityType != null ? activityType : ActivityType.UNKNOWN, timestamp);
+        if (plugin.getPerformanceOptimizer() != null) {
+            plugin.getPerformanceOptimizer().updatePlayerActivity(player);
+        }
     }
 
     private void checkWarnings(Player player) {
@@ -323,6 +310,10 @@ public class AFKManager {
                             timeSinceActivity,
                             determineLastActivityType(player)
                     );
+
+                    if (plugin.getAPI() instanceof AntiAFKPlusAPIImpl apiImpl) {
+                        apiImpl.handleInternalAFKWarning(warningEvent);
+                    }
 
                     Bukkit.getPluginManager().callEvent(warningEvent);
 
@@ -762,7 +753,100 @@ public class AFKManager {
         }
     }
 
+    public void forceSetAutoAFKState(Player player, boolean setAfk, String detectionMethod) {
+        if (player == null) {
+            return;
+        }
+
+        UUID uuid = player.getUniqueId();
+        String method = detectionMethod != null ? detectionMethod : "api_call";
+
+        if (setAfk) {
+            if (manualAfkUsernames.contains(uuid)) {
+                forceSetManualAFKState(player, false);
+            }
+
+            boolean wasAuto = afkPlayers.contains(uuid) && !manualAfkUsernames.contains(uuid);
+            if (!wasAuto) {
+                markAsAFKInternal(player, "auto (API)", method);
+            }
+
+            if (afkPlayers.contains(uuid)) {
+                afkDetectionTimes.put(uuid, System.currentTimeMillis());
+                afkDetectionReasons.put(uuid, method);
+            }
+        } else {
+            if (afkPlayers.contains(uuid) && !manualAfkUsernames.contains(uuid)) {
+                fireAFKStateChangeEvent(player, PlayerAFKStateChangeEvent.AFKState.AFK_AUTO,
+                        PlayerAFKStateChangeEvent.AFKState.ACTIVE,
+                        PlayerAFKStateChangeEvent.AFKReason.API_CALL, method, false);
+                unmarkAsAFKInternal(player);
+                afkDetectionTimes.remove(uuid);
+                afkDetectionReasons.remove(uuid);
+                playersAlreadyActioned.remove(uuid);
+            }
+        }
+    }
+
+    public void forceSetActive(Player player, PlayerAFKStateChangeEvent.AFKReason reason, String detectionMethod) {
+        if (player == null) {
+            return;
+        }
+        UUID uuid = player.getUniqueId();
+        PlayerAFKStateChangeEvent.AFKReason finalReason = reason != null ? reason : PlayerAFKStateChangeEvent.AFKReason.API_CALL;
+        String method = detectionMethod != null ? detectionMethod : "api_call";
+
+        if (manualAfkUsernames.contains(uuid)) {
+            forceSetManualAFKState(player, false);
+        }
+
+        if (afkPlayers.contains(uuid) && !manualAfkUsernames.contains(uuid)) {
+            fireAFKStateChangeEvent(player, PlayerAFKStateChangeEvent.AFKState.AFK_AUTO,
+                    PlayerAFKStateChangeEvent.AFKState.ACTIVE,
+                    finalReason, method, false);
+            unmarkAsAFKInternal(player);
+            afkDetectionTimes.remove(uuid);
+            afkDetectionReasons.remove(uuid);
+            playersAlreadyActioned.remove(uuid);
+        }
+    }
+
+    public boolean isAutoAFK(Player player) {
+        if (player == null) return false;
+        UUID uuid = player.getUniqueId();
+        return afkPlayers.contains(uuid) && !manualAfkUsernames.contains(uuid);
+    }
+
+    public Long getManualAFKStartTime(Player player) {
+        if (player == null) return null;
+        return manualAfkStartTimes.get(player.getUniqueId());
+    }
+
+    public Set<UUID> getAfkPlayerUUIDs() {
+        return new HashSet<>(afkPlayers);
+    }
+
+    public Map<UUID, Long> getAfkDetectionTimesSnapshot() {
+        return new HashMap<>(afkDetectionTimes);
+    }
+
+    public Map<UUID, String> getAfkDetectionReasonsSnapshot() {
+        return new HashMap<>(afkDetectionReasons);
+    }
+
+    public Map<UUID, Long> getManualAfkStartTimesSnapshot() {
+        return new HashMap<>(manualAfkStartTimes);
+    }
+
     public void onPlayerActivity(Player player) {
+        onPlayerActivity(player, ActivityType.UNKNOWN);
+    }
+
+    public void onPlayerActivity(Player player, ActivityType activityType) {
+        if (player == null) {
+            return;
+        }
+
         UUID uuid = player.getUniqueId();
         boolean wasManuallyAfk = manualAfkUsernames.contains(uuid);
 
@@ -774,7 +858,18 @@ public class AFKManager {
         playersAlreadyActioned.remove(uuid);
 
         // Update activity tracking
-        updatePlayerActivityData(player);
+        recordPlayerActivity(player, activityType, System.currentTimeMillis());
+
+        if (plugin.getAPI() instanceof AntiAFKPlusAPIImpl apiImpl) {
+            apiImpl.handleInternalActivity(player, activityType != null ? activityType : ActivityType.UNKNOWN);
+        }
+    }
+
+    public void recordCustomActivity(Player player, ActivityType activityType) {
+        if (player == null || activityType == null) {
+            return;
+        }
+        recordPlayerActivity(player, activityType, System.currentTimeMillis());
     }
 
     public void clearPlayerData(Player player) {
@@ -872,7 +967,7 @@ public class AFKManager {
         // Prefer WorldGuard integration when available
         var wg = plugin.getWorldGuardIntegration();
         if (wg != null && wg.isAvailable() && plugin.getConfig().getBoolean("zone-management.enabled", false)) {
-            String z = wg.determineZoneAt(player);
+            String z = wg.determineZoneAt(player != null ? player.getLocation() : null);
             if (z != null) return z;
         }
         // Fallback: spawn zone if configured
@@ -882,20 +977,101 @@ public class AFKManager {
 
     // Inner class for enhanced activity tracking
     public static class PlayerActivityData {
-        public int recentMovements = 0;
-        public int recentHeadRotations = 0;
-        public int recentJumps = 0;
-        public int recentCommands = 0;
-        public double activityScore = 0.0;
-        public long lastUpdate = System.currentTimeMillis();
-        public long lastReset = System.currentTimeMillis();
+        private final Deque<ActivityEntry> activityHistory = new ArrayDeque<>();
+        private final EnumMap<ActivityType, Long> lastActivityTimes = new EnumMap<>(ActivityType.class);
+        private long lastActivityTimestamp = 0L;
+        private ActivityType lastActivityType = ActivityType.UNKNOWN;
+        private double activityScore = 0.0;
 
-        public boolean isHighActivity() {
-            return activityScore > 50.0;
+        public synchronized void recordActivity(ActivityType type, long timestamp) {
+            activityHistory.addLast(new ActivityEntry(type, timestamp));
+            while (activityHistory.size() > MAX_STORED_ACTIVITIES) {
+                activityHistory.removeFirst();
+            }
+            lastActivityTimes.put(type, timestamp);
+            lastActivityTimestamp = timestamp;
+            lastActivityType = type;
+            trimHistory(timestamp);
+            recalculateScore(timestamp);
         }
 
-        public boolean isLowActivity() {
-            return activityScore < 10.0;
+        public synchronized void refresh() {
+            long now = System.currentTimeMillis();
+            trimHistory(now);
+            recalculateScore(now);
+        }
+
+        private void trimHistory(long currentTime) {
+            while (!activityHistory.isEmpty() &&
+                    currentTime - activityHistory.peekFirst().timestamp > ACTIVITY_HISTORY_WINDOW_MS) {
+                activityHistory.removeFirst();
+            }
+        }
+
+        private void recalculateScore(long currentTime) {
+            double score = 0.0;
+            for (ActivityEntry entry : activityHistory) {
+                if (currentTime - entry.timestamp <= ACTIVITY_SCORE_WINDOW_MS) {
+                    score += entry.type.getActivityWeight();
+                }
+            }
+            activityScore = Math.min(100.0, score * 5.0); // Normalize to 0-100 range
+        }
+
+        public synchronized Map<ActivityType, Integer> getActivityCounts(long windowMs) {
+            long cutoff = System.currentTimeMillis() - windowMs;
+            EnumMap<ActivityType, Integer> counts = new EnumMap<>(ActivityType.class);
+            for (ActivityEntry entry : activityHistory) {
+                if (entry.timestamp >= cutoff) {
+                    counts.merge(entry.type, 1, Integer::sum);
+                }
+            }
+            return counts;
+        }
+
+        public synchronized Map<ActivityType, Long> getLastActivityTimes() {
+            return new EnumMap<>(lastActivityTimes);
+        }
+
+        public synchronized int getTotalActivities(long windowMs) {
+            long cutoff = System.currentTimeMillis() - windowMs;
+            int total = 0;
+            for (ActivityEntry entry : activityHistory) {
+                if (entry.timestamp >= cutoff) {
+                    total++;
+                }
+            }
+            return total;
+        }
+
+        public synchronized double getActivityScore() {
+            return activityScore;
+        }
+
+        public synchronized long getLastActivityTimestamp() {
+            return lastActivityTimestamp;
+        }
+
+        public synchronized ActivityType getLastActivityType() {
+            return lastActivityType;
+        }
+
+        public synchronized boolean isHighActivity() {
+            return activityScore >= 50.0;
+        }
+
+        public synchronized boolean isLowActivity() {
+            return activityScore <= 10.0;
+        }
+
+        private static class ActivityEntry {
+            private final ActivityType type;
+            private final long timestamp;
+
+            private ActivityEntry(ActivityType type, long timestamp) {
+                this.type = type;
+                this.timestamp = timestamp;
+            }
         }
     }
 }

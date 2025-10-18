@@ -12,6 +12,8 @@ import me.koyere.antiafkplus.credit.storage.CreditStorage;
 import me.koyere.antiafkplus.credit.storage.FileCreditStorage;
 import me.koyere.antiafkplus.credit.storage.SqlCreditStorage;
 
+import java.time.Duration;
+import me.koyere.antiafkplus.api.data.ActivityType;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -136,7 +138,7 @@ public class CreditManager {
         if (afkMgr != null) {
             var pdata = afkMgr.getPlayerActivityData(player);
             if (pdata != null) {
-                double score = pdata.activityScore; // 0..100
+                double score = pdata.getActivityScore(); // 0..100
                 if (score < activityThreshold * 100.0) {
                     activeMinuteCounter.put(id, minutes);
                     return;
@@ -144,11 +146,12 @@ public class CreditManager {
                 // Tipos de actividad requeridos
                 int requiredTypes = Math.max(0, plugin.getConfig().getInt("credit-system.earning-requirements.required-activity-types", 0));
                 if (requiredTypes > 0) {
+                    Map<ActivityType, Integer> counts = pdata.getActivityCounts(Duration.ofMinutes(5).toMillis());
                     int types = 0;
-                    if (pdata.recentMovements > 0) types++;
-                    if (pdata.recentHeadRotations > 0) types++;
-                    if (pdata.recentJumps > 0) types++;
-                    if (pdata.recentCommands > 0) types++;
+                    if (counts.getOrDefault(ActivityType.MOVEMENT, 0) > 0) types++;
+                    if (counts.getOrDefault(ActivityType.HEAD_ROTATION, 0) > 0) types++;
+                    if (counts.getOrDefault(ActivityType.JUMP, 0) > 0) types++;
+                    if (counts.getOrDefault(ActivityType.COMMAND, 0) > 0) types++;
                     if (types < requiredTypes) {
                         activeMinuteCounter.put(id, minutes);
                         return;
