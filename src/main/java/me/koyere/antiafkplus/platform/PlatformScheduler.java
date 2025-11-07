@@ -162,10 +162,11 @@ public class PlatformScheduler {
      * Run a repeating task on the main/global thread.
      */
     public ScheduledTask runTaskTimer(Runnable task, long delayTicks, long periodTicks) {
+        Runnable guardedTask = wrapWithPauseGuard(task);
         if (supportsFolia) {
-            return runFoliaGlobalRepeatingTask(task, delayTicks, periodTicks);
+            return runFoliaGlobalRepeatingTask(guardedTask, delayTicks, periodTicks);
         } else {
-            BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimer(plugin, task, delayTicks, periodTicks);
+            BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimer(plugin, guardedTask, delayTicks, periodTicks);
             return new BukkitScheduledTask(bukkitTask);
         }
     }
@@ -205,11 +206,12 @@ public class PlatformScheduler {
      * On Folia, this uses the global scheduler with async handling.
      */
     public ScheduledTask runTaskTimerAsync(Runnable task, long delayTicks, long periodTicks) {
+        Runnable guardedTask = wrapWithPauseGuard(task);
         if (supportsFolia) {
             // Folia doesn't support traditional async timers, use global scheduler with async wrapper
-            return runFoliaAsyncTimer(task, delayTicks, periodTicks);
+            return runFoliaAsyncTimer(guardedTask, delayTicks, periodTicks);
         } else {
-            BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, task, delayTicks, periodTicks);
+            BukkitTask bukkitTask = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, guardedTask, delayTicks, periodTicks);
             return new BukkitScheduledTask(bukkitTask);
         }
     }
@@ -443,6 +445,18 @@ public class PlatformScheduler {
      */
     public void shutdown() {
         cancelAllTasks();
+    }
+
+    private Runnable wrapWithPauseGuard(Runnable original) {
+        if (original == null) {
+            return () -> {};
+        }
+        return () -> {
+            if (ServerStateUtil.isServerPaused()) {
+                return;
+            }
+            original.run();
+        };
     }
     
     // ============= INNER CLASSES =============

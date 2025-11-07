@@ -26,7 +26,7 @@ Then add the dependency:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.8</version>
+        <version>2.8.2</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -46,7 +46,7 @@ Then add the dependency:
 
 ```groovy
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.8'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.8.2'
 }
 ```
 
@@ -58,7 +58,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.8")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.8.2")
 }
 ```
 
@@ -396,7 +396,7 @@ public class EconomyIntegration {
 To use a specific version, change the version number:
 
 ```xml
-<version>2.8</version>  <!-- Latest stable version -->
+<version>2.8.2</version>  <!-- Latest stable version -->
 <version>2.6</version>  <!-- Previous version -->
 <version>main-SNAPSHOT</version>  <!-- Latest development version (not recommended) -->
 ```

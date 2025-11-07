@@ -1,7 +1,7 @@
 # AntiAFKPlus v2.8 — API Overhaul
 
 Release type: Feature & API Upgrade
-Compatibility: Minecraft 1.16 – 1.21.8 | Java 17+
+Compatibility: Minecraft 1.16 – 1.21.10 | Java 17+
 
 ---
 

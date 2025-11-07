@@ -39,6 +39,15 @@ public class CountdownSequenceService {
         }
     }
 
+    public long getCountdownStart(UUID uuid) {
+        RunningCountdown rc = uuid != null ? running.get(uuid) : null;
+        return rc != null ? rc.startedAt : -1L;
+    }
+
+    public long getCountdownStart(Player player) {
+        return player == null ? -1L : getCountdownStart(player.getUniqueId());
+    }
+
     /**
      * Inicia una cuenta atrás de transferencia de servidor con configuración desde config.yml.
      * Llama al runnable onComplete en el tick final si no fue cancelado.
@@ -65,8 +74,7 @@ public class CountdownSequenceService {
         // Preparar estado
         UUID uuid = player.getUniqueId();
         cancel(player); // cancelar cualquier countdown previo
-        RunningCountdown rc = new RunningCountdown();
-        rc.remaining = seconds;
+        RunningCountdown rc = new RunningCountdown(seconds);
         running.put(uuid, rc);
 
         PlatformScheduler.ScheduledTask timer = plugin.getPlatformScheduler().runTaskTimer(() -> {
@@ -76,8 +84,7 @@ public class CountdownSequenceService {
                 return;
             }
 
-            // Si ya no está AFK (el core lo decide), cancelar
-            if (!plugin.getAfkManager().isAFK(p)) {
+            if (plugin.getAfkManager() == null || !plugin.getAfkManager().isAFK(p)) {
                 cancelByUuid(uuid);
                 return;
             }
@@ -124,7 +131,12 @@ public class CountdownSequenceService {
 
     private static class RunningCountdown {
         volatile int remaining;
+        final long startedAt;
         PlatformScheduler.ScheduledTask task;
+
+        private RunningCountdown(int seconds) {
+            this.remaining = seconds;
+            this.startedAt = System.currentTimeMillis();
+        }
     }
 }
-

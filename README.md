@@ -1,4 +1,4 @@
-# AntiAFKPlus v2.8
+# AntiAFKPlus v2.8.2
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
@@ -336,7 +336,7 @@ Integrate AntiAFKPlus API into your plugin using Jitpack:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.8</version>
+        <version>2.8.2</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -349,7 +349,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.8'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.8.2'
 }
 ```
 
@@ -360,7 +360,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.8")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.8.2")
 }
 ```
 
@@ -578,6 +578,7 @@ performance:
 ## 🚀 Version History & Compatibility
 
 ### Latest Releases
+- **v2.8.2**: Fixes CPU usage when the server is paused and stabilizes the countdown transfer flow
 - **v2.8** (2025-10-18): API overhaul with real-time activity metrics, zone info and statistics
 - **v2.6** (2025-09-15): Server transfer system with BungeeCord/Velocity support
 - **v2.5** (2025-09-11): AFK Credit System, WorldGuard integration, AFK zone protection, SQL history
@@ -607,7 +608,7 @@ performance:
 **Developed by Koyere**  
 Licensed under **MIT License** - Open source and free to use for all server types.
 
-**Current Version**: v2.8 (API Overhaul)  
+**Current Version**: v2.8.2 (Countdown + pause fixes)  
 **Enterprise Features**: Available in all releases  
 **Community Support**: Active development and updates
 

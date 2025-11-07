@@ -147,6 +147,15 @@ public class AFKManager {
                     // Enhanced AFK detection with multiple activity checks
                     boolean shouldBeAFK = performEnhancedAFKCheck(player);
 
+                    if (!shouldBeAFK && plugin.getCountdownSequenceService() != null
+                            && plugin.getCountdownSequenceService().isRunning(player)) {
+                        long countdownStart = plugin.getCountdownSequenceService().getCountdownStart(player);
+                        long lastActivityTs = getLastRecordedActivityTimestamp(player);
+                        if (countdownStart > 0 && lastActivityTs <= countdownStart + 50L) {
+                            shouldBeAFK = true;
+                        }
+                    }
+
                     if (shouldBeAFK) {
                         if (!afkPlayers.contains(uuid)) {
                             String detectionReason = determineAFKReason(player);
@@ -255,6 +264,17 @@ public class AFKManager {
         }
 
         return PlayerAFKStateChangeEvent.AFKReason.MOVEMENT_DETECTED; // Default
+    }
+
+    private long getLastRecordedActivityTimestamp(Player player) {
+        if (player == null) {
+            return System.currentTimeMillis();
+        }
+        PlayerActivityData data = playerActivityData.get(player.getUniqueId());
+        if (data != null && data.getLastActivityTimestamp() > 0) {
+            return data.getLastActivityTimestamp();
+        }
+        return movementListener.getLastMovementTimestamp(player);
     }
 
     private void refreshPlayerActivityData(Player player) {

@@ -13,6 +13,12 @@ import java.util.*;
 /**
  * Detects suspicious movement patterns that indicate AFK machines or pools.
  * Analyzes player movement history to identify repetitive or confined movement patterns.
+ *
+ * THREAD-SAFETY (v2.8):
+ * - Pattern analysis runs asynchronously (runTaskTimerAsync) for performance
+ * - Event firing and post-processing happens synchronously on main thread (runTaskForEntity)
+ * - All data structures use ConcurrentHashMap/ConcurrentLinkedDeque for thread-safe access
+ * - This ensures Paper 1.21.8 compatibility and prevents IllegalStateException
  */
 public class PatternDetector {
 
@@ -33,10 +39,10 @@ public class PatternDetector {
     private static final long KEYSTROKE_TIMEOUT_CHECK_INTERVAL = 15000; // Check every 15 seconds
     private static final int MIN_SAMPLES_FOR_LARGE_POOL = 30; // More samples needed for large pool detection
 
-    // Player pattern tracking
-    private final Map<UUID, PatternData> playerPatterns = new HashMap<>();
-    private final Map<UUID, Integer> patternViolations = new HashMap<>();
-    private final Map<UUID, Deque<DetectedPatternRecord>> recentDetections = new HashMap<>();
+    // Player pattern tracking (thread-safe for concurrent access)
+    private final Map<UUID, PatternData> playerPatterns = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Integer> patternViolations = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<UUID, Deque<DetectedPatternRecord>> recentDetections = new java.util.concurrent.ConcurrentHashMap<>();
     private static final int MAX_STORED_PATTERN_DETECTIONS = 64;
 
     private PlatformScheduler.ScheduledTask analysisTask;
@@ -143,11 +149,8 @@ public class PatternDetector {
         if (suspiciousPattern) {
             handleSuspiciousPattern(player, detectionReason, patternData);
         } else {
-            // Reduce violation count if no suspicious activity
-            int violations = patternViolations.getOrDefault(uuid, 0);
-            if (violations > 0) {
-                patternViolations.put(uuid, Math.max(0, violations - 1));
-            }
+            // Reduce violation count if no suspicious activity (thread-safe decrement)
+            patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 1));
         }
 
         patternData.lastAnalysis = System.currentTimeMillis();
@@ -442,64 +445,86 @@ public class PatternDetector {
 
     private void handleSuspiciousPattern(Player player, String detectionReason, PatternData patternData) {
         UUID uuid = player.getUniqueId();
-        int violations = patternViolations.getOrDefault(uuid, 0) + 1;
-        patternViolations.put(uuid, violations);
+        final String playerName = player.getName(); // Cache name (final for lambda capture)
+
+        // Thread-safe increment of violations (can be called from async thread)
+        final int violations = patternViolations.compute(uuid, (k, v) -> (v == null ? 0 : v) + 1);
 
         if (plugin.getConfigManager().isDebugEnabled()) {
             plugin.getLogger().warning("[PatternDetector] Suspicious " + detectionReason +
-                    " pattern detected for " + player.getName() +
+                    " pattern detected for " + playerName +
                     " (Violations: " + violations + "/" + MAX_PATTERN_VIOLATIONS + ")");
         }
 
-        AFKLogger.logActivity("Pattern Detection: " + player.getName() + " - " + detectionReason +
+        AFKLogger.logActivity("Pattern Detection: " + playerName + " - " + detectionReason +
                 " (violations: " + violations + ")");
 
+        // Prepare event data (can be done in async thread - NO entity access here)
         Map<String, Object> additionalData = new HashMap<>();
         additionalData.put("reason", detectionReason);
         additionalData.put("violations", violations);
         additionalData.put("totalDetections", patternData.getTotalDetections());
 
-        PlayerAFKPatternDetectedEvent patternEvent = new PlayerAFKPatternDetectedEvent(
-                player,
-                mapPatternType(detectionReason),
-                computeConfidence(detectionReason, violations),
-                violations,
-                PATTERN_ANALYSIS_INTERVAL,
-                player.getLocation(),
-                patternData,
-                additionalData
-        );
+        PlayerAFKPatternDetectedEvent.PatternType patternType = mapPatternType(detectionReason);
+        double confidence = computeConfidence(detectionReason, violations);
 
-        plugin.getServer().getPluginManager().callEvent(patternEvent);
-        recordDetectedPattern(player, patternEvent);
+        // CRITICAL FIX: Execute ALL event firing and post-processing synchronously on main thread
+        // Paper 1.21.8 requires events to be fired from main thread, not async
+        // IMPORTANT: ALL player entity access must happen inside runTaskForEntity (including getLocation)
+        plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
+            // Re-verify player is still online (they might have disconnected during async analysis)
+            if (!player.isOnline()) {
+                return;
+            }
 
-        if (patternEvent.isCancelled()) {
-            return;
-        }
+            // Get player location NOW in main thread (safe entity access)
+            Location detectionLocation = player.getLocation().clone();
 
-        if (processSuggestedAction(player, patternEvent)) {
-            patternViolations.put(uuid, 0);
-            return;
-        }
+            // Create and fire event synchronously
+            PlayerAFKPatternDetectedEvent patternEvent = new PlayerAFKPatternDetectedEvent(
+                    player,
+                    patternType,
+                    confidence,
+                    violations,
+                    PATTERN_ANALYSIS_INTERVAL,
+                    detectionLocation,
+                    patternData,
+                    additionalData
+            );
 
-        // Take action based on violation count
-        if (violations >= MAX_PATTERN_VIOLATIONS) {
-            // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
-            // This ensures pattern detection triggers the same action as regular AFK detection
-            plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
+            plugin.getServer().getPluginManager().callEvent(patternEvent);
+
+            // Record detection (thread-safe map operation)
+            recordDetectedPattern(player, patternEvent);
+
+            // Check if event was cancelled by listeners
+            if (patternEvent.isCancelled()) {
+                return;
+            }
+
+            // Process suggested action from event
+            if (processSuggestedAction(player, patternEvent)) {
+                patternViolations.put(uuid, 0);
+                return;
+            }
+
+            // Take action based on violation count
+            if (violations >= MAX_PATTERN_VIOLATIONS) {
+                // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
+                // This ensures pattern detection triggers the same action as regular AFK detection
                 afkManager.executeAFKAction(player, detectionReason);
                 player.sendMessage(patternEvent.getCustomMessage() != null ?
                         patternEvent.getCustomMessage() :
                         "§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.");
-            });
 
-            // Log the action (this can stay async)
-            AFKLogger.logActivity("Forced AFK due to pattern violations: " + player.getName() +
-                    " (" + detectionReason + ")");
+                // Log the action
+                AFKLogger.logActivity("Forced AFK due to pattern violations: " + playerName +
+                        " (" + detectionReason + ")");
 
-            // Reset violations after action
-            patternViolations.put(uuid, 0);
-        }
+                // Reset violations after action (thread-safe)
+                patternViolations.put(uuid, 0);
+            }
+        });
     }
 
     public void clearPlayerData(Player player) {
@@ -587,7 +612,12 @@ public class PatternDetector {
             return;
         }
         UUID uuid = player.getUniqueId();
-        Deque<DetectedPatternRecord> detections = recentDetections.computeIfAbsent(uuid, k -> new ArrayDeque<>());
+
+        // Thread-safe: Use ConcurrentLinkedDeque for thread-safe operations
+        Deque<DetectedPatternRecord> detections = recentDetections.computeIfAbsent(
+                uuid, k -> new java.util.concurrent.ConcurrentLinkedDeque<>()
+        );
+
         detections.addLast(new DetectedPatternRecord(
                 event.getPatternType(),
                 event.getConfidence(),
@@ -598,6 +628,8 @@ public class PatternDetector {
                 event.getAdditionalData(),
                 event.isCancelled()
         ));
+
+        // Remove old detections if exceeding limit
         while (detections.size() > MAX_STORED_PATTERN_DETECTIONS) {
             detections.removeFirst();
         }
