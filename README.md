@@ -1,8 +1,8 @@
-# AntiAFKPlus v2.8.2
+# AntiAFKPlus v2.9
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
-✅ **Minecraft 1.16 – 1.21.8** | ✅ **Folia/Paper/Spigot/Bukkit/Purpur** | ✅ **Java & Bedrock Edition** | ✅ **Zero-lag Performance**
+✅ **Minecraft 1.16 – 1.21.10** | ✅ **Folia/Paper/Spigot/Bukkit/Purpur** | ✅ **Java & Bedrock Edition** | ✅ **Zero-lag Performance**
 
 ---
 
@@ -37,6 +37,7 @@
 - **Multi-activity tracking** (movement, rotation, jumping, chat, commands, interactions)
 - **Large AFK pool detection** (20x10+ block water pools with current-based movement)
 - **Manual vs automatic movement** analysis with velocity variance tracking
+- **AFK time windows** (v2.9) to pause kicks during configurable hours
 
 ---
 
@@ -75,6 +76,7 @@
 | `antiafkplus.bypass` | Bypass all AFK detection |
 | `antiafkplus.bypass.detection` | Bypass basic detection only |
 | `antiafkplus.bypass.patterns` | Bypass pattern detection |
+| `antiafkplus.window.bypass` | Ignore AFK windows and enforce the normal kick flow |
 | `antiafkplus.time.vip` | Custom AFK time limits |
 | `antiafkplus.admin` | Admin commands access |
 
@@ -138,6 +140,22 @@ internationalization:
   auto-detect-language: true
   fallback-to-default: true
 ```
+
+### AFK Windows (v2.9)
+Allow specific time ranges where players are immune to AFK punishment. The scheduler uses the host timezone by default but can target any IANA ID (e.g., `America/New_York`).
+```yaml
+afk-windows:
+  enabled: true
+  timezone: "SERVER"              # or explicit IANA ID
+  ranges:
+    - "08:00-12:00"
+    - "20:00-23:00"
+  behavior-inside-window: "SKIP_ACTIONS"
+  behavior-outside-window: "DEFAULT"
+  extend-seconds: 900             # used when behavior is EXTEND_THRESHOLD
+  bypass-permission: "antiafkplus.window.bypass"
+```
+All user-facing texts (titles, chat, warnings) still flow through `messages.yml`, so you can translate the AFK window message per language.
 
 ### Enhanced Pattern Detection (v2.4+)
 ```yaml
@@ -336,7 +354,7 @@ Integrate AntiAFKPlus API into your plugin using Jitpack:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.8.2</version>
+        <version>2.9</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -349,7 +367,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.8.2'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.9'
 }
 ```
 
@@ -360,7 +378,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.8.2")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.9")
 }
 ```
 
@@ -542,7 +560,7 @@ performance:
 
 **Platform-Specific Issues:**
 - **Folia compatibility**: Ensure folia-supported: true and latest version (v2.4.2+)
-- **Cross-version compatibility**: Plugin supports MC 1.16-1.21.8 automatically
+- **Cross-version compatibility**: Plugin supports MC 1.16-1.21.10 automatically
 - **Plugin conflicts**: Check for conflicting AFK plugins or schedulers
 
 ### Support & Resources
@@ -577,23 +595,199 @@ performance:
 
 ## 🚀 Version History & Compatibility
 
-### Latest Releases
-- **v2.8.2**: Fixes CPU usage when the server is paused and stabilizes the countdown transfer flow
-- **v2.8** (2025-10-18): API overhaul with real-time activity metrics, zone info and statistics
-- **v2.6** (2025-09-15): Server transfer system with BungeeCord/Velocity support
-- **v2.5** (2025-09-11): AFK Credit System, WorldGuard integration, AFK zone protection, SQL history
-- **v2.4.2** (2025-09-09): Complete Folia 1.21.8 compatibility, method signature fixes
-- **v2.4.1** (2025-09-06): Critical bug fix for repeated kick/teleport actions
-- **v2.4** (2025-08-07): Large AFK pool detection, keystroke timeout analysis
+### Latest Release: v2.9 - AFK Time Windows (2025)
+**Type:** Feature Update | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
+
+- **AFK Time Windows**: Configurable daily hour ranges where AFK actions are paused or modified
+- **Multiple Behaviors**: SKIP_ACTIONS, MESSAGE_ONLY, EXTEND_THRESHOLD, DEFAULT
+- **Timezone Support**: Server timezone or any IANA timezone ID (e.g., America/New_York)
+- **Wrap-around Ranges**: Support for overnight periods (e.g., 22:00-02:00)
+- **New Permission**: `antiafkplus.window.bypass` for staff to ignore windows
+- **Use Cases**: Peak hours protection, event periods, off-hours flexibility
+
+---
+
+### Complete Version History
+
+<details>
+<summary><b>v2.8.2 - Stability Hotfix (2025)</b></summary>
+
+**Type:** Bug Fix Release | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
+
+**Critical Fixes:**
+- Pause-aware scheduling: eliminated CPU spikes when Paper/Folia is paused or in auto-pause mode
+- Stable transfer countdowns: fixed countdown persistence and AFK state transitions
+- Resolved "title disable kick / activity detected loop" issue
+- Final actions now fire exactly once
+
+**Compatibility:** Fully backward compatible with v2.8 API
+</details>
+
+<details>
+<summary><b>v2.8.1 - Pattern Detection Threading Fix (October 20, 2025)</b></summary>
+
+**Type:** Critical Bug Fix | **Compatibility:** Paper 1.21.8, Spigot, Folia, Purpur (MC 1.16-1.21.8)
+
+**Critical Fixes:**
+- Pattern Detection Event Threading: all Bukkit events now fire synchronously on main thread
+- Eliminated async entity access and IllegalStateException errors
+- Converted internal data structures to thread-safe collections
+- Implemented atomic operations for violation counters
+- Added proper player disconnect handling during async analysis
+
+**Impact:**
+- External API listeners now receive pattern detection events correctly
+- Zero threading exceptions in Paper 1.21.8+
+- 100% API compatible with v2.8, drop-in replacement
+</details>
+
+<details>
+<summary><b>v2.8 - API Overhaul (2025)</b></summary>
+
+**Type:** Feature & API Upgrade | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
+
+**Key Features:**
+- **Real Data API**: Activity, history, and statistics endpoints return live server data
+- **Reliable Events**: AFK warnings and pattern detections always delivered to public API
+- **Zone Awareness**: New helpers for zone management (`isAFKAllowedAt`, `getAFKZoneAt`)
+- **Runtime World Toggling**: `setAFKDetectionEnabled` with persistence
+
+**API Improvements:**
+- `getActivityInfo`, `getActivityStatistics`, `getAFKStatistics` return real data
+- Listeners can modify messages or cancel actions before kicks/teleports
+- WorldGuard region integration
+
+**Compatibility:** No configuration changes required, backward compatible
+</details>
+
+<details>
+<summary><b>v2.7 - Critical Bug Fixes (October 7, 2025)</b></summary>
+
+**Type:** Critical Bug Fix | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
+
+**Critical Fixes:**
+- Credit System Teleportation: AFK zone teleportation now works consistently
+- Disabled Worlds Cleanup: No more AFK warnings in disabled worlds, state automatically cleared
+- Pattern Detection Errors: Eliminated ConcurrentModificationException errors
+- Credit System Isolation: Complete isolation when disabled for better performance
+
+**Impact:** 100% backward compatible, no configuration changes required
+</details>
+
+<details>
+<summary><b>v2.6 - Server Transfer System (September 15, 2025)</b></summary>
+
+**Type:** Feature Release | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
+
+**Key Features:**
+- **Server Transfer**: Native TRANSFER_SERVER action via Plugin Messaging (Bungee/Velocity)
+- **Countdown System**: Optional per-second countdown with titles, subtitles, and sounds
+- **Scripted Pipeline**: New DSL-like syntax (TITLE, SUBTITLE, SOUND, MESSAGE, WAIT, TRANSFER)
+- **Robustness**: Auto-registration of BungeeCord channels, fallback actions (KICK, TELEPORT, NONE)
+
+**Integration:**
+- BungeeCord and Velocity support
+- Folia-safe scheduling through PlatformScheduler
+- Zone-based transfer overrides
+
+**Compatibility:** Fully backward compatible, disabled by default
+</details>
+
+<details>
+<summary><b>v2.5 - AFK Credit System (November 9, 2025)</b></summary>
+
+**Type:** Feature Release | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
+
+**Key Features:**
+- **AFK Credit System**: Earn AFK time by being active (5 min active = 1 min AFK credit)
+- **Credit Ratios**: Configurable by permission groups (VIP, Premium, Admin)
+- **Credit Protection**: Zone teleportation instead of kicks when credits exhausted
+- **WorldGuard Integration**: AFK zones resolved from regions
+- **New Commands**: `/afkback` to return from AFK zone, `/afkcredits` to check balance
+- **Database Support**: Optional SQL history for credit transactions
+
+**Permissions:**
+- `antiafkplus.credit.earn` - Earn credits
+- `antiafkplus.credit.use` - Use credits to delay AFK action
+- `antiafkplus.credit.ratio.vip/premium/admin` - Improved ratios
+
+**API Methods:**
+- Credit management (getCreditBalance, addCredits, consumeCredits)
+- AFK zone management (isInAFKZone, returnFromAFKZone)
+- Credit event listeners
+
+**Compatibility:** Disabled by default, seamless integration
+</details>
+
+<details>
+<summary><b>v2.4.2 - Folia 1.21.8 Compatibility (September 9, 2025)</b></summary>
+
+**Type:** Folia Compatibility Fix | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
+
+**Critical Fixes:**
+- Complete Folia 1.21.8 compatibility with correct method signatures
+- Fixed `runAtFixedRate` API calls (removed TimeUnit parameter, direct tick usage)
+- Stronger fallback with ScheduledExecutorService
+- Migrated all tasks to PlatformScheduler (Folia-safe)
+- Added clean plugin shutdown to prevent JAR locking
+
+**Technical:**
+- Corrected Folia API signatures for GlobalRegionScheduler
+- Native Folia integration via reflection
+- Robust fallback executor for reflection failures
+
+**Compatibility:** Zero impact on Paper/Spigot/Bukkit, full Folia 1.21.8+ support
+</details>
+
+<details>
+<summary><b>v2.4.1 - Action Loop Fix (September 6, 2025)</b></summary>
+
+**Type:** Critical Bug Fix | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
+
+**Critical Fix:**
+- Players now kicked/teleported only once after reaching AFK timeout (instead of every 5 seconds)
+- Added action state tracking to prevent repeated actions
+- Implemented safety delay and automatic cleanup
+- AFK timeout configurations now work correctly
+
+**Compatibility:** Fully backward compatible, no configuration changes required
+</details>
+
+<details>
+<summary><b>v2.4 - Large AFK Pool Detection (August 7, 2025)</b></summary>
+
+**Type:** Feature Enhancement | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
+
+**Key Features:**
+- **Large AFK Pool Detection**: Detects pools between 5x5 and 25x25 blocks
+- **Keystroke Timeout**: Distinguishes manual vs automatic movement
+- **Enhanced Movement Analysis**: Velocity and direction change analysis
+- **Multi-factor Validation**: Prevents false positives
+
+**New Configuration:**
+- `large-pool-threshold: 25.0` - Maximum area for large AFK pools
+- `keystroke-timeout-ms: 180000` - 3 minutes without manual input
+- `automatic-movement-velocity-threshold: 0.15` - Water current detection
+
+**Detection Logic:**
+- Movement area > 5x5 but < 25x25 blocks
+- Player in water for extended periods
+- Movement patterns consistent with water currents
+- No manual keystrokes for 3+ minutes
+
+**Compatibility:** Backward compatible, all existing detection unchanged
+</details>
+
+---
 
 ### Platform Compatibility Matrix
 | Platform | Version Support | Status | Notes |
 |----------|----------------|--------|---------|
-| **Paper** | 1.16 - 1.21.8 | ✅ Full | Recommended platform |
-| **Spigot** | 1.16 - 1.21.8 | ✅ Full | Complete compatibility |
-| **Bukkit** | 1.16 - 1.21.8 | ✅ Full | Legacy support |
-| **Purpur** | 1.16 - 1.21.8 | ✅ Full | Enhanced features |
-| **Folia** | 1.19.4 - 1.21.8 | ✅ Full | Native thread-per-region support |
+| **Paper** | 1.16 - 1.21.10 | ✅ Full | Recommended platform |
+| **Spigot** | 1.16 - 1.21.10 | ✅ Full | Complete compatibility |
+| **Bukkit** | 1.16 - 1.21.10 | ✅ Full | Legacy support |
+| **Purpur** | 1.16 - 1.21.10 | ✅ Full | Enhanced features |
+| **Folia** | 1.19.4 - 1.21.10 | ✅ Full | Native thread-per-region support |
 | **Bedrock** | All versions | ✅ Full | Via Floodgate/Geyser |
 
 ### Java Version Requirements
@@ -608,7 +802,7 @@ performance:
 **Developed by Koyere**  
 Licensed under **MIT License** - Open source and free to use for all server types.
 
-**Current Version**: v2.8.2 (Countdown + pause fixes)  
+**Current Version**: v2.9 (AFK windows + 1.21.10 compatibility)  
 **Enterprise Features**: Available in all releases  
 **Community Support**: Active development and updates
 

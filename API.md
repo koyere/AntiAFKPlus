@@ -2,7 +2,24 @@
 
 This guide explains how to integrate the AntiAFKPlus API into your Minecraft plugin.
 
-> **Novedad v2.8**: La API devuelve datos en tiempo real (actividad, estadísticas, zonas) y expone nuevos eventos de advertencias/patrones con soporte de cancelación.
+> **What's New in v2.8**: The API now returns real-time data (activity, statistics, zones) and exposes new warning/pattern events with cancellation support. All placeholder data has been replaced with live server metrics.
+
+## Important Notes
+
+### Threading & Events (v2.8+)
+All API events are fired synchronously on the main thread, ensuring compatibility with Paper 1.21.8+ strict event requirements. Pattern detection listeners receive events reliably without threading exceptions.
+
+### Real Data Guarantee
+Since v2.8, all API methods return actual server data:
+- Activity tracking reflects real player movements and interactions
+- Statistics aggregate live session data from AFKManager
+- Zone information resolves from actual WorldGuard regions and configuration
+- No simulated or placeholder values
+
+### Thread Safety
+The API is designed to be called from any thread, but event listeners will always execute on the main thread. For async operations, use the provided `*Async()` methods (e.g., `getAFKStatusAsync()`).
+
+---
 
 ## Installation
 
@@ -26,7 +43,7 @@ Then add the dependency:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.8.2</version>
+        <version>2.9</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -46,7 +63,7 @@ Then add the dependency:
 
 ```groovy
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.8.2'
+    compileOnly 'com.github.koyere:AntiAFKPlus:2.9'
 }
 ```
 
@@ -58,7 +75,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.8.2")
+    compileOnly("com.github.koyere:AntiAFKPlus:2.9")
 }
 ```
 
@@ -396,7 +413,7 @@ public class EconomyIntegration {
 To use a specific version, change the version number:
 
 ```xml
-<version>2.8.2</version>  <!-- Latest stable version -->
+<version>2.9</version>  <!-- Latest stable version -->
 <version>2.6</version>  <!-- Previous version -->
 <version>main-SNAPSHOT</version>  <!-- Latest development version (not recommended) -->
 ```

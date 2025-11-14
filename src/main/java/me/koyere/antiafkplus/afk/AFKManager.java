@@ -8,6 +8,8 @@ import me.koyere.antiafkplus.events.PlayerAFKKickEvent;
 import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
 import me.koyere.antiafkplus.events.PlayerAFKWarningEvent;
 import me.koyere.antiafkplus.utils.AFKLogger;
+import me.koyere.antiafkplus.time.TimeWindowService;
+import me.koyere.antiafkplus.time.TimeWindowService.WindowBehavior;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -50,6 +52,7 @@ public class AFKManager {
     private final Map<UUID, String> afkDetectionReasons = new HashMap<>(); // Why player was marked AFK
     private final Map<UUID, PlayerActivityData> playerActivityData = new HashMap<>(); // Enhanced activity tracking
     private final Map<UUID, Integer> warningCounts = new HashMap<>(); // Count of warnings sent per player
+    private final Map<UUID, Long> windowMessageCooldown = new HashMap<>();
     
     // Professional fix: Prevent repeated kick/teleport actions
     private final Set<UUID> playersAlreadyActioned = new HashSet<>(); // Players who already received final AFK action
@@ -75,6 +78,11 @@ public class AFKManager {
         }
 
         Runnable taskBody = () -> {
+                TimeWindowService.WindowEvaluation windowEvaluation = null;
+                if (plugin.getTimeWindowService() != null) {
+                    windowEvaluation = plugin.getTimeWindowService().evaluate();
+                }
+
                 for (Player player : Bukkit.getOnlinePlayers()) {
                     UUID uuid = player.getUniqueId();
 
@@ -146,6 +154,17 @@ public class AFKManager {
 
                     // Enhanced AFK detection with multiple activity checks
                     boolean shouldBeAFK = performEnhancedAFKCheck(player);
+                    boolean applyWindowControls = false;
+                    WindowBehavior windowBehavior = WindowBehavior.DEFAULT;
+                    long windowExtendMillis = 0L;
+                    if (windowEvaluation != null && windowEvaluation.featureEnabled() && windowEvaluation.insideWindow()) {
+                        boolean bypass = hasWindowBypass(player, windowEvaluation.bypassPermission());
+                        if (!bypass) {
+                            applyWindowControls = true;
+                            windowBehavior = windowEvaluation.behavior();
+                            windowExtendMillis = windowEvaluation.extendMillis();
+                        }
+                    }
 
                     if (!shouldBeAFK && plugin.getCountdownSequenceService() != null
                             && plugin.getCountdownSequenceService().isRunning(player)) {
@@ -167,15 +186,33 @@ public class AFKManager {
                         // Professional fix: Only execute final action once per AFK session
                         if (!playersAlreadyActioned.contains(uuid)) {
                             long timeSinceDetection = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
-                            
+                            boolean canExecuteAction = true;
+
+                            if (applyWindowControls) {
+                                switch (windowBehavior) {
+                                    case SKIP_ACTIONS -> canExecuteAction = false;
+                                    case MESSAGE_ONLY -> {
+                                        canExecuteAction = false;
+                                        sendWindowMessage(player, windowEvaluation);
+                                    }
+                                    case EXTEND_THRESHOLD -> {
+                                        long required = Math.max(1000L, windowExtendMillis);
+                                        canExecuteAction = timeSinceDetection >= required;
+                                    }
+                                    default -> { }
+                                }
+                            }
+
                             // Only take action if player has been AFK long enough (prevents immediate actions)
-                            if (timeSinceDetection >= 1000) { // At least 1 second delay for safety
+                            if (canExecuteAction && timeSinceDetection >= 1000) { // At least 1 second delay for safety
                                 kickPlayerAfterAFK(player, timeSinceDetection);
                                 playersAlreadyActioned.add(uuid); // Mark as actioned to prevent repeated calls
                             }
                         }
                     } else {
-                        checkWarnings(player);
+                        if (!applyWindowControls) {
+                            checkWarnings(player);
+                        }
                         if (afkPlayers.contains(uuid)) {
                             long afkDuration = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
                             String detectionMethod = afkDetectionReasons.getOrDefault(uuid, "auto_detection");
@@ -275,6 +312,28 @@ public class AFKManager {
             return data.getLastActivityTimestamp();
         }
         return movementListener.getLastMovementTimestamp(player);
+    }
+
+    private boolean hasWindowBypass(Player player, String permission) {
+        return permission != null && !permission.isEmpty() && player.hasPermission(permission);
+    }
+
+    private void sendWindowMessage(Player player, TimeWindowService.WindowEvaluation evaluation) {
+        if (player == null || evaluation == null) {
+            return;
+        }
+        String message = plugin.getConfigManager().getMessageAfkWindowActive();
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long last = windowMessageCooldown.get(player.getUniqueId());
+        if (last != null && (now - last) < 60000L) {
+            return;
+        }
+        String formatted = message.replace("{time}", evaluation.nextChangeDisplay());
+        player.sendMessage(formatted);
+        windowMessageCooldown.put(player.getUniqueId(), now);
     }
 
     private void refreshPlayerActivityData(Player player) {
@@ -902,6 +961,7 @@ public class AFKManager {
         afkDetectionReasons.remove(uuid);
         playerActivityData.remove(uuid);
         warningCounts.remove(uuid);
+        windowMessageCooldown.remove(uuid);
         
         // Professional fix: Clear actioned state when player data is cleared
         playersAlreadyActioned.remove(uuid);

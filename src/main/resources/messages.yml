@@ -42,6 +42,9 @@ messages:
   # Message shown to a player trying to use /afk when they are already considered AFK.
   already-afk: "&eYou are already AFK."
 
+  # Message shown when AFK protection windows are active.
+  afk-window-active: "&aAFK protection is active until {time}. Final actions are paused."
+
   # --- /afk Command Specific Messages ---
 
   # --- /afk (toggle) ---

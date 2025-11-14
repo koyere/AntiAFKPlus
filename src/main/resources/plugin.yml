@@ -1,6 +1,6 @@
-# Plugin definition for AntiAFKPlus v2.6
+# Plugin definition for AntiAFKPlus v2.9
 name: AntiAFKPlus
-version: 2.8.2
+version: 2.9
 main: me.koyere.antiafkplus.AntiAFKPlus
 api-version: '1.16'
 description: Advanced AFK management plugin with enhanced pattern detection, behavioral analysis, anti-exploit systems, and server transfer.
@@ -48,6 +48,7 @@ permissions:
       antiafkplus.debug: true
       antiafkplus.stats: true
       antiafkplus.patterns.view: true
+      antiafkplus.window.bypass: true
 
   # Core command permissions
   antiafkplus.reload:
@@ -94,6 +95,9 @@ permissions:
     default: false
   antiafkplus.bypass.patterns:
     description: "Exempts player from advanced pattern detection (water circles, confined spaces, etc)."
+    default: false
+  antiafkplus.window.bypass:
+    description: "Ignores AFK time windows and enforces the normal kick flow."
     default: false
 
   # Permission-based AFK times (examples - configured in config.yml)

@@ -23,7 +23,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY - Used for automatic migration)
-version: "2.7"
+version: "2.9"
 
 # ===============================================================================
 # 📦 MODULE SYSTEM - Enable/Disable Features
@@ -506,6 +506,20 @@ block-pickup-while-afk: true
 
 # Broadcast AFK state changes
 broadcast-afk-state-changes: true
+
+# ===============================================================================
+# 🕒 AFK TIME WINDOWS
+# ===============================================================================
+afk-windows:
+  enabled: false                  # Set true to activate AFK-friendly windows
+  timezone: "SERVER"              # SERVER = host timezone, or specify IANA ID (e.g. Europe/Madrid)
+  ranges:
+    - "08:00-12:00"
+    - "20:00-23:00"
+  behavior-inside-window: "SKIP_ACTIONS"   # SKIP_ACTIONS | EXTEND_THRESHOLD | MESSAGE_ONLY | DEFAULT
+  behavior-outside-window: "DEFAULT"       # Typically leave as DEFAULT
+  extend-seconds: 900             # Used only when behavior is EXTEND_THRESHOLD
+  bypass-permission: "antiafkplus.window.bypass"  # Players with this perm ignore the schedule
 
 # Legacy autoclick detection (superseded by module system)
 autoclick-detection: true

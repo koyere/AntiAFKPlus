@@ -84,6 +84,9 @@ public class ConfigManager {
     private List<String> enabledWorlds;
     private List<String> disabledWorlds;
 
+    // AFK windows
+    private TimeWindowSettings timeWindowSettings;
+
     // Message strings
     private String messagePlayerNowAFK;
     private String messagePlayerNoLongerAFK;
@@ -98,6 +101,7 @@ public class ConfigManager {
     private String messagePatternDetected;
     private String messageSuspiciousActivity;
     private String messageEnhancedDetectionWarning;
+    private String messageAfkWindowActive;
 
     /**
      * Constructor for ConfigManager.
@@ -160,6 +164,9 @@ public class ConfigManager {
 
         // World settings
         loadWorldSettings();
+
+        // AFK windows
+        loadAfkWindowSettings();
     }
 
     private void loadEnhancedDetectionSettings() {
@@ -176,6 +183,41 @@ public class ConfigManager {
             this.behavioralAnalysisEnabled = true;
             this.advancedMovementTrackingEnabled = true;
         }
+    }
+
+    private void loadAfkWindowSettings() {
+        ConfigurationSection section = config.getConfigurationSection("afk-windows");
+        if (section == null) {
+            this.timeWindowSettings = TimeWindowSettings.disabled();
+            return;
+        }
+
+        boolean enabled = section.getBoolean("enabled", false);
+        String timezone = section.getString("timezone", "SERVER");
+        List<String> ranges = section.getStringList("ranges");
+        String behaviorInside = section.getString("behavior-inside-window", "SKIP_ACTIONS");
+        String behaviorOutside = section.getString("behavior-outside-window", "DEFAULT");
+        long extendSeconds = Math.max(0L, section.getLong("extend-seconds", 900L));
+        String bypassPermission = section.getString("bypass-permission", "antiafkplus.window.bypass");
+
+        if (enabled && (ranges == null || ranges.isEmpty())) {
+            plugin.getLogger().warning("[AFK Windows] Feature enabled but no ranges were provided. Disabling.");
+            enabled = false;
+        }
+
+        this.timeWindowSettings = new TimeWindowSettings(
+                enabled,
+                timezone != null ? timezone.trim() : "SERVER",
+                ranges != null ? ranges : Collections.emptyList(),
+                behaviorInside != null ? behaviorInside.trim() : "SKIP_ACTIONS",
+                behaviorOutside != null ? behaviorOutside.trim() : "DEFAULT",
+                extendSeconds,
+                bypassPermission != null ? bypassPermission.trim() : ""
+        );
+    }
+
+    public TimeWindowSettings getTimeWindowSettings() {
+        return timeWindowSettings != null ? timeWindowSettings : TimeWindowSettings.disabled();
     }
 
     private void loadPatternDetectionSettings() {
@@ -307,6 +349,7 @@ public class ConfigManager {
         this.messagePatternDetected = loadColoredString("messages.pattern-detected", "&c[AntiAFK] Suspicious movement pattern detected: {pattern}");
         this.messageSuspiciousActivity = loadColoredString("messages.suspicious-activity", "&e[AntiAFK] Suspicious activity detected. Please move normally.");
         this.messageEnhancedDetectionWarning = loadColoredString("messages.enhanced-detection-warning", "&6[AntiAFK] Enhanced detection system is monitoring your activity.");
+        this.messageAfkWindowActive = loadColoredString("messages.afk-window-active", "&aAFK protection is active until {time}.");
     }
 
     private String loadColoredString(String path, String defaultValue) {
@@ -335,6 +378,7 @@ public class ConfigManager {
     public Map<String, Integer> getPermissionTimes() { return Collections.unmodifiableMap(permissionTimes); }
     public List<String> getEnabledWorlds() { return Collections.unmodifiableList(enabledWorlds); }
     public List<String> getDisabledWorlds() { return Collections.unmodifiableList(disabledWorlds); }
+    public String getMessageAfkWindowActive() { return messageAfkWindowActive; }
 
     public synchronized void setWorldDetectionEnabled(String worldName, boolean enabled) {
         if (worldName == null || worldName.trim().isEmpty()) {
@@ -475,6 +519,7 @@ public class ConfigManager {
         loadConfigValues();
         loadMessages();
         validateConfiguration();
+        plugin.rebuildTimeWindowService();
         plugin.getLogger().info("Configuration reloaded successfully with v2.0 enhancements.");
     }
 }

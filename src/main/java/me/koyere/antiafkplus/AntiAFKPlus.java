@@ -22,6 +22,7 @@ import me.koyere.antiafkplus.i18n.LocalizationManager;
 import me.koyere.antiafkplus.compatibility.BedrockCompatibility;
 import me.koyere.antiafkplus.performance.PerformanceOptimizer;
 import me.koyere.antiafkplus.utils.AFKLogger;
+import me.koyere.antiafkplus.time.TimeWindowService;
 import me.koyere.antiafkplus.credit.CreditManager;
 import me.koyere.antiafkplus.credit.CreditListener;
 import me.koyere.antiafkplus.integrations.WorldGuardIntegration;
@@ -49,8 +50,8 @@ import java.io.File;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.8";
-    private static final String API_VERSION = "2.8";
+    private static final String PLUGIN_VERSION = "2.9";
+    private static final String API_VERSION = "2.9";
     private static final String MIN_MIGRATION_VERSION = "1.0";
 
     // Core components
@@ -72,6 +73,7 @@ public final class AntiAFKPlus extends JavaPlugin {
     private ServerTransferService serverTransferService;
     private CountdownSequenceService countdownSequenceService;
     private ActionPipelineService actionPipelineService;
+    private TimeWindowService timeWindowService;
 
     // Command Handlers
     private AFKCommand afkCommandHandler;
@@ -212,6 +214,7 @@ public final class AntiAFKPlus extends JavaPlugin {
 
             // Initialize configuration manager
             this.configManager = new ConfigManager(this);
+            rebuildTimeWindowService();
 
             // Set debug mode from config
             this.debugEnabled = getConfig().getBoolean("debug", false);
@@ -555,6 +558,14 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+
+    public TimeWindowService getTimeWindowService() {
+        return timeWindowService;
+    }
+
+    public void rebuildTimeWindowService() {
+        this.timeWindowService = new TimeWindowService(this, this.configManager.getTimeWindowSettings());
     }
 
     /**
