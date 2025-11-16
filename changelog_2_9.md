@@ -89,6 +89,6 @@ The time window system is internal and transparent to the API. Developers using 
 ---
 
 **Version**: 2.9
-**Release Date**: 2025 (planned)
+**Release Date**: 14/11/2025
 **Compatibility**: Minecraft 1.16 - 1.21.10
 **Java**: 17+
