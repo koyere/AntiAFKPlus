@@ -26,18 +26,16 @@ public class PatternDetector {
     private final MovementListener movementListener;
     private final AFKManager afkManager;
 
-    // Pattern detection configuration
-    private static final double WATER_CIRCLE_RADIUS = 3.0; // Maximum radius for water circle detection
-    private static final int MIN_SAMPLES_FOR_PATTERN = 20; // Minimum location samples needed
-    private static final double CONFINED_SPACE_THRESHOLD = 5.0; // Maximum area for confined space (small pools)
-    private static final long PATTERN_ANALYSIS_INTERVAL = 30000; // 30 seconds between analyses
-    private static final double REPETITIVE_MOVEMENT_THRESHOLD = 0.8; // Similarity threshold for repetitive patterns
-    private static final int MAX_PATTERN_VIOLATIONS = 3; // Maximum violations before action
-    
-    // v2.4 NEW: Large AFK pool detection constants
-    private static final double LARGE_POOL_THRESHOLD = 25.0; // Maximum area for large AFK pools (25x25)
-    private static final long KEYSTROKE_TIMEOUT_CHECK_INTERVAL = 15000; // Check every 15 seconds
-    private static final int MIN_SAMPLES_FOR_LARGE_POOL = 30; // More samples needed for large pool detection
+    // Default pattern detection configuration (overridden by config)
+    private static final double DEFAULT_WATER_CIRCLE_RADIUS = 3.0;
+    private static final int DEFAULT_MIN_SAMPLES_FOR_PATTERN = 20;
+    private static final double DEFAULT_CONFINED_SPACE_THRESHOLD = 5.0;
+    private static final long DEFAULT_PATTERN_ANALYSIS_INTERVAL_MS = 30000;
+    private static final double DEFAULT_REPETITIVE_MOVEMENT_THRESHOLD = 0.8;
+    private static final int DEFAULT_MAX_PATTERN_VIOLATIONS = 3;
+    private static final double DEFAULT_LARGE_POOL_THRESHOLD = 25.0;
+    private static final int DEFAULT_MIN_SAMPLES_FOR_LARGE_POOL = 30;
+    private static final long MINIMUM_ANALYSIS_INTERVAL_TICKS = 20L; // 1s safety floor
 
     // Player pattern tracking (thread-safe for concurrent access)
     private final Map<UUID, PatternData> playerPatterns = new java.util.concurrent.ConcurrentHashMap<>();
@@ -47,20 +45,85 @@ public class PatternDetector {
 
     private PlatformScheduler.ScheduledTask analysisTask;
 
+    // Configurable values (loaded from ConfigManager)
+    private double waterCircleRadius;
+    private int minSamplesForPattern;
+    private double confinedSpaceThreshold;
+    private long patternAnalysisIntervalMs;
+    private double repetitiveMovementThreshold;
+    private int maxPatternViolations;
+    private double largePoolThreshold;
+    private int minSamplesForLargePool;
+    private boolean largePoolDetectionEnabled;
+    private boolean keystrokeTimeoutDetectionEnabled;
+
     public PatternDetector(AntiAFKPlus plugin, MovementListener movementListener, AFKManager afkManager) {
         this.plugin = plugin;
         this.movementListener = movementListener;
         this.afkManager = afkManager;
-        startPatternAnalysis();
+        loadConfigValues();
+        restartPatternAnalysis();
     }
 
-    private void startPatternAnalysis() {
+    public void reloadFromConfig() {
+        loadConfigValues();
+        restartPatternAnalysis();
+    }
+
+    private void loadConfigValues() {
+        if (plugin.getConfigManager() == null) {
+            // Fallback to defaults if config manager is unavailable
+            this.waterCircleRadius = DEFAULT_WATER_CIRCLE_RADIUS;
+            this.minSamplesForPattern = DEFAULT_MIN_SAMPLES_FOR_PATTERN;
+            this.confinedSpaceThreshold = DEFAULT_CONFINED_SPACE_THRESHOLD;
+            this.patternAnalysisIntervalMs = DEFAULT_PATTERN_ANALYSIS_INTERVAL_MS;
+            this.repetitiveMovementThreshold = DEFAULT_REPETITIVE_MOVEMENT_THRESHOLD;
+            this.maxPatternViolations = DEFAULT_MAX_PATTERN_VIOLATIONS;
+            this.largePoolThreshold = DEFAULT_LARGE_POOL_THRESHOLD;
+            this.minSamplesForLargePool = DEFAULT_MIN_SAMPLES_FOR_LARGE_POOL;
+            this.largePoolDetectionEnabled = true;
+            this.keystrokeTimeoutDetectionEnabled = true;
+            return;
+        }
+
+        this.waterCircleRadius = plugin.getConfigManager().getWaterCircleRadius();
+        this.minSamplesForPattern = plugin.getConfigManager().getMinSamplesForPattern();
+        this.confinedSpaceThreshold = plugin.getConfigManager().getConfinedSpaceThreshold();
+        this.patternAnalysisIntervalMs = plugin.getConfigManager().getPatternAnalysisInterval();
+        this.repetitiveMovementThreshold = plugin.getConfigManager().getRepetitiveMovementThreshold();
+        this.maxPatternViolations = plugin.getConfigManager().getMaxPatternViolations();
+        this.largePoolThreshold = plugin.getConfigManager().getLargePoolThreshold();
+        this.minSamplesForLargePool = plugin.getConfigManager().getMinSamplesForLargePool();
+        this.largePoolDetectionEnabled = plugin.getConfigManager().isLargePoolDetectionEnabled();
+        this.keystrokeTimeoutDetectionEnabled = plugin.getConfigManager().isKeystrokeTimeoutDetectionEnabled();
+    }
+
+    private void restartPatternAnalysis() {
+        if (this.analysisTask != null && !this.analysisTask.isCancelled()) {
+            this.analysisTask.cancel();
+        }
+        if (!isPatternDetectionGloballyEnabled()) {
+            return;
+        }
         Runnable analysisBody = this::analyzeAllPlayerPatterns;
+        long intervalTicks = Math.max(MINIMUM_ANALYSIS_INTERVAL_TICKS, patternAnalysisIntervalMs / 50L);
         this.analysisTask = plugin.getPlatformScheduler()
-                .runTaskTimerAsync(analysisBody, 20L * 30, 20L * 10);
+                .runTaskTimerAsync(analysisBody, intervalTicks, intervalTicks);
+    }
+
+    private boolean isPatternDetectionGloballyEnabled() {
+        if (plugin.getConfigManager() == null) {
+            return false;
+        }
+        return plugin.getConfigManager().isPatternDetectionModuleEnabled()
+                && plugin.getConfigManager().isEnhancedDetectionEnabled()
+                && plugin.getConfigManager().isPatternDetectionEnabled();
     }
 
     private void analyzeAllPlayerPatterns() {
+        if (!isPatternDetectionGloballyEnabled()) {
+            return;
+        }
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (player.hasPermission("antiafkplus.bypass")) continue;
 
@@ -80,7 +143,7 @@ public class PatternDetector {
             }
 
             MovementListener.PlayerLocationData locationData = movementListener.getPlayerLocationData(player);
-            if (locationData == null || locationData.locationHistory.size() < MIN_SAMPLES_FOR_PATTERN) {
+            if (locationData == null || locationData.locationHistory.size() < minSamplesForPattern) {
                 continue;
             }
 
@@ -93,11 +156,11 @@ public class PatternDetector {
         PatternData patternData = playerPatterns.computeIfAbsent(uuid, k -> new PatternData());
 
         List<MovementListener.LocationSnapshot> history = locationData.locationHistory;
-        if (history.size() < MIN_SAMPLES_FOR_PATTERN) return;
+        if (history.size() < minSamplesForPattern) return;
 
         // Get recent movement history (last 20 positions)
         List<MovementListener.LocationSnapshot> recentHistory = history.subList(
-                Math.max(0, history.size() - MIN_SAMPLES_FOR_PATTERN),
+                Math.max(0, history.size() - minSamplesForPattern),
                 history.size()
         );
 
@@ -170,7 +233,7 @@ public class PatternDetector {
         // Check if all movements are within circle radius
         boolean allWithinRadius = safeCopy.stream().allMatch(pos -> {
             double distance = Math.sqrt(Math.pow(pos.x - centerX, 2) + Math.pow(pos.z - centerZ, 2));
-            return distance <= WATER_CIRCLE_RADIUS;
+            return distance <= waterCircleRadius;
         });
 
         if (!allWithinRadius) return false;
@@ -199,7 +262,7 @@ public class PatternDetector {
     }
 
     private boolean detectConfinedSpacePattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < MIN_SAMPLES_FOR_PATTERN) return false;
+        if (history.size() < minSamplesForPattern) return false;
 
         // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
@@ -214,7 +277,7 @@ public class PatternDetector {
         double areaZ = maxZ - minZ;
 
         // Check if movement is confined to small area
-        return areaX <= CONFINED_SPACE_THRESHOLD && areaZ <= CONFINED_SPACE_THRESHOLD;
+        return areaX <= confinedSpaceThreshold && areaZ <= confinedSpaceThreshold;
     }
 
     private boolean detectRepetitivePattern(List<MovementListener.LocationSnapshot> history) {
@@ -234,9 +297,9 @@ public class PatternDetector {
         double similarity13 = calculatePatternSimilarity(segment1, segment3);
 
         // If segments are highly similar, it's likely a repetitive pattern
-        return (similarity12 > REPETITIVE_MOVEMENT_THRESHOLD ||
-                similarity23 > REPETITIVE_MOVEMENT_THRESHOLD ||
-                similarity13 > REPETITIVE_MOVEMENT_THRESHOLD);
+        return (similarity12 > repetitiveMovementThreshold ||
+                similarity23 > repetitiveMovementThreshold ||
+                similarity13 > repetitiveMovementThreshold);
     }
 
     private boolean detectPendulumPattern(List<MovementListener.LocationSnapshot> history) {
@@ -284,7 +347,10 @@ public class PatternDetector {
      * @return true if large AFK pool pattern detected
      */
     private boolean detectLargeAFKPool(Player player, List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < MIN_SAMPLES_FOR_LARGE_POOL) return false;
+        if (!largePoolDetectionEnabled) {
+            return false;
+        }
+        if (history.size() < minSamplesForLargePool) return false;
 
         // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
@@ -300,8 +366,8 @@ public class PatternDetector {
         double totalArea = areaX * areaZ;
         
         // Check if movement area suggests large AFK pool
-        boolean isLargePoolSize = (areaX > CONFINED_SPACE_THRESHOLD || areaZ > CONFINED_SPACE_THRESHOLD) &&
-                                  (totalArea <= LARGE_POOL_THRESHOLD * LARGE_POOL_THRESHOLD);
+        boolean isLargePoolSize = (areaX > confinedSpaceThreshold || areaZ > confinedSpaceThreshold) &&
+                                  (totalArea <= largePoolThreshold * largePoolThreshold);
         
         if (!isLargePoolSize) return false;
         
@@ -412,6 +478,9 @@ public class PatternDetector {
      * @return true if player has exceeded keystroke timeout threshold
      */
     private boolean detectKeystrokeTimeout(Player player) {
+        if (!keystrokeTimeoutDetectionEnabled) {
+            return false;
+        }
         return movementListener.hasKeystrokeTimeout(player);
     }
 
@@ -453,7 +522,7 @@ public class PatternDetector {
         if (plugin.getConfigManager().isDebugEnabled()) {
             plugin.getLogger().warning("[PatternDetector] Suspicious " + detectionReason +
                     " pattern detected for " + playerName +
-                    " (Violations: " + violations + "/" + MAX_PATTERN_VIOLATIONS + ")");
+                    " (Violations: " + violations + "/" + maxPatternViolations + ")");
         }
 
         AFKLogger.logActivity("Pattern Detection: " + playerName + " - " + detectionReason +
@@ -486,7 +555,7 @@ public class PatternDetector {
                     patternType,
                     confidence,
                     violations,
-                    PATTERN_ANALYSIS_INTERVAL,
+                    patternAnalysisIntervalMs,
                     detectionLocation,
                     patternData,
                     additionalData
@@ -509,7 +578,7 @@ public class PatternDetector {
             }
 
             // Take action based on violation count
-            if (violations >= MAX_PATTERN_VIOLATIONS) {
+            if (violations >= maxPatternViolations) {
                 // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
                 // This ensures pattern detection triggers the same action as regular AFK detection
                 afkManager.executeAFKAction(player, detectionReason);

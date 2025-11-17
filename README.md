@@ -1,4 +1,4 @@
-# AntiAFKPlus v2.9
+# AntiAFKPlus v2.9.1
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 

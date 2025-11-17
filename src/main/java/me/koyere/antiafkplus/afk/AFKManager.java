@@ -40,7 +40,7 @@ public class AFKManager {
 
     private final AntiAFKPlus plugin;
     private final MovementListener movementListener;
-    private final PatternDetector patternDetector;
+    private PatternDetector patternDetector;
 
     private final Set<UUID> afkPlayers = new HashSet<>(); // Players currently marked as AFK (auto or manual)
     private final Map<UUID, Set<Integer>> warningsSent = new HashMap<>(); // Tracks warnings sent to avoid spam
@@ -62,7 +62,9 @@ public class AFKManager {
     public AFKManager(AntiAFKPlus plugin, MovementListener movementListener) {
         this.plugin = plugin;
         this.movementListener = movementListener;
-        this.patternDetector = new PatternDetector(plugin, movementListener, this);
+        if (shouldEnablePatternDetection()) {
+            this.patternDetector = new PatternDetector(plugin, movementListener, this);
+        }
         startAFKCheckTask();
     }
 
@@ -238,6 +240,32 @@ public class AFKManager {
         this.afkCheckTask = plugin.getPlatformScheduler()
                 .runTaskTimer(taskBody, intervalTicks, intervalTicks);
         // AFK check task started silently
+    }
+
+    private boolean shouldEnablePatternDetection() {
+        if (plugin.getConfigManager() == null) {
+            return false;
+        }
+        return plugin.getConfigManager().isPatternDetectionModuleEnabled()
+                && plugin.getConfigManager().isEnhancedDetectionEnabled()
+                && plugin.getConfigManager().isPatternDetectionEnabled();
+    }
+
+    public void handleConfigReload() {
+        boolean enable = shouldEnablePatternDetection();
+        if (!enable && this.patternDetector != null) {
+            this.patternDetector.shutdown();
+            this.patternDetector = null;
+            plugin.getLogger().info("Pattern detection disabled via configuration. Analysis stopped.");
+            return;
+        }
+
+        if (enable && this.patternDetector == null) {
+            this.patternDetector = new PatternDetector(plugin, movementListener, this);
+            plugin.getLogger().info("Pattern detection enabled via configuration. Analysis started.");
+        } else if (enable && this.patternDetector != null) {
+            this.patternDetector.reloadFromConfig();
+        }
     }
 
     private boolean performEnhancedAFKCheck(Player player) {
@@ -967,7 +995,9 @@ public class AFKManager {
         playersAlreadyActioned.remove(uuid);
 
         // Clear pattern detector data
-        patternDetector.clearPlayerData(player);
+        if (patternDetector != null) {
+            patternDetector.clearPlayerData(player);
+        }
 
         AFKLogger.logActivity(player.getName() + "'s AFK data cleared.");
     }

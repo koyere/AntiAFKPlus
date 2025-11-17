@@ -41,6 +41,9 @@ public class ConfigManager {
     private boolean patternDetectionEnabled;
     private boolean behavioralAnalysisEnabled;
     private boolean advancedMovementTrackingEnabled;
+    private boolean patternDetectionModuleEnabled;
+    private boolean largePoolDetectionEnabled;
+    private boolean keystrokeTimeoutDetectionEnabled;
 
     // Pattern detection specific settings
     private double waterCircleRadius;
@@ -49,6 +52,9 @@ public class ConfigManager {
     private long patternAnalysisInterval;
     private double repetitiveMovementThreshold;
     private int maxPatternViolations;
+    private double largePoolThreshold;
+    private int minSamplesForLargePool;
+    private long keystrokeTimeoutMs;
 
     // Movement detection thresholds
     private double microMovementThreshold;
@@ -141,6 +147,9 @@ public class ConfigManager {
         // Enhanced v2.0 detection settings
         loadEnhancedDetectionSettings();
 
+        // Module-level toggles for pattern detection
+        loadPatternDetectionModuleSettings();
+
         // Pattern detection settings
         loadPatternDetectionSettings();
 
@@ -183,6 +192,12 @@ public class ConfigManager {
             this.behavioralAnalysisEnabled = true;
             this.advancedMovementTrackingEnabled = true;
         }
+    }
+
+    private void loadPatternDetectionModuleSettings() {
+        this.patternDetectionModuleEnabled = config.getBoolean("modules.pattern-detection.enabled", true);
+        this.largePoolDetectionEnabled = config.getBoolean("modules.pattern-detection.large-pool-detection", true);
+        this.keystrokeTimeoutDetectionEnabled = config.getBoolean("modules.pattern-detection.keystroke-timeout-detection", true);
     }
 
     private void loadAfkWindowSettings() {
@@ -229,6 +244,9 @@ public class ConfigManager {
             this.patternAnalysisInterval = patternSection.getLong("pattern-analysis-interval-ms", 30000L);
             this.repetitiveMovementThreshold = patternSection.getDouble("repetitive-movement-threshold", 0.8);
             this.maxPatternViolations = patternSection.getInt("max-pattern-violations", 3);
+            this.largePoolThreshold = patternSection.getDouble("large-pool-threshold", 25.0);
+            this.minSamplesForLargePool = patternSection.getInt("min-samples-for-large-pool", 30);
+            this.keystrokeTimeoutMs = patternSection.getLong("keystroke-timeout-ms", 180000L);
         } else {
             // Set defaults
             this.waterCircleRadius = 3.0;
@@ -237,6 +255,9 @@ public class ConfigManager {
             this.patternAnalysisInterval = 30000L;
             this.repetitiveMovementThreshold = 0.8;
             this.maxPatternViolations = 3;
+            this.largePoolThreshold = 25.0;
+            this.minSamplesForLargePool = 30;
+            this.keystrokeTimeoutMs = 180000L;
         }
     }
 
@@ -410,6 +431,9 @@ public class ConfigManager {
     public boolean isPatternDetectionEnabled() { return patternDetectionEnabled; }
     public boolean isBehavioralAnalysisEnabled() { return behavioralAnalysisEnabled; }
     public boolean isAdvancedMovementTrackingEnabled() { return advancedMovementTrackingEnabled; }
+    public boolean isPatternDetectionModuleEnabled() { return patternDetectionModuleEnabled; }
+    public boolean isLargePoolDetectionEnabled() { return largePoolDetectionEnabled; }
+    public boolean isKeystrokeTimeoutDetectionEnabled() { return keystrokeTimeoutDetectionEnabled; }
 
     // --- Pattern detection getters ---
 
@@ -419,6 +443,9 @@ public class ConfigManager {
     public long getPatternAnalysisInterval() { return patternAnalysisInterval; }
     public double getRepetitiveMovementThreshold() { return repetitiveMovementThreshold; }
     public int getMaxPatternViolations() { return maxPatternViolations; }
+    public double getLargePoolThreshold() { return largePoolThreshold; }
+    public int getMinSamplesForLargePool() { return minSamplesForLargePool; }
+    public long getKeystrokeTimeoutMs() { return keystrokeTimeoutMs; }
 
     // --- Movement detection getters ---
 
@@ -520,6 +547,9 @@ public class ConfigManager {
         loadMessages();
         validateConfiguration();
         plugin.rebuildTimeWindowService();
+        if (plugin.getAfkManager() != null) {
+            plugin.getAfkManager().handleConfigReload();
+        }
         plugin.getLogger().info("Configuration reloaded successfully with v2.0 enhancements.");
     }
 }
