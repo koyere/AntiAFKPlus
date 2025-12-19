@@ -77,8 +77,18 @@ public class AFKCommand implements CommandExecutor, TabCompleter { // Implement 
                 }
                 targetPlayer = (Player) sender;
                 boolean isSelfAfk = afkManager.isAFK(targetPlayer);
-                String statusMessage = configManager.getMessageByFullPath("messages.afk-status-self", "&fYou are currently: {status}") // Use getMessageByFullPath for direct key
-                        .replace("{status}", isSelfAfk ? "&cAFK" : "&aACTIVE"); // Example status, you can make "AFK" and "ACTIVE" configurable too
+                String statusText;
+                if (isSelfAfk) {
+                    if (afkManager.isManuallyAFK(targetPlayer)) {
+                        statusText = plugin.getLocalizationManager().getMessage(targetPlayer, "placeholder-status-manual-afk");
+                    } else {
+                        statusText = plugin.getLocalizationManager().getMessage(targetPlayer, "placeholder-status-auto-afk");
+                    }
+                } else {
+                    statusText = plugin.getLocalizationManager().getMessage(targetPlayer, "placeholder-status-active");
+                }
+                String statusMessage = configManager.getMessageByFullPath("messages.afk-status-self", "&fYou are currently: {status}")
+                        .replace("{status}", statusText);
                 sender.sendMessage(statusMessage);
 
             } else { // /afk status <player_name>

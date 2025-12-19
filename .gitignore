@@ -41,3 +41,5 @@ build/
 .claude/
 CLAUDE.md
 REFACTOR_API.md
+MULTI_SERVER_DOCUMENTATION.md
+Roadmap.md

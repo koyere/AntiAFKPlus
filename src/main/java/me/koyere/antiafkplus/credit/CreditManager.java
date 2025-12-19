@@ -14,9 +14,9 @@ import me.koyere.antiafkplus.credit.storage.SqlCreditStorage;
 
 import java.time.Duration;
 import me.koyere.antiafkplus.api.data.ActivityType;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.configuration.ConfigurationSection;
 
 /**
  * CreditManager gestiona el saldo de créditos de los jugadores, el earning periódico
@@ -120,6 +120,9 @@ public class CreditManager {
 
     private final Map<UUID, Integer> activeMinuteCounter = new ConcurrentHashMap<>();
     private final Map<UUID, Integer> sessionMinuteCounter = new ConcurrentHashMap<>();
+
+    // Cache para orden de prioridad de grupos (performance optimization)
+    private final Map<String, List<String>> cachedPriorityOrders = new ConcurrentHashMap<>();
 
     private void addActiveMinuteProgress(Player player, CreditData data, Ratio ratio, long max) {
         UUID id = player.getUniqueId();
@@ -387,34 +390,200 @@ public class CreditManager {
 
     private static class Ratio { long activeMinutes; long creditMinutes; }
 
+    /**
+     * DYNAMIC GROUP DETECTION: Reads all groups defined in credit-system.credit-ratios
+     * and automatically checks for corresponding permissions.
+     *
+     * Permission format: antiafkplus.credit.ratio.<groupname>
+     * Example: For "sponsor" group → antiafkplus.credit.ratio.sponsor
+     *
+     * Priority: Uses the first matching group in priority order (configurable or default).
+     */
     private Ratio getRatioFor(Player player) {
-        Ratio r = new Ratio();
-        String path = "credit-system.credit-ratios.";
-        String ratioStr = plugin.getConfig().getString(path + "default", "5:1");
-        if (player.hasPermission("antiafkplus.credit.ratio.admin")) ratioStr = plugin.getConfig().getString(path + "admin", ratioStr);
-        else if (player.hasPermission("antiafkplus.credit.ratio.premium")) ratioStr = plugin.getConfig().getString(path + "premium", ratioStr);
-        else if (player.hasPermission("antiafkplus.credit.ratio.vip")) ratioStr = plugin.getConfig().getString(path + "vip", ratioStr);
+        String basePath = "credit-system.credit-ratios.";
 
+        // Obtener todos los grupos definidos en config
+        ConfigurationSection ratiosSection = plugin.getConfig().getConfigurationSection(basePath);
+        if (ratiosSection == null) {
+            // Fallback si no existe la sección
+            plugin.getLogger().warning("credit-system.credit-ratios section not found in config, using default 5:1");
+            return parseRatio("5:1");
+        }
+
+        // Obtener lista de grupos con orden de prioridad
+        List<String> priorityOrder = getPriorityOrder(ratiosSection.getKeys(false));
+
+        // Buscar el primer grupo que coincida con los permisos del jugador
+        String ratioStr = plugin.getConfig().getString(basePath + "default", "5:1");
+        String matchedGroup = "default";
+
+        for (String group : priorityOrder) {
+            if (group.equals("default")) continue;
+
+            String permission = "antiafkplus.credit.ratio." + group.toLowerCase().replace("+", "plus");
+            if (player.hasPermission(permission)) {
+                String configRatio = plugin.getConfig().getString(basePath + group, null);
+                if (configRatio != null && !configRatio.isEmpty()) {
+                    ratioStr = configRatio;
+                    matchedGroup = group;
+                    break; // Usar el primero que coincida (mayor prioridad)
+                }
+            }
+        }
+
+        // Debug logging (opcional)
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("Player " + player.getName() + " matched credit ratio group: " + matchedGroup + " (" + ratioStr + ")");
+        }
+
+        return parseRatio(ratioStr);
+    }
+
+    /**
+     * DYNAMIC GROUP DETECTION: Reads all groups defined in credit-system.max-credits
+     * and automatically checks for corresponding permissions.
+     *
+     * Permission format: antiafkplus.credit.ratio.<groupname>
+     * Example: For "sponsor" group → antiafkplus.credit.ratio.sponsor
+     *
+     * Priority: Uses the first matching group in priority order (same as credit ratios).
+     */
+    private long getMaxCreditsFor(Player player) {
+        String basePath = "credit-system.max-credits.";
+
+        // Obtener todos los grupos definidos en config
+        ConfigurationSection maxSection = plugin.getConfig().getConfigurationSection(basePath);
+        if (maxSection == null) {
+            plugin.getLogger().warning("credit-system.max-credits section not found in config, using default 120");
+            return 120L;
+        }
+
+        // Obtener lista de grupos con orden de prioridad
+        List<String> priorityOrder = getPriorityOrder(maxSection.getKeys(false));
+
+        // Buscar el primer grupo que coincida con los permisos del jugador
+        long max = plugin.getConfig().getLong(basePath + "default", 120);
+        String matchedGroup = "default";
+
+        for (String group : priorityOrder) {
+            if (group.equals("default")) continue;
+
+            String permission = "antiafkplus.credit.ratio." + group.toLowerCase().replace("+", "plus");
+            if (player.hasPermission(permission)) {
+                long configMax = plugin.getConfig().getLong(basePath + group, -1);
+                if (configMax >= 0) {
+                    max = configMax;
+                    matchedGroup = group;
+                    break; // Usar el primero que coincida (mayor prioridad)
+                }
+            }
+        }
+
+        // Debug logging (opcional)
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("Player " + player.getName() + " matched max credits group: " + matchedGroup + " (" + max + " minutes)");
+        }
+
+        return Math.max(0, max);
+    }
+
+    /**
+     * Obtiene el orden de prioridad de grupos para determinar qué ratio/max-credits usar.
+     * Soporta configuración personalizada o usa orden predeterminado.
+     *
+     * Orden predeterminado: admin > sponsor > premium+ > vip+ > premium > vip > otros > default
+     *
+     * @param groups Set de nombres de grupos desde la configuración
+     * @return Lista ordenada por prioridad (mayor prioridad primero)
+     */
+    private List<String> getPriorityOrder(Set<String> groups) {
+        // Cache key para evitar recalcular
+        String cacheKey = String.join(",", new TreeSet<>(groups));
+
+        return cachedPriorityOrders.computeIfAbsent(cacheKey, k -> {
+            // Verificar si hay orden configurado manualmente
+            List<String> configuredOrder = plugin.getConfig().getStringList("credit-system.group-priority-order");
+
+            if (!configuredOrder.isEmpty()) {
+                // Usar orden configurado si existe
+                List<String> ordered = new ArrayList<>(configuredOrder);
+                // Agregar grupos no listados al final (alfabéticamente)
+                groups.stream()
+                        .filter(g -> !ordered.contains(g))
+                        .sorted()
+                        .forEach(ordered::add);
+                return ordered;
+            }
+
+            // Orden predeterminado basado en jerarquía común de servidores
+            List<String> defaultOrder = Arrays.asList(
+                    "admin",
+                    "owner",
+                    "sponsor",
+                    "premium+",
+                    "vip+",
+                    "premium",
+                    "vip",
+                    "member",
+                    "default"
+            );
+
+            List<String> result = new ArrayList<>();
+
+            // Primero agregar los conocidos en orden de prioridad
+            for (String known : defaultOrder) {
+                if (groups.contains(known)) {
+                    result.add(known);
+                }
+            }
+
+            // Luego agregar los desconocidos alfabéticamente (custom groups)
+            groups.stream()
+                    .filter(g -> !defaultOrder.contains(g) && !g.equals("default"))
+                    .sorted()
+                    .forEach(result::add);
+
+            // Default siempre al final si no estaba ya incluido
+            if (groups.contains("default") && !result.contains("default")) {
+                result.add("default");
+            }
+
+            return result;
+        });
+    }
+
+    /**
+     * Parsea un string de ratio en formato "active:credit" (ej: "5:1")
+     *
+     * @param ratioStr String en formato "active:credit"
+     * @return Objeto Ratio con valores parseados, o valores por defecto si hay error
+     */
+    private Ratio parseRatio(String ratioStr) {
+        Ratio r = new Ratio();
         String[] parts = ratioStr.split(":");
         long a = 5, c = 1;
         try {
             if (parts.length >= 2) {
-                a = Long.parseLong(parts[0]);
-                c = Long.parseLong(parts[1]);
+                a = Long.parseLong(parts[0].trim());
+                c = Long.parseLong(parts[1].trim());
             }
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException e) {
+            plugin.getLogger().warning("Invalid credit ratio format: '" + ratioStr + "', using default 5:1. Format should be 'active:credit' (e.g., '5:1')");
+        }
         r.activeMinutes = Math.max(1, a);
         r.creditMinutes = Math.max(1, c);
         return r;
     }
 
-    private long getMaxCreditsFor(Player player) {
-        String base = "credit-system.max-credits.";
-        long max = plugin.getConfig().getLong(base + "default", 120);
-        if (player.hasPermission("antiafkplus.credit.ratio.admin")) max = plugin.getConfig().getLong(base + "admin", max);
-        else if (player.hasPermission("antiafkplus.credit.ratio.premium")) max = plugin.getConfig().getLong(base + "premium", max);
-        else if (player.hasPermission("antiafkplus.credit.ratio.vip")) max = plugin.getConfig().getLong(base + "vip", max);
-        return Math.max(0, max);
+    /**
+     * Limpia el caché de prioridad de grupos.
+     * Debería llamarse cuando se recarga la configuración.
+     */
+    public void clearCache() {
+        cachedPriorityOrders.clear();
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("Credit group priority cache cleared");
+        }
     }
 
     private void teleportToAfkZone(Player player) {
@@ -482,12 +651,41 @@ public class CreditManager {
         return getMaxCreditsFor(player);
     }
 
+    /**
+     * API METHOD: Obtiene el ratio de créditos como string para un jugador.
+     * Usa la misma lógica dinámica que getRatioFor() para detectar grupos.
+     *
+     * @param player Jugador a consultar
+     * @return String con el ratio en formato "active:credit" (ej: "5:1")
+     */
     public String getRatioString(Player player) {
-        String path = "credit-system.credit-ratios.";
-        String ratioStr = plugin.getConfig().getString(path + "default", "5:1");
-        if (player.hasPermission("antiafkplus.credit.ratio.admin")) ratioStr = plugin.getConfig().getString(path + "admin", ratioStr);
-        else if (player.hasPermission("antiafkplus.credit.ratio.premium")) ratioStr = plugin.getConfig().getString(path + "premium", ratioStr);
-        else if (player.hasPermission("antiafkplus.credit.ratio.vip")) ratioStr = plugin.getConfig().getString(path + "vip", ratioStr);
+        String basePath = "credit-system.credit-ratios.";
+
+        // Obtener todos los grupos definidos en config
+        ConfigurationSection ratiosSection = plugin.getConfig().getConfigurationSection(basePath);
+        if (ratiosSection == null) {
+            return "5:1"; // Fallback
+        }
+
+        // Obtener lista de grupos con orden de prioridad
+        List<String> priorityOrder = getPriorityOrder(ratiosSection.getKeys(false));
+
+        // Buscar el primer grupo que coincida con los permisos del jugador
+        String ratioStr = plugin.getConfig().getString(basePath + "default", "5:1");
+
+        for (String group : priorityOrder) {
+            if (group.equals("default")) continue;
+
+            String permission = "antiafkplus.credit.ratio." + group.toLowerCase().replace("+", "plus");
+            if (player.hasPermission(permission)) {
+                String configRatio = plugin.getConfig().getString(basePath + group, null);
+                if (configRatio != null && !configRatio.isEmpty()) {
+                    ratioStr = configRatio;
+                    break;
+                }
+            }
+        }
+
         return ratioStr;
     }
 

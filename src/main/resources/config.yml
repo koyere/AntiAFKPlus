@@ -444,10 +444,15 @@ credit-system:
     warning-days: 2
     cleanup-interval-hours: 24
 
-  # Simple file-based persistence for credit balances
+  # Persistence configuration
   database:
     enabled: false
     save-interval-minutes: 5
+    # Table prefix for SQL databases (MySQL/SQLite)
+    # Allows multiple servers to share the same database with separate credit systems
+    # Example: "skyblock_" creates tables: skyblock_credits, skyblock_credit_tx
+    # Example: "survival_" creates tables: survival_credits, survival_credit_tx
+    table-prefix: "afkplus_"
 
   # Integrations
   integration:
@@ -699,6 +704,39 @@ visual-effects:
 
 # ===============================================================================
 # 💾 DATABASE INTEGRATION
+# ===============================================================================
+#
+# MULTI-SERVER SETUP WITH SHARED DATABASE:
+# ----------------------------------------
+# You can use the credit system's table-prefix feature to run multiple servers
+# (e.g., Skyblock, Survival, Creative) with SEPARATE credit systems while
+# sharing the same database.
+#
+# Configuration for each server:
+#
+# Server 1 (Skyblock) - config.yml:
+#   credit-system:
+#     database:
+#       table-prefix: "skyblock_"
+#   database:
+#     type: "MySQL"
+#     mysql:
+#       host: "localhost"
+#       database: "antiafkplus"
+#
+# Server 2 (Survival) - config.yml:
+#   credit-system:
+#     database:
+#       table-prefix: "survival_"
+#   database:
+#     type: "MySQL"
+#     mysql:
+#       host: "localhost"
+#       database: "antiafkplus"  # Same database!
+#
+# Result: Two independent credit systems in one database:
+#   - skyblock_credits, skyblock_credit_tx
+#   - survival_credits, survival_credit_tx
 # ===============================================================================
 
 database:

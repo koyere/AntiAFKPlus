@@ -550,6 +550,10 @@ public class ConfigManager {
         if (plugin.getAfkManager() != null) {
             plugin.getAfkManager().handleConfigReload();
         }
+        // Clear credit system group priority cache after config reload
+        if (plugin.getCreditManager() != null) {
+            plugin.getCreditManager().clearCache();
+        }
         plugin.getLogger().info("Configuration reloaded successfully with v2.0 enhancements.");
     }
 }

@@ -964,19 +964,84 @@ credit-system:
   database:
     enabled: true
     save-interval-minutes: 5
-# Global DB base (already present):
+    # Table prefix for multi-server setups (see below)
+    table-prefix: "afkplus_"
+
+# Global database configuration:
 database:
-  type: "SQLite" # SQLite, MySQL
-  sqlite:
-    file-name: "antiafkplus.db" # not used by credit system (credits.sqlite is used)
+  type: "MySQL" # SQLite or MySQL
   mysql:
     host: "localhost"
     port: 3306
     database: "antiafkplus"
     username: "root"
     password: "password"
-  # Optional table prefix for credit tables
-credit-system:
-  database:
-    table-prefix: "afkplus_"
 ```
+
+### Multi-Server Setup (Shared Database with Separate Credit Systems)
+**Use Case:** Run multiple servers (Skyblock, Survival, Creative) with independent credit systems sharing one database.
+
+**How it works:**
+- Each server uses the same MySQL/SQLite database
+- Different `table-prefix` values create separate tables per server
+- Credits earned on Skyblock stay on Skyblock
+- Credits earned on Survival stay on Survival
+
+**Example Configuration:**
+
+**Server 1 - Skyblock** (`config.yml`):
+```yaml
+modules:
+  credit-system:
+    enabled: true
+
+credit-system:
+  enabled: true
+  database:
+    enabled: true
+    table-prefix: "skyblock_"  # Creates: skyblock_credits, skyblock_credit_tx
+
+database:
+  type: "MySQL"
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "antiafkplus"
+    username: "root"
+    password: "password"
+```
+
+**Server 2 - Survival** (`config.yml`):
+```yaml
+modules:
+  credit-system:
+    enabled: true
+
+credit-system:
+  enabled: true
+  database:
+    enabled: true
+    table-prefix: "survival_"  # Creates: survival_credits, survival_credit_tx
+
+database:
+  type: "MySQL"
+  mysql:
+    host: "localhost"       # Same host
+    port: 3306
+    database: "antiafkplus" # Same database!
+    username: "root"
+    password: "password"
+```
+
+**Result:**
+- Skyblock server uses tables: `skyblock_credits`, `skyblock_credit_tx`
+- Survival server uses tables: `survival_credits`, `survival_credit_tx`
+- Both in the same `antiafkplus` database
+- Completely independent credit systems
+
+**Benefits:**
+- ✅ Centralized database management
+- ✅ Independent credit economies per server
+- ✅ Easy backup (one database)
+- ✅ Simplified monitoring and administration
+- ✅ Works with both MySQL and SQLite

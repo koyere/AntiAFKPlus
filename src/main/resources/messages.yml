@@ -194,6 +194,12 @@ messages:
 
   # --- PlaceholderAPI Related Messages ---
   # These define the text returned by placeholders like %antiafkplus_status%
+  # You can customize these with color codes and formatting
+  # Examples:
+  #   placeholder-status-afk: "&7[AFK]"
+  #   placeholder-status-active: "&7"
+  #   placeholder-status-manual-afk: "&e[MANUAL AFK]"
+  #   placeholder-status-auto-afk: "&c[AUTO AFK]"
   placeholder-status-afk: "AFK"
   placeholder-status-active: "ACTIVE"
   placeholder-status-manual-afk: "MANUAL AFK"

@@ -109,7 +109,17 @@ public class PlaceholderHook extends PlaceholderExpansion {
         switch (identifier.toLowerCase()) {
             case "status":
                 // Uses the AFKManager's isAFK method to determine current status.
-                return this.afkManager.isAFK(player) ? "AFK" : "ACTIVE"; // Consider making "AFK" and "ACTIVE" configurable via messages.yml
+                // Get localized status messages from messages.yml
+                if (this.afkManager.isAFK(player)) {
+                    // Check if it's manual AFK or auto AFK
+                    if (this.afkManager.isManuallyAFK(player)) {
+                        return plugin.getLocalizationManager().getMessage(player, "placeholder-status-manual-afk");
+                    } else {
+                        return plugin.getLocalizationManager().getMessage(player, "placeholder-status-auto-afk");
+                    }
+                } else {
+                    return plugin.getLocalizationManager().getMessage(player, "placeholder-status-active");
+                }
 
             case "afktime":
                 // Uses the AFKManager's method to get the last movement/activity timestamp.
