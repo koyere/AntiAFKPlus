@@ -253,6 +253,13 @@ messages:
 
   # Player protection system (Phase 2.0D)
   protection-invulnerable: "&a[AntiAFK] You are now invulnerable while AFK."
+  protection-vulnerable: "&c[AntiAFK] You are no longer invulnerable."
+  protection-movement-blocked: "&e[AntiAFK] Movement blocked while AFK."
+  protection-pvp-blocked: "&c[AntiAFK] You cannot attack AFK players."
+  protection-pvp-protected: "&a[AntiAFK] You are protected from PvP while AFK."
+  protection-inventory-blocked: "&e[AntiAFK] Inventory access blocked while AFK."
+  protection-interaction-blocked: "&e[AntiAFK] Block interaction blocked while AFK."
+  protection-command-blocked: "&e[AntiAFK] Command execution blocked while AFK. Use /afk to return."
 
   # --- Credit System (v2.5, Fase 1) ---
   credit-system:

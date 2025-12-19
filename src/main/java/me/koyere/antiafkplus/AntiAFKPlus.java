@@ -11,7 +11,6 @@ import me.koyere.antiafkplus.api.APIEventListener;
 import me.koyere.antiafkplus.command.AFKCommand;
 import me.koyere.antiafkplus.command.AFKPlusCommand;
 import me.koyere.antiafkplus.config.ConfigManager;
-import me.koyere.antiafkplus.listener.AutoClickListener;
 import me.koyere.antiafkplus.placeholder.PlaceholderHook;
 import me.koyere.antiafkplus.utils.bStatsManager;
 
@@ -80,7 +79,8 @@ public final class AntiAFKPlus extends JavaPlugin {
     private AFKPlusCommand afkPlusCommandHandler;
 
     // Optional Listeners that might need specific shutdown/reload logic
-    private AutoClickListener autoClickListenerInstance;
+    private me.koyere.antiafkplus.listener.AutoClickListener autoClickListenerInstance;
+    private me.koyere.antiafkplus.listener.PlayerProtectionListener playerProtectionListener;
     private AntiAFKActivityDetector antiAFKActivityDetectorInstance;
 
     // Enterprise state tracking
@@ -395,9 +395,16 @@ public final class AntiAFKPlus extends JavaPlugin {
 
         // Initialize AutoClickListener if enabled
         if (this.configManager.isAutoclickDetectionEnabled()) {
-            this.autoClickListenerInstance = new AutoClickListener(this);
+            this.autoClickListenerInstance = new me.koyere.antiafkplus.listener.AutoClickListener(this);
             getServer().getPluginManager().registerEvents(this.autoClickListenerInstance, this);
             // AutoClickListener enabled silently
+        }
+
+        // Initialize PlayerProtectionListener if player-protection module is enabled
+        if (getModuleManager().isModuleEnabled("player-protection")) {
+            this.playerProtectionListener = new me.koyere.antiafkplus.listener.PlayerProtectionListener(this);
+            getServer().getPluginManager().registerEvents(this.playerProtectionListener, this);
+            getLogger().info("§aPlayer Protection System initialized");
         }
     }
 
@@ -642,7 +649,7 @@ public final class AntiAFKPlus extends JavaPlugin {
     /**
      * Gets the AutoClickListener instance.
      */
-    public AutoClickListener getAutoClickListenerInstance() {
+    public me.koyere.antiafkplus.listener.AutoClickListener getAutoClickListenerInstance() {
         return autoClickListenerInstance;
     }
 
