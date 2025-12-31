@@ -15,6 +15,29 @@ Compatibility: Minecraft 1.16 – 1.21.10 | Java 17+
 - **Interaction Control**: Optional blocking of inventory access, block interactions, and command execution while AFK
 - **Smart Detection**: Distinguishes between player-initiated movement and forced movement (knockback, pushing)
 
+### 🔕 Pattern Detection Notification Control System
+- **Granular Control**: Configure when and to whom pattern detection messages are sent
+- **Silent by Default**: Players no longer receive spam messages about pattern detections
+- **Admin Alerts**: Optional notifications to staff members with specific permission
+- **Three Notification Types**: Control messages on detection, violation, and action execution independently
+- **Customizable Permission**: Configure which permission is required for admin notifications
+- **Solves Spam Issue**: Addresses user reports of repetitive "[AntiAFK] Suspicious movement pattern detected" messages
+
+### 🎯 Improved Pattern Detection Defaults & Configuration
+- **Reduced False Positives**: Adjusted detection thresholds based on user feedback
+  - Confined space: 5.0 → 8.0 blocks (allows small builds without triggering)
+  - Repetitive movement: 0.8 → 0.9 similarity (90% required, fewer false positives)
+  - Pattern violations: 3 → 5 (more tolerant before taking action)
+  - Water circle radius: 3.0 → 4.0 blocks (allows small legitimate pools)
+  - Min samples: 20 → 30 (~2.5 minutes of data for reliable detection)
+- **Comprehensive Documentation**: Every setting now includes:
+  - Recommended value ranges
+  - Detailed explanations of how it works
+  - Impact on false positives vs detection accuracy
+- **Eliminated Configuration Confusion**: Removed duplicate `pattern-detection-settings` section
+- **Quick Start Guide**: Added helpful guide at top of config.yml with common adjustments
+- **Zone Management Safety**: Disabled by default to prevent unsafe teleports (was enabled)
+
 ### 🔧 PlaceholderAPI Custom Messages Fix
 - **Fixed Custom Placeholders**: `placeholder-status-afk`, `placeholder-status-active`, and related placeholders now work correctly
 - **Supports Color Codes**: Custom messages with `&` color codes now display properly in tab lists and other PlaceholderAPI integrations
@@ -56,6 +79,27 @@ player-protection:
     - "/spawn"
   prevent-block-interaction: true
 ```
+
+### Pattern Detection Notification Settings
+Add to your `config.yml`:
+
+```yaml
+modules:
+  pattern-detection:
+    enabled: true
+    # ... other pattern detection settings ...
+    
+    # v2.9.3 NEW: Notification control system
+    notifications:
+      notify-player-on-detection: false  # Silent by default
+      notify-player-on-violation: false  # No spam on violations
+      notify-player-on-action: false     # No message when action executed
+      send-to-admins: true               # Admins receive alerts
+      admin-notification-permission: "antiafkplus.notify.patterns"
+```
+
+**New Permission**: `antiafkplus.notify.patterns`  
+Grant this permission to staff members who should receive pattern detection alerts.
 
 ### Custom PlaceholderAPI Messages
 Add to your `messages.yml`:
@@ -157,6 +201,27 @@ player-protection:
 - ✅ **Fixed**: Configurable protection from environmental damage
 - ✅ **Fixed**: PvP protection prevents combat abuse
 
+### Pattern Detection Spam Messages
+- ✅ **Fixed**: Players no longer receive repetitive "[AntiAFK] Suspicious movement pattern detected" messages
+- ✅ **Fixed**: Notification spam when pattern violations accumulate
+- ✅ **Fixed**: Added granular control over when notifications are sent
+- ✅ **New**: Admin-only alerts with customizable permission system
+
+### Pattern Detection False Positives
+- ✅ **Fixed**: Players flagged incorrectly for "repetitive movement" during normal gameplay
+- ✅ **Fixed**: "Confined space" detection triggering in outdoor areas and small builds
+- ✅ **Fixed**: Overly aggressive detection thresholds causing legitimate players to be marked AFK
+- ✅ **Improved**: All thresholds adjusted to more conservative values based on user feedback
+- ✅ **Improved**: Detection now requires more samples (30 vs 20) for reliable pattern identification
+
+### Configuration Issues
+- ✅ **Fixed**: Duplicate `pattern-detection-settings` section causing confusion
+- ✅ **Fixed**: Unclear which configuration section to edit (now clearly documented)
+- ✅ **Fixed**: Missing value ranges and explanations for pattern detection settings
+- ✅ **Fixed**: Zone management enabled by default with unsafe teleport coordinates
+- ✅ **New**: Quick start guide at top of config.yml with common troubleshooting
+- ✅ **New**: Comprehensive documentation for every pattern detection setting
+
 ---
 
 ## For Server Administrators
@@ -181,6 +246,6 @@ player-protection:
 ---
 
 **Version**: 2.9.3  
-**Release Date**: December 19, 2025  
+**Release Date**: December 30, 2025  
 **Compatibility**: Minecraft 1.16 - 1.21.11  
 **Java**: 17+

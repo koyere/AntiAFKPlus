@@ -12,12 +12,15 @@ import java.util.*;
 
 /**
  * Detects suspicious movement patterns that indicate AFK machines or pools.
- * Analyzes player movement history to identify repetitive or confined movement patterns.
+ * Analyzes player movement history to identify repetitive or confined movement
+ * patterns.
  *
  * THREAD-SAFETY (v2.8):
  * - Pattern analysis runs asynchronously (runTaskTimerAsync) for performance
- * - Event firing and post-processing happens synchronously on main thread (runTaskForEntity)
- * - All data structures use ConcurrentHashMap/ConcurrentLinkedDeque for thread-safe access
+ * - Event firing and post-processing happens synchronously on main thread
+ * (runTaskForEntity)
+ * - All data structures use ConcurrentHashMap/ConcurrentLinkedDeque for
+ * thread-safe access
  * - This ensures Paper 1.21.8 compatibility and prevents IllegalStateException
  */
 public class PatternDetector {
@@ -125,9 +128,11 @@ public class PatternDetector {
             return;
         }
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (player.hasPermission("antiafkplus.bypass")) continue;
+            if (player.hasPermission("antiafkplus.bypass"))
+                continue;
 
-            // PROFESSIONAL FIX: Verify if player is in disabled world (same logic as AFKManager)
+            // PROFESSIONAL FIX: Verify if player is in disabled world (same logic as
+            // AFKManager)
             List<String> disabledWorlds = plugin.getConfigManager().getDisabledWorlds();
             List<String> enabledWorlds = plugin.getConfigManager().getEnabledWorlds();
             String currentWorldName = player.getWorld().getName();
@@ -156,13 +161,13 @@ public class PatternDetector {
         PatternData patternData = playerPatterns.computeIfAbsent(uuid, k -> new PatternData());
 
         List<MovementListener.LocationSnapshot> history = locationData.locationHistory;
-        if (history.size() < minSamplesForPattern) return;
+        if (history.size() < minSamplesForPattern)
+            return;
 
         // Get recent movement history (last 20 positions)
         List<MovementListener.LocationSnapshot> recentHistory = history.subList(
                 Math.max(0, history.size() - minSamplesForPattern),
-                history.size()
-        );
+                history.size());
 
         boolean suspiciousPattern = false;
         String detectionReason = "";
@@ -194,14 +199,14 @@ public class PatternDetector {
             detectionReason = "pendulum_movement";
             patternData.pendulumDetections++;
         }
-        
+
         // v2.4 NEW: Check for large AFK pool patterns
         if (detectLargeAFKPool(player, recentHistory)) {
             suspiciousPattern = true;
             detectionReason = "large_afk_pool";
             patternData.largePoolDetections++;
         }
-        
+
         // v2.4 NEW: Check for keystroke timeout (no manual input)
         if (detectKeystrokeTimeout(player)) {
             suspiciousPattern = true;
@@ -220,9 +225,11 @@ public class PatternDetector {
     }
 
     private boolean detectWaterCirclePattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < 8) return false;
+        if (history.size() < 8)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         // The original list can be modified by other threads during stream operations
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
@@ -236,7 +243,8 @@ public class PatternDetector {
             return distance <= waterCircleRadius;
         });
 
-        if (!allWithinRadius) return false;
+        if (!allWithinRadius)
+            return false;
 
         // Check for circular movement pattern using thread-safe copy
         int circularMovements = 0;
@@ -250,7 +258,8 @@ public class PatternDetector {
             double angleDiff = Math.abs(angle2 - angle1);
 
             // Normalize angle difference
-            if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+            if (angleDiff > Math.PI)
+                angleDiff = 2 * Math.PI - angleDiff;
 
             // If angle change is consistent (suggesting circular movement)
             if (angleDiff > 0.1 && angleDiff < Math.PI / 2) {
@@ -262,9 +271,11 @@ public class PatternDetector {
     }
 
     private boolean detectConfinedSpacePattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < minSamplesForPattern) return false;
+        if (history.size() < minSamplesForPattern)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
         // Calculate bounding box of movement using thread-safe copy
@@ -281,16 +292,20 @@ public class PatternDetector {
     }
 
     private boolean detectRepetitivePattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < 12) return false;
+        if (history.size() < 12)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
         // Split history into segments and compare similarity using thread-safe copy
         int segmentSize = safeCopy.size() / 3;
         List<MovementListener.LocationSnapshot> segment1 = new java.util.ArrayList<>(safeCopy.subList(0, segmentSize));
-        List<MovementListener.LocationSnapshot> segment2 = new java.util.ArrayList<>(safeCopy.subList(segmentSize, segmentSize * 2));
-        List<MovementListener.LocationSnapshot> segment3 = new java.util.ArrayList<>(safeCopy.subList(segmentSize * 2, segmentSize * 3));
+        List<MovementListener.LocationSnapshot> segment2 = new java.util.ArrayList<>(
+                safeCopy.subList(segmentSize, segmentSize * 2));
+        List<MovementListener.LocationSnapshot> segment3 = new java.util.ArrayList<>(
+                safeCopy.subList(segmentSize * 2, segmentSize * 3));
 
         double similarity12 = calculatePatternSimilarity(segment1, segment2);
         double similarity23 = calculatePatternSimilarity(segment2, segment3);
@@ -303,9 +318,11 @@ public class PatternDetector {
     }
 
     private boolean detectPendulumPattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < 10) return false;
+        if (history.size() < 10)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
         int backAndForthCount = 0;
@@ -328,21 +345,24 @@ public class PatternDetector {
 
         return backAndForthCount >= (safeCopy.size() * 0.3); // 30% of movements are back-and-forth
     }
-    
+
     // v2.4 NEW: Large AFK pool detection methods
-    
+
     /**
-     * Detects large AFK pools (20x10+ blocks) that bypass traditional confined space detection.
-     * This method identifies pools that are too large for the standard confined space threshold
+     * Detects large AFK pools (20x10+ blocks) that bypass traditional confined
+     * space detection.
+     * This method identifies pools that are too large for the standard confined
+     * space threshold
      * but still represent artificial AFK setups.
      * 
      * Detection criteria:
-     * 1. Movement area larger than small pool threshold but smaller than large pool threshold
+     * 1. Movement area larger than small pool threshold but smaller than large pool
+     * threshold
      * 2. Player is in water for extended periods
      * 3. Movement patterns suggest water current automation
      * 4. No manual keystrokes detected for extended periods
      * 
-     * @param player The player being analyzed
+     * @param player  The player being analyzed
      * @param history Recent movement history
      * @return true if large AFK pool pattern detected
      */
@@ -350,9 +370,11 @@ public class PatternDetector {
         if (!largePoolDetectionEnabled) {
             return false;
         }
-        if (history.size() < minSamplesForLargePool) return false;
+        if (history.size() < minSamplesForLargePool)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
         // Calculate bounding box of movement area using thread-safe copy
@@ -360,55 +382,59 @@ public class PatternDetector {
         double maxX = safeCopy.stream().mapToDouble(pos -> pos.x).max().orElse(0);
         double minZ = safeCopy.stream().mapToDouble(pos -> pos.z).min().orElse(0);
         double maxZ = safeCopy.stream().mapToDouble(pos -> pos.z).max().orElse(0);
-        
+
         double areaX = maxX - minX;
         double areaZ = maxZ - minZ;
         double totalArea = areaX * areaZ;
-        
+
         // Check if movement area suggests large AFK pool
         boolean isLargePoolSize = (areaX > confinedSpaceThreshold || areaZ > confinedSpaceThreshold) &&
-                                  (totalArea <= largePoolThreshold * largePoolThreshold);
-        
-        if (!isLargePoolSize) return false;
-        
+                (totalArea <= largePoolThreshold * largePoolThreshold);
+
+        if (!isLargePoolSize)
+            return false;
+
         // Check if player has been in water for most of the tracking period
         boolean mostlyInWater = isPlayerMostlyInWater(player, safeCopy);
-        if (!mostlyInWater) return false;
+        if (!mostlyInWater)
+            return false;
 
-        // Check for automatic movement patterns (consistent velocity, minimal direction changes)
+        // Check for automatic movement patterns (consistent velocity, minimal direction
+        // changes)
         boolean hasAutomaticMovement = detectAutomaticMovementPattern(safeCopy);
-        if (!hasAutomaticMovement) return false;
-        
+        if (!hasAutomaticMovement)
+            return false;
+
         // Final check: has player exceeded keystroke timeout?
         boolean hasKeystrokeTimeout = movementListener.hasKeystrokeTimeout(player);
-        
+
         // Debug logging
         if (plugin.getConfigManager().isDebugEnabled()) {
             plugin.getLogger().info(String.format(
-                "[DEBUG_LargePool] %s: area=%.1fx%.1f (%.1f), inWater=%s, autoMove=%s, keystrokeTimeout=%s",
-                player.getName(), areaX, areaZ, totalArea, mostlyInWater, hasAutomaticMovement, hasKeystrokeTimeout
-            ));
+                    "[DEBUG_LargePool] %s: area=%.1fx%.1f (%.1f), inWater=%s, autoMove=%s, keystrokeTimeout=%s",
+                    player.getName(), areaX, areaZ, totalArea, mostlyInWater, hasAutomaticMovement,
+                    hasKeystrokeTimeout));
         }
-        
+
         return hasKeystrokeTimeout; // Only trigger if keystroke timeout is also present
     }
-    
+
     /**
      * Checks if player has been mostly in water during the tracking period.
      * This helps identify AFK pool setups vs regular gameplay.
      * 
-     * @param player The player to check
+     * @param player  The player to check
      * @param history Movement history to analyze
      * @return true if player has been in water for >70% of tracked time
      */
     private boolean isPlayerMostlyInWater(Player player, List<MovementListener.LocationSnapshot> history) {
         // For simplicity, check current state and assume consistency
         // A more sophisticated implementation could track water state over time
-        return player.getLocation().getBlock().isLiquid() || 
-               player.getEyeLocation().getBlock().isLiquid() ||
-               player.isSwimming();
+        return player.getLocation().getBlock().isLiquid() ||
+                player.getEyeLocation().getBlock().isLiquid() ||
+                player.isSwimming();
     }
-    
+
     /**
      * Detects automatic movement patterns typical of water currents in AFK pools.
      * Automatic movement has consistent velocity and fewer direction changes.
@@ -417,9 +443,11 @@ public class PatternDetector {
      * @return true if movement appears to be automatic (water current)
      */
     private boolean detectAutomaticMovementPattern(List<MovementListener.LocationSnapshot> history) {
-        if (history.size() < 10) return false;
+        if (history.size() < 10)
+            return false;
 
-        // PROFESSIONAL FIX: Create defensive copy to prevent ConcurrentModificationException
+        // PROFESSIONAL FIX: Create defensive copy to prevent
+        // ConcurrentModificationException
         List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
 
         double totalVelocityVariance = 0.0;
@@ -429,46 +457,48 @@ public class PatternDetector {
         for (int i = 1; i < safeCopy.size(); i++) {
             MovementListener.LocationSnapshot prev = safeCopy.get(i - 1);
             MovementListener.LocationSnapshot curr = safeCopy.get(i);
-            
+
             double deltaX = curr.x - prev.x;
             double deltaZ = curr.z - prev.z;
             double velocity = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-            
+
             if (velocity > 0.01) { // Only analyze when there's movement
                 // Calculate velocity variance (automatic movement has consistent velocity)
                 if (validMeasurements > 0) {
                     // Simple variance approximation
                     totalVelocityVariance += Math.abs(velocity - 0.1); // 0.1 is typical water current speed
                 }
-                
+
                 // Calculate direction changes (automatic movement has fewer changes)
                 if (i > 1) {
                     MovementListener.LocationSnapshot prevPrev = history.get(i - 2);
                     double prevAngle = Math.atan2(prev.z - prevPrev.z, prev.x - prevPrev.x);
                     double currAngle = Math.atan2(deltaZ, deltaX);
-                    
+
                     double angleDiff = Math.abs(currAngle - prevAngle);
-                    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-                    
+                    if (angleDiff > Math.PI)
+                        angleDiff = 2 * Math.PI - angleDiff;
+
                     totalDirectionChanges += angleDiff;
                 }
-                
+
                 validMeasurements++;
             }
         }
-        
-        if (validMeasurements < 5) return false;
-        
+
+        if (validMeasurements < 5)
+            return false;
+
         double avgVelocityVariance = totalVelocityVariance / validMeasurements;
         double avgDirectionChange = totalDirectionChanges / Math.max(1, validMeasurements - 1);
-        
+
         // Automatic movement has low velocity variance and low direction changes
         boolean lowVelocityVariance = avgVelocityVariance < 0.05;
         boolean lowDirectionChanges = avgDirectionChange < 0.3;
-        
+
         return lowVelocityVariance && lowDirectionChanges;
     }
-    
+
     /**
      * Detects when a player hasn't provided manual keystroke input for too long.
      * This is the core detection method for large AFK pools where players
@@ -485,8 +515,9 @@ public class PatternDetector {
     }
 
     private double calculatePatternSimilarity(List<MovementListener.LocationSnapshot> pattern1,
-                                              List<MovementListener.LocationSnapshot> pattern2) {
-        if (pattern1.size() != pattern2.size()) return 0.0;
+            List<MovementListener.LocationSnapshot> pattern2) {
+        if (pattern1.size() != pattern2.size())
+            return 0.0;
 
         double totalSimilarity = 0.0;
         int comparisons = 0;
@@ -506,7 +537,7 @@ public class PatternDetector {
     }
 
     private double calculateDistance(MovementListener.LocationSnapshot pos1,
-                                     MovementListener.LocationSnapshot pos2) {
+            MovementListener.LocationSnapshot pos2) {
         return Math.sqrt(Math.pow(pos2.x - pos1.x, 2) +
                 Math.pow(pos2.y - pos1.y, 2) +
                 Math.pow(pos2.z - pos1.z, 2));
@@ -537,11 +568,14 @@ public class PatternDetector {
         PlayerAFKPatternDetectedEvent.PatternType patternType = mapPatternType(detectionReason);
         double confidence = computeConfidence(detectionReason, violations);
 
-        // CRITICAL FIX: Execute ALL event firing and post-processing synchronously on main thread
+        // CRITICAL FIX: Execute ALL event firing and post-processing synchronously on
+        // main thread
         // Paper 1.21.8 requires events to be fired from main thread, not async
-        // IMPORTANT: ALL player entity access must happen inside runTaskForEntity (including getLocation)
+        // IMPORTANT: ALL player entity access must happen inside runTaskForEntity
+        // (including getLocation)
         plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
-            // Re-verify player is still online (they might have disconnected during async analysis)
+            // Re-verify player is still online (they might have disconnected during async
+            // analysis)
             if (!player.isOnline()) {
                 return;
             }
@@ -558,8 +592,7 @@ public class PatternDetector {
                     patternAnalysisIntervalMs,
                     detectionLocation,
                     patternData,
-                    additionalData
-            );
+                    additionalData);
 
             plugin.getServer().getPluginManager().callEvent(patternEvent);
 
@@ -571,6 +604,18 @@ public class PatternDetector {
                 return;
             }
 
+            // v2.9.4 NEW: Send notifications to admins if configured
+            if (plugin.getConfigManager().shouldSendPatternAlertsToAdmins()) {
+                sendAdminNotification(player, detectionReason, violations, confidence);
+            }
+
+            // v2.9.4 NEW: Notify player on detection if configured
+            if (plugin.getConfigManager().shouldNotifyPlayerOnPatternDetection()) {
+                String message = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
+                        : "§c[AntiAFK] Suspicious movement pattern detected: " + detectionReason;
+                player.sendMessage(message);
+            }
+
             // Process suggested action from event
             if (processSuggestedAction(player, patternEvent)) {
                 patternViolations.put(uuid, 0);
@@ -579,12 +624,26 @@ public class PatternDetector {
 
             // Take action based on violation count
             if (violations >= maxPatternViolations) {
-                // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of just marking AFK
-                // This ensures pattern detection triggers the same action as regular AFK detection
+                // v2.9.4 NEW: Notify player on violation if configured
+                if (plugin.getConfigManager().shouldNotifyPlayerOnViolation()) {
+                    String violationMessage = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
+                            : "§c[AntiAFK] Maximum pattern violations reached (" + violations + "/"
+                                    + maxPatternViolations + ")";
+                    player.sendMessage(violationMessage);
+                }
+
+                // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of
+                // just marking AFK
+                // This ensures pattern detection triggers the same action as regular AFK
+                // detection
                 afkManager.executeAFKAction(player, detectionReason);
-                player.sendMessage(patternEvent.getCustomMessage() != null ?
-                        patternEvent.getCustomMessage() :
-                        "§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.");
+
+                // v2.9.4 NEW: Notify player on action if configured
+                if (plugin.getConfigManager().shouldNotifyPlayerOnAction()) {
+                    String actionMessage = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
+                            : "§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.";
+                    player.sendMessage(actionMessage);
+                }
 
                 // Log the action
                 AFKLogger.logActivity("Forced AFK due to pattern violations: " + playerName +
@@ -594,6 +653,37 @@ public class PatternDetector {
                 patternViolations.put(uuid, 0);
             }
         });
+    }
+
+    /**
+     * v2.9.4 NEW: Sends pattern detection notifications to online admins with the
+     * required permission.
+     * This allows staff to monitor suspicious activity without spamming regular
+     * players.
+     * 
+     * @param player          The player who triggered the pattern detection
+     * @param detectionReason The type of pattern detected
+     * @param violations      Current violation count
+     * @param confidence      Detection confidence level (0.0 to 1.0)
+     */
+    private void sendAdminNotification(Player player, String detectionReason, int violations, double confidence) {
+        String permission = plugin.getConfigManager().getAdminNotificationPermission();
+        if (permission == null || permission.trim().isEmpty()) {
+            return; // No permission configured, skip admin notifications
+        }
+
+        String adminMessage = String.format(
+                "§6[AntiAFK Admin] §e%s §7detected for §e%s §7(Violations: §c%d§7/§c%d§7, Confidence: §a%.0f%%§7)",
+                detectionReason.replace("_", " "),
+                player.getName(),
+                violations,
+                maxPatternViolations,
+                confidence * 100);
+
+        // Send to all online players with the admin notification permission
+        plugin.getServer().getOnlinePlayers().stream()
+                .filter(p -> p.hasPermission(permission))
+                .forEach(admin -> admin.sendMessage(adminMessage));
     }
 
     public void clearPlayerData(Player player) {
@@ -684,8 +774,7 @@ public class PatternDetector {
 
         // Thread-safe: Use ConcurrentLinkedDeque for thread-safe operations
         Deque<DetectedPatternRecord> detections = recentDetections.computeIfAbsent(
-                uuid, k -> new java.util.concurrent.ConcurrentLinkedDeque<>()
-        );
+                uuid, k -> new java.util.concurrent.ConcurrentLinkedDeque<>());
 
         detections.addLast(new DetectedPatternRecord(
                 event.getPatternType(),
@@ -695,8 +784,7 @@ public class PatternDetector {
                 event.getDetectionTimespan(),
                 event.getDetectionLocation(),
                 event.getAdditionalData(),
-                event.isCancelled()
-        ));
+                event.isCancelled()));
 
         // Remove old detections if exceeding limit
         while (detections.size() > MAX_STORED_PATTERN_DETECTIONS) {
@@ -761,11 +849,11 @@ public class PatternDetector {
         public int confinedSpaceDetections = 0;
         public int repetitivePatternDetections = 0;
         public int pendulumDetections = 0;
-        
+
         // v2.4 NEW: Large AFK pool detection counters
         public int largePoolDetections = 0;
         public int keystrokeTimeouts = 0;
-        
+
         public long lastAnalysis = 0;
         public long firstDetection = 0;
 
@@ -777,17 +865,24 @@ public class PatternDetector {
 
         public String getMostCommonPattern() {
             int max = Math.max(Math.max(waterCircleDetections, confinedSpaceDetections),
-                    Math.max(repetitivePatternDetections, 
-                    Math.max(pendulumDetections, 
-                    Math.max(largePoolDetections, keystrokeTimeouts)))); // v2.4: Include new types
+                    Math.max(repetitivePatternDetections,
+                            Math.max(pendulumDetections,
+                                    Math.max(largePoolDetections, keystrokeTimeouts)))); // v2.4: Include new types
 
-            if (max == 0) return "none";
-            if (max == waterCircleDetections) return "water_circle";
-            if (max == confinedSpaceDetections) return "confined_space";
-            if (max == repetitivePatternDetections) return "repetitive";
-            if (max == pendulumDetections) return "pendulum";
-            if (max == largePoolDetections) return "large_afk_pool"; // v2.4 NEW
-            if (max == keystrokeTimeouts) return "keystroke_timeout"; // v2.4 NEW
+            if (max == 0)
+                return "none";
+            if (max == waterCircleDetections)
+                return "water_circle";
+            if (max == confinedSpaceDetections)
+                return "confined_space";
+            if (max == repetitivePatternDetections)
+                return "repetitive";
+            if (max == pendulumDetections)
+                return "pendulum";
+            if (max == largePoolDetections)
+                return "large_afk_pool"; // v2.4 NEW
+            if (max == keystrokeTimeouts)
+                return "keystroke_timeout"; // v2.4 NEW
             return "unknown";
         }
     }
@@ -803,13 +898,13 @@ public class PatternDetector {
         private final boolean cancelled;
 
         public DetectedPatternRecord(PlayerAFKPatternDetectedEvent.PatternType patternType,
-                                     double confidence,
-                                     long timestamp,
-                                     int violationCount,
-                                     long detectionTimespan,
-                                     Location location,
-                                     Map<String, Object> additionalData,
-                                     boolean cancelled) {
+                double confidence,
+                long timestamp,
+                int violationCount,
+                long detectionTimespan,
+                Location location,
+                Map<String, Object> additionalData,
+                boolean cancelled) {
             this.patternType = patternType;
             this.confidence = confidence;
             this.timestamp = timestamp;

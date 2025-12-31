@@ -14,8 +14,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Enhanced ConfigManager v2.0 - Handles loading and providing access to plugin configuration (config.yml)
- * and customizable messages (messages.yml) with advanced v2.0 features including pattern detection,
+ * Enhanced ConfigManager v2.0 - Handles loading and providing access to plugin
+ * configuration (config.yml)
+ * and customizable messages (messages.yml) with advanced v2.0 features
+ * including pattern detection,
  * behavioral analysis, and comprehensive event system configuration.
  */
 public class ConfigManager {
@@ -55,6 +57,13 @@ public class ConfigManager {
     private double largePoolThreshold;
     private int minSamplesForLargePool;
     private long keystrokeTimeoutMs;
+
+    // v2.9.3 NEW: Pattern detection notification settings
+    private boolean notifyPlayerOnDetection;
+    private boolean notifyPlayerOnViolation;
+    private boolean notifyPlayerOnAction;
+    private boolean sendPatternAlertsToAdmins;
+    private String adminNotificationPermission;
 
     // Movement detection thresholds
     private double microMovementThreshold;
@@ -112,6 +121,7 @@ public class ConfigManager {
     /**
      * Constructor for ConfigManager.
      * Initializes and loads configurations.
+     * 
      * @param plugin The main plugin instance.
      */
     public ConfigManager(AntiAFKPlus plugin) {
@@ -197,7 +207,20 @@ public class ConfigManager {
     private void loadPatternDetectionModuleSettings() {
         this.patternDetectionModuleEnabled = config.getBoolean("modules.pattern-detection.enabled", true);
         this.largePoolDetectionEnabled = config.getBoolean("modules.pattern-detection.large-pool-detection", true);
-        this.keystrokeTimeoutDetectionEnabled = config.getBoolean("modules.pattern-detection.keystroke-timeout-detection", true);
+        this.keystrokeTimeoutDetectionEnabled = config
+                .getBoolean("modules.pattern-detection.keystroke-timeout-detection", true);
+
+        // v2.9.4 NEW: Load notification settings
+        this.notifyPlayerOnDetection = config
+                .getBoolean("modules.pattern-detection.notifications.notify-player-on-detection", false);
+        this.notifyPlayerOnViolation = config
+                .getBoolean("modules.pattern-detection.notifications.notify-player-on-violation", false);
+        this.notifyPlayerOnAction = config.getBoolean("modules.pattern-detection.notifications.notify-player-on-action",
+                false);
+        this.sendPatternAlertsToAdmins = config.getBoolean("modules.pattern-detection.notifications.send-to-admins",
+                true);
+        this.adminNotificationPermission = config.getString(
+                "modules.pattern-detection.notifications.admin-notification-permission", "antiafkplus.notify.patterns");
     }
 
     private void loadAfkWindowSettings() {
@@ -227,8 +250,7 @@ public class ConfigManager {
                 behaviorInside != null ? behaviorInside.trim() : "SKIP_ACTIONS",
                 behaviorOutside != null ? behaviorOutside.trim() : "DEFAULT",
                 extendSeconds,
-                bypassPermission != null ? bypassPermission.trim() : ""
-        );
+                bypassPermission != null ? bypassPermission.trim() : "");
     }
 
     public TimeWindowSettings getTimeWindowSettings() {
@@ -356,21 +378,30 @@ public class ConfigManager {
 
         // Load standard messages
         this.messagePlayerNowAFK = loadColoredString("messages.player-now-afk", "&e{player} is now AFK.");
-        this.messagePlayerNoLongerAFK = loadColoredString("messages.player-no-longer-afk", "&a{player} is no longer AFK.");
-        this.messageKickWarning = loadColoredString("messages.kick-warning", "&cYou will be kicked in {seconds}s for being AFK!");
+        this.messagePlayerNoLongerAFK = loadColoredString("messages.player-no-longer-afk",
+                "&a{player} is no longer AFK.");
+        this.messageKickWarning = loadColoredString("messages.kick-warning",
+                "&cYou will be kicked in {seconds}s for being AFK!");
         this.messageKicked = loadColoredString("messages.kicked-for-afk", "&cYou have been kicked for being AFK.");
-        this.messageVoluntaryAFKLimit = loadColoredString("messages.afk-voluntary-time-limit", "&cYou have been removed from AFK mode due to time limit.");
+        this.messageVoluntaryAFKLimit = loadColoredString("messages.afk-voluntary-time-limit",
+                "&cYou have been removed from AFK mode due to time limit.");
         this.messageAlreadyAFK = loadColoredString("messages.already-afk", "&eYou are already AFK.");
 
         // Load autoclicker messages
-        this.messageAutoclickSetAfk = loadColoredString("messages.autoclick-detected-set-afk", "&cSuspicious clicking detected. You have been set to AFK.");
-        this.messageAutoclickKickReason = loadColoredString("messages.autoclick-detected-kick-reason", "&cKicked for suspicious clicking activity (autoclick).");
+        this.messageAutoclickSetAfk = loadColoredString("messages.autoclick-detected-set-afk",
+                "&cSuspicious clicking detected. You have been set to AFK.");
+        this.messageAutoclickKickReason = loadColoredString("messages.autoclick-detected-kick-reason",
+                "&cKicked for suspicious clicking activity (autoclick).");
 
         // Load enhanced v2.0 messages
-        this.messagePatternDetected = loadColoredString("messages.pattern-detected", "&c[AntiAFK] Suspicious movement pattern detected: {pattern}");
-        this.messageSuspiciousActivity = loadColoredString("messages.suspicious-activity", "&e[AntiAFK] Suspicious activity detected. Please move normally.");
-        this.messageEnhancedDetectionWarning = loadColoredString("messages.enhanced-detection-warning", "&6[AntiAFK] Enhanced detection system is monitoring your activity.");
-        this.messageAfkWindowActive = loadColoredString("messages.afk-window-active", "&aAFK protection is active until {time}.");
+        this.messagePatternDetected = loadColoredString("messages.pattern-detected",
+                "&c[AntiAFK] Suspicious movement pattern detected: {pattern}");
+        this.messageSuspiciousActivity = loadColoredString("messages.suspicious-activity",
+                "&e[AntiAFK] Suspicious activity detected. Please move normally.");
+        this.messageEnhancedDetectionWarning = loadColoredString("messages.enhanced-detection-warning",
+                "&6[AntiAFK] Enhanced detection system is monitoring your activity.");
+        this.messageAfkWindowActive = loadColoredString("messages.afk-window-active",
+                "&aAFK protection is active until {time}.");
     }
 
     private String loadColoredString(String path, String defaultValue) {
@@ -387,19 +418,57 @@ public class ConfigManager {
 
     // --- Standard getters for loaded configuration values ---
 
-    public int getDefaultAfkTime() { return defaultAfkTime; }
-    public int getAfkCheckIntervalSeconds() { return afkCheckIntervalSeconds; }
-    public int getMaxVoluntaryAfkTimeSeconds() { return maxVoluntaryAfkTimeSeconds; }
-    public boolean isDebugEnabled() { return debugEnabled; }
-    public boolean isBlockPickupWhileAFK() { return blockPickupWhileAFK; }
-    public boolean isAutoclickDetectionEnabled() { return autoclickDetectionEnabled; }
-    public boolean shouldBroadcastAFKStateChanges() { return broadcastAfkStateChanges; }
-    public String getListCommandPermission() { return listCommandPermission; }
-    public List<Integer> getAfkWarningTimes() { return Collections.unmodifiableList(afkWarningTimes); }
-    public Map<String, Integer> getPermissionTimes() { return Collections.unmodifiableMap(permissionTimes); }
-    public List<String> getEnabledWorlds() { return Collections.unmodifiableList(enabledWorlds); }
-    public List<String> getDisabledWorlds() { return Collections.unmodifiableList(disabledWorlds); }
-    public String getMessageAfkWindowActive() { return messageAfkWindowActive; }
+    public int getDefaultAfkTime() {
+        return defaultAfkTime;
+    }
+
+    public int getAfkCheckIntervalSeconds() {
+        return afkCheckIntervalSeconds;
+    }
+
+    public int getMaxVoluntaryAfkTimeSeconds() {
+        return maxVoluntaryAfkTimeSeconds;
+    }
+
+    public boolean isDebugEnabled() {
+        return debugEnabled;
+    }
+
+    public boolean isBlockPickupWhileAFK() {
+        return blockPickupWhileAFK;
+    }
+
+    public boolean isAutoclickDetectionEnabled() {
+        return autoclickDetectionEnabled;
+    }
+
+    public boolean shouldBroadcastAFKStateChanges() {
+        return broadcastAfkStateChanges;
+    }
+
+    public String getListCommandPermission() {
+        return listCommandPermission;
+    }
+
+    public List<Integer> getAfkWarningTimes() {
+        return Collections.unmodifiableList(afkWarningTimes);
+    }
+
+    public Map<String, Integer> getPermissionTimes() {
+        return Collections.unmodifiableMap(permissionTimes);
+    }
+
+    public List<String> getEnabledWorlds() {
+        return Collections.unmodifiableList(enabledWorlds);
+    }
+
+    public List<String> getDisabledWorlds() {
+        return Collections.unmodifiableList(disabledWorlds);
+    }
+
+    public String getMessageAfkWindowActive() {
+        return messageAfkWindowActive;
+    }
 
     public synchronized void setWorldDetectionEnabled(String worldName, boolean enabled) {
         if (worldName == null || worldName.trim().isEmpty()) {
@@ -427,77 +496,245 @@ public class ConfigManager {
 
     // --- Enhanced v2.0 detection getters ---
 
-    public boolean isEnhancedDetectionEnabled() { return enhancedDetectionEnabled; }
-    public boolean isPatternDetectionEnabled() { return patternDetectionEnabled; }
-    public boolean isBehavioralAnalysisEnabled() { return behavioralAnalysisEnabled; }
-    public boolean isAdvancedMovementTrackingEnabled() { return advancedMovementTrackingEnabled; }
-    public boolean isPatternDetectionModuleEnabled() { return patternDetectionModuleEnabled; }
-    public boolean isLargePoolDetectionEnabled() { return largePoolDetectionEnabled; }
-    public boolean isKeystrokeTimeoutDetectionEnabled() { return keystrokeTimeoutDetectionEnabled; }
+    public boolean isEnhancedDetectionEnabled() {
+        return enhancedDetectionEnabled;
+    }
+
+    public boolean isPatternDetectionEnabled() {
+        return patternDetectionEnabled;
+    }
+
+    public boolean isBehavioralAnalysisEnabled() {
+        return behavioralAnalysisEnabled;
+    }
+
+    public boolean isAdvancedMovementTrackingEnabled() {
+        return advancedMovementTrackingEnabled;
+    }
+
+    public boolean isPatternDetectionModuleEnabled() {
+        return patternDetectionModuleEnabled;
+    }
+
+    public boolean isLargePoolDetectionEnabled() {
+        return largePoolDetectionEnabled;
+    }
+
+    public boolean isKeystrokeTimeoutDetectionEnabled() {
+        return keystrokeTimeoutDetectionEnabled;
+    }
 
     // --- Pattern detection getters ---
 
-    public double getWaterCircleRadius() { return waterCircleRadius; }
-    public int getMinSamplesForPattern() { return minSamplesForPattern; }
-    public double getConfinedSpaceThreshold() { return confinedSpaceThreshold; }
-    public long getPatternAnalysisInterval() { return patternAnalysisInterval; }
-    public double getRepetitiveMovementThreshold() { return repetitiveMovementThreshold; }
-    public int getMaxPatternViolations() { return maxPatternViolations; }
-    public double getLargePoolThreshold() { return largePoolThreshold; }
-    public int getMinSamplesForLargePool() { return minSamplesForLargePool; }
-    public long getKeystrokeTimeoutMs() { return keystrokeTimeoutMs; }
+    public double getWaterCircleRadius() {
+        return waterCircleRadius;
+    }
+
+    public int getMinSamplesForPattern() {
+        return minSamplesForPattern;
+    }
+
+    public double getConfinedSpaceThreshold() {
+        return confinedSpaceThreshold;
+    }
+
+    public long getPatternAnalysisInterval() {
+        return patternAnalysisInterval;
+    }
+
+    public double getRepetitiveMovementThreshold() {
+        return repetitiveMovementThreshold;
+    }
+
+    public int getMaxPatternViolations() {
+        return maxPatternViolations;
+    }
+
+    public double getLargePoolThreshold() {
+        return largePoolThreshold;
+    }
+
+    public int getMinSamplesForLargePool() {
+        return minSamplesForLargePool;
+    }
+
+    public long getKeystrokeTimeoutMs() {
+        return keystrokeTimeoutMs;
+    }
+
+    // --- v2.9.4 NEW: Pattern detection notification getters ---
+
+    /**
+     * Whether to send notifications to players when a pattern is first detected.
+     * Default: false (silent to avoid spam)
+     */
+    public boolean shouldNotifyPlayerOnPatternDetection() {
+        return notifyPlayerOnDetection;
+    }
+
+    /**
+     * Whether to send notifications to players only when max violations are
+     * reached.
+     * Default: false (completely silent)
+     */
+    public boolean shouldNotifyPlayerOnViolation() {
+        return notifyPlayerOnViolation;
+    }
+
+    /**
+     * Whether to send notifications to players when AFK action is executed.
+     * Default: false (action happens silently)
+     */
+    public boolean shouldNotifyPlayerOnAction() {
+        return notifyPlayerOnAction;
+    }
+
+    /**
+     * Whether to send pattern detection alerts to admins/staff.
+     * Admins must have the permission returned by getAdminNotificationPermission().
+     * Default: true (admins can monitor suspicious activity)
+     */
+    public boolean shouldSendPatternAlertsToAdmins() {
+        return sendPatternAlertsToAdmins;
+    }
+
+    /**
+     * Gets the permission required for admins to receive pattern detection alerts.
+     * Default: "antiafkplus.notify.patterns"
+     */
+    public String getAdminNotificationPermission() {
+        return adminNotificationPermission;
+    }
 
     // --- Movement detection getters ---
 
-    public double getMicroMovementThreshold() { return microMovementThreshold; }
-    public double getHeadRotationThreshold() { return headRotationThreshold; }
-    public long getJumpSpamThreshold() { return jumpSpamThreshold; }
-    public int getMaxJumpsPerPeriod() { return maxJumpsPerPeriod; }
-    public long getJumpResetPeriod() { return jumpResetPeriod; }
+    public double getMicroMovementThreshold() {
+        return microMovementThreshold;
+    }
+
+    public double getHeadRotationThreshold() {
+        return headRotationThreshold;
+    }
+
+    public long getJumpSpamThreshold() {
+        return jumpSpamThreshold;
+    }
+
+    public int getMaxJumpsPerPeriod() {
+        return maxJumpsPerPeriod;
+    }
+
+    public long getJumpResetPeriod() {
+        return jumpResetPeriod;
+    }
 
     // --- Activity scoring getters ---
 
-    public double getMovementWeight() { return movementWeight; }
-    public double getHeadRotationWeight() { return headRotationWeight; }
-    public double getJumpWeight() { return jumpWeight; }
-    public double getCommandWeight() { return commandWeight; }
+    public double getMovementWeight() {
+        return movementWeight;
+    }
+
+    public double getHeadRotationWeight() {
+        return headRotationWeight;
+    }
+
+    public double getJumpWeight() {
+        return jumpWeight;
+    }
+
+    public double getCommandWeight() {
+        return commandWeight;
+    }
 
     // --- Autoclicker getters ---
 
-    public int getAutoclickClickWindowMs() { return autoclickClickWindowMs; }
-    public int getAutoclickClickThreshold() { return autoclickClickThreshold; }
-    public long getAutoclickMinIdleTimeMs() { return autoclickMinIdleTimeMs; }
-    public String getAutoclickAction() { return autoclickAction; }
+    public int getAutoclickClickWindowMs() {
+        return autoclickClickWindowMs;
+    }
+
+    public int getAutoclickClickThreshold() {
+        return autoclickClickThreshold;
+    }
+
+    public long getAutoclickMinIdleTimeMs() {
+        return autoclickMinIdleTimeMs;
+    }
+
+    public String getAutoclickAction() {
+        return autoclickAction;
+    }
 
     // --- Event system getters ---
 
-    public boolean isAFKStateChangeEventsEnabled() { return enableAFKStateChangeEvents; }
-    public boolean isAFKWarningEventsEnabled() { return enableAFKWarningEvents; }
-    public boolean isAFKKickEventsEnabled() { return enableAFKKickEvents; }
-    public boolean isPatternDetectionEventsEnabled() { return enablePatternDetectionEvents; }
+    public boolean isAFKStateChangeEventsEnabled() {
+        return enableAFKStateChangeEvents;
+    }
+
+    public boolean isAFKWarningEventsEnabled() {
+        return enableAFKWarningEvents;
+    }
+
+    public boolean isAFKKickEventsEnabled() {
+        return enableAFKKickEvents;
+    }
+
+    public boolean isPatternDetectionEventsEnabled() {
+        return enablePatternDetectionEvents;
+    }
 
     // --- Standard message getters ---
 
-    public String getMessagePlayerNowAFK() { return messagePlayerNowAFK; }
-    public String getMessagePlayerNoLongerAFK() { return messagePlayerNoLongerAFK; }
-    public String getMessageKickWarning() { return messageKickWarning; }
-    public String getMessageKicked() { return messageKicked; }
-    public String getMessageVoluntaryAFKLimit() { return messageVoluntaryAFKLimit; }
-    public String getMessageAlreadyAFK() { return messageAlreadyAFK; }
+    public String getMessagePlayerNowAFK() {
+        return messagePlayerNowAFK;
+    }
+
+    public String getMessagePlayerNoLongerAFK() {
+        return messagePlayerNoLongerAFK;
+    }
+
+    public String getMessageKickWarning() {
+        return messageKickWarning;
+    }
+
+    public String getMessageKicked() {
+        return messageKicked;
+    }
+
+    public String getMessageVoluntaryAFKLimit() {
+        return messageVoluntaryAFKLimit;
+    }
+
+    public String getMessageAlreadyAFK() {
+        return messageAlreadyAFK;
+    }
 
     // --- Autoclicker message getters ---
 
-    public String getMessageAutoclickSetAfk() { return messageAutoclickSetAfk; }
-    public String getMessageAutoclickKickReason() { return messageAutoclickKickReason; }
+    public String getMessageAutoclickSetAfk() {
+        return messageAutoclickSetAfk;
+    }
+
+    public String getMessageAutoclickKickReason() {
+        return messageAutoclickKickReason;
+    }
 
     // --- Enhanced v2.0 message getters ---
 
-    public String getMessagePatternDetected() { return messagePatternDetected; }
-    public String getMessageSuspiciousActivity() { return messageSuspiciousActivity; }
-    public String getMessageEnhancedDetectionWarning() { return messageEnhancedDetectionWarning; }
+    public String getMessagePatternDetected() {
+        return messagePatternDetected;
+    }
+
+    public String getMessageSuspiciousActivity() {
+        return messageSuspiciousActivity;
+    }
+
+    public String getMessageEnhancedDetectionWarning() {
+        return messageEnhancedDetectionWarning;
+    }
 
     /**
      * Validates the current configuration and logs any issues.
+     * 
      * @return true if configuration is valid, false if there are critical issues
      */
     public boolean validateConfiguration() {
@@ -533,7 +770,8 @@ public class ConfigManager {
             plugin.getLogger().info("Enhanced Detection v2.0 is enabled with the following features:");
             plugin.getLogger().info("  - Pattern Detection: " + (patternDetectionEnabled ? "ENABLED" : "DISABLED"));
             plugin.getLogger().info("  - Behavioral Analysis: " + (behavioralAnalysisEnabled ? "ENABLED" : "DISABLED"));
-            plugin.getLogger().info("  - Advanced Movement Tracking: " + (advancedMovementTrackingEnabled ? "ENABLED" : "DISABLED"));
+            plugin.getLogger().info(
+                    "  - Advanced Movement Tracking: " + (advancedMovementTrackingEnabled ? "ENABLED" : "DISABLED"));
         }
 
         return isValid;

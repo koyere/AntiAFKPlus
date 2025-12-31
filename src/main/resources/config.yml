@@ -1,8 +1,8 @@
 # ===============================================================================
-#                           AntiAFKPlus v2.7
+#                           AntiAFKPlus v2.9.3
 #                        Configuration File - COMPLETE EDITION
 # ===============================================================================
-# 
+#
 # 🌟 ADVANCED FEATURES:
 # ✅ Modular architecture with enable/disable controls
 # ✅ Folia/Paper/Spigot/Bukkit auto-detection and compatibility
@@ -16,10 +16,10 @@
 # ✅ Zone-based AFK management with WorldGuard
 # ✅ Reward system with economic integration
 # ✅ Real-time analytics and monitoring
-# 
+#
 # 📖 Documentation: https://github.com/koyere/AntiAFKPlus
 # 💬 Support Discord: https://discord.gg/xKUjn3EJzR
-# 
+#
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY - Used for automatic migration)
@@ -34,36 +34,107 @@ modules:
   core-detection:
     enabled: true
     performance-monitoring: false
-  
+
   core-events:
     enabled: true
     performance-monitoring: false
-  
+
   core-api:
     enabled: true
     performance-monitoring: false
-  
+
   core-commands:
     enabled: true
     performance-monitoring: false
-  
+
   # Feature modules (optional, can be disabled for performance)
   pattern-detection:
     enabled: true
     performance-monitoring: true
-    # Advanced pattern detection settings
-    water-circle-radius: 3.0
-    min-samples-for-pattern: 20
-    confined-space-threshold: 5.0
+
+    # ========================================================================
+    # Pattern Detection Thresholds - v2.9.3 IMPROVED DEFAULTS
+    # ========================================================================
+    # These values control how sensitive the pattern detection system is.
+    # Higher values = less sensitive = fewer false positives
+    # Lower values = more sensitive = catches more AFK players
+    #
+    # v2.9.3 UPDATE: Default values adjusted to reduce false positives
+    # based on user feedback. Previous defaults were too aggressive.
+    # ========================================================================
+
+    # Water circle detection radius (in blocks)
+    # Range: 2.0 - 6.0 | Default: 4.0 (was 3.0)
+    # Detects circular movement patterns in water (common AFK method)
+    # 4.0 blocks allows small legitimate pools without false positives
+    water-circle-radius: 4.0
+
+    # Minimum movement samples required before analyzing patterns
+    # Range: 20 - 50 | Default: 30 (was 20)
+    # Higher values = more reliable detection but slower response
+    # Each sample ≈ 5 seconds, so 30 samples = ~2.5 minutes of data
+    # More samples = fewer false positives from temporary patterns
+    min-samples-for-pattern: 30
+
+    # Confined space threshold (in blocks)
+    # Range: 5.0 - 15.0 | Default: 8.0 (was 5.0)
+    # Defines maximum area (NxN blocks) before flagging as confined space
+    # 8.0 = 8x8 block area (64 square blocks)
+    # Allows small builds and rooms without triggering false positives
+    confined-space-threshold: 8.0
+
+    # Pattern analysis interval (in milliseconds)
+    # Range: 20000 - 60000 | Default: 30000
+    # How often to analyze player movement patterns
+    # 30000ms = 30 seconds between checks
     pattern-analysis-interval-ms: 30000
-    repetitive-movement-threshold: 0.8
-    max-pattern-violations: 3
-    # v2.4 NEW: Large AFK pool detection (addresses 20x10+ block pools)
+
+    # Repetitive movement similarity threshold (0.0 - 1.0)
+    # Range: 0.7 - 0.95 | Default: 0.9 (was 0.8)
+    # How similar movement segments must be to flag as repetitive
+    # 0.9 = 90% similarity required (fewer false positives)
+    # 0.8 = 80% similarity required (more sensitive)
+    # Higher values reduce false positives from normal gameplay patterns
+    repetitive-movement-threshold: 0.9
+
+    # Maximum pattern violations before taking action
+    # Range: 3 - 10 | Default: 5 (was 3)
+    # Number of times a pattern must be detected before executing AFK action
+    # Higher values = more tolerant of occasional patterns
+    # 5 violations gives players benefit of doubt before action
+    max-pattern-violations: 5
+
+    # v2.4: Large AFK pool detection (addresses 20x10+ block pools)
     large-pool-detection: true
     large-pool-threshold: 25.0
     keystroke-timeout-detection: true
     keystroke-timeout-ms: 180000
-  
+
+    # v2.9.3 NEW: Notification control system
+    # Controls when and to whom pattern detection messages are sent
+    notifications:
+      # Send notifications to players when patterns are detected
+      # Default: false (silent for players to avoid spam)
+      notify-player-on-detection: false
+
+      # Send notification only when max violations are reached
+      # Default: false (completely silent for players)
+      notify-player-on-violation: false
+
+      # Send notification when AFK action is executed
+      # Default: false (action happens silently)
+      notify-player-on-action: false
+
+      # Send pattern detection alerts to admins/staff
+      # Admins must have the permission specified below to receive alerts
+      # Default: true (admins can monitor suspicious activity)
+      send-to-admins: true
+
+      # Permission required for admins to receive pattern detection alerts
+      # Players with this permission will receive notifications regardless of player settings
+      # Default: "antiafkplus.notify.patterns"
+      admin-notification-permission: "antiafkplus.notify.patterns"
+
   autoclick-detection:
     enabled: true
     performance-monitoring: true
@@ -72,7 +143,7 @@ modules:
     click-threshold: 20
     min-idle-time-ms: 60000
     action: "LOG" # LOG, SET_AFK, KICK, NONE
-  
+
   player-protection:
     enabled: true
     performance-monitoring: false
@@ -81,7 +152,7 @@ modules:
     prevent-damage: true
     prevent-interaction: true
     invulnerability-delay: 5000
-  
+
   afk-zones:
     enabled: true
     performance-monitoring: false
@@ -89,7 +160,7 @@ modules:
     require-worldguard: true
     default-zone-timeout: 300
     allow-zone-inheritance: true
-  
+
   reward-system:
     enabled: false
     performance-monitoring: false
@@ -97,7 +168,7 @@ modules:
     reward-interval-minutes: 10
     max-daily-rewards: 144 # 24 hours worth
     require-vault: false
-  
+
   visual-effects:
     enabled: false
     performance-monitoring: false
@@ -105,7 +176,7 @@ modules:
     holograms-enabled: false
     particles-enabled: false
     hologram-provider: "DecentHolograms" # DecentHolograms, HolographicDisplays
-  
+
   database:
     enabled: false
     performance-monitoring: true
@@ -113,40 +184,40 @@ modules:
     type: "SQLite" # SQLite, MySQL, H2
     connection-pool-size: 5
     connection-timeout: 30000
-  
+
   analytics:
     enabled: false
     performance-monitoring: true
     # Analytics settings
     data-retention-days: 30
     export-enabled: false
-  
+
   # Integration modules
   worldguard-integration:
     enabled: false
     performance-monitoring: false
-  
+
   placeholderapi-integration:
     enabled: true
     performance-monitoring: false
-  
+
   vault-integration:
     enabled: false
     performance-monitoring: false
-  
+
   discordsrv-integration:
     enabled: false
     performance-monitoring: false
-  
+
   floodgate-integration:
     enabled: true
     performance-monitoring: false
-  
+
   # Platform compatibility modules
   folia-compatibility:
     enabled: true
     performance-monitoring: false
-  
+
   bedrock-compatibility:
     enabled: true
     performance-monitoring: false
@@ -155,7 +226,7 @@ modules:
   credit-system:
     enabled: false
     performance-monitoring: false
-  
+
   # Performance logging for all modules
   performance-logging: false
 
@@ -166,19 +237,19 @@ modules:
 internationalization:
   # Default language for all players
   default-language: "en"
-  
+
   # Automatically detect player language from client locale
   auto-detect-language: true
-  
+
   # Fall back to default language if message not found in player's language
   fallback-to-default: true
-  
+
   # Cache messages for performance
   cache-messages: true
-  
+
   # Development mode - recreates language files on startup
   development-mode: false
-  
+
   # Language-specific settings
   language-settings:
     en:
@@ -228,28 +299,28 @@ internationalization:
 
 bedrock-compatibility:
   enabled: true
-  
+
   # UI adaptations for Bedrock players
   adapt-menus: true
   adapt-messages: true
   adapt-hotkeys: true
   adapt-item-interactions: true
   custom-detection: true
-  
+
   # Detection methods
   detection-methods:
     floodgate: true
     geyser: true
     username-prefix: true
     client-brand: true
-  
+
   # UI adaptations
   ui-adaptations:
     max-menu-slots: 27
     use-simple-layouts: true
     avoid-shift-click: true
     use-touch-friendly-buttons: true
-  
+
   # Message adaptations
   message-adaptations:
     shorter-messages: true
@@ -264,54 +335,54 @@ bedrock-compatibility:
 performance:
   # Master toggle for automatic performance optimization
   auto-optimization: true
-  
+
   # Adaptive intervals based on server performance
   adaptive-intervals: true
-  
+
   # Memory optimization features
   memory-optimization: true
-  
+
   # CPU optimization features
   cpu-optimization: true
-  
+
   # Network optimization features
   network-optimization: true
-  
+
   # Performance thresholds
   thresholds:
     # Maximum TPS impact allowed (milliseconds per tick)
     max-tps-impact: 0.5
-    
+
     # Maximum memory usage (MB)
     max-memory-mb: 50
-    
+
     # Maximum CPU usage percentage
     max-cpu-percent: 5
-  
+
   # Optimization interval (milliseconds)
   optimization-interval: 5000
-  
+
   # Advanced settings
   advanced:
     # Use object pooling to reduce garbage collection
     use-object-pooling: true
-    
+
     # Cache calculation results
     cache-calculations: true
-    
+
     # Batch operations for efficiency
     batch-operations: true
-    
+
     # Process heavy operations asynchronously
     async-processing: true
-  
+
   # Player categorization for optimization
   player-categorization:
     enabled: true
     # Actions per minute thresholds
     high-activity-threshold: 10
     low-activity-threshold: 2
-  
+
   # Debug logging for performance monitoring
   debug-logging: false
 
@@ -335,30 +406,26 @@ max-voluntary-afk-time-seconds: 600
 enhanced-detection:
   # Master control for enhanced detection features
   enabled: true
-  
+
   # Enable pattern detection for AFK pools, water circles, confined spaces
   pattern-detection: true
-  
+
   # Enable behavioral analysis and activity scoring
   behavioral-analysis: true
-  
+
   # Enable advanced movement tracking
   advanced-movement-tracking: true
 
-# Pattern detection specific settings
-pattern-detection-settings:
-  water-circle-radius: 3.0
-  min-samples-for-pattern: 20
-  confined-space-threshold: 5.0
-  pattern-analysis-interval-ms: 30000
-  repetitive-movement-threshold: 0.8
-  max-pattern-violations: 3
-  
-  # v2.4 NEW: Large AFK pool detection settings
-  large-pool-threshold: 25.0 # Maximum area for large AFK pools (25x25 blocks)
-  min-samples-for-large-pool: 30 # More samples needed for reliable detection
-  keystroke-timeout-ms: 180000 # 3 minutes without manual keystrokes
-  automatic-movement-velocity-threshold: 0.15 # Threshold for water current detection
+# ===============================================================================
+# ⚠️ CONFIGURATION NOTE - v2.9.3
+# ===============================================================================
+# Pattern detection settings are configured in the modules section above
+# (modules.pattern-detection, lines 51-140).
+#
+# The pattern-detection-settings section has been REMOVED in v2.9.3
+# to eliminate confusion. All pattern detection configuration is now centralized
+# in the modules section with comprehensive documentation.
+# ===============================================================================
 
 # Movement detection settings
 movement-detection-settings:
@@ -481,10 +548,10 @@ afk-warnings:
 
 # Permission-based AFK times
 permission-times:
-  'antiafkplus.time.vip': 600      # 10 minutes
-  'antiafkplus.time.staff': 1800   # 30 minutes
-  'antiafkplus.time.premium': 900  # 15 minutes
-  'antiafkplus.time.donator': 1200 # 20 minutes
+  "antiafkplus.time.vip": 600 # 10 minutes
+  "antiafkplus.time.staff": 1800 # 30 minutes
+  "antiafkplus.time.premium": 900 # 15 minutes
+  "antiafkplus.time.donator": 1200 # 20 minutes
 
 # ===============================================================================
 # 🌍 WORLD CONTROL
@@ -516,15 +583,15 @@ broadcast-afk-state-changes: true
 # 🕒 AFK TIME WINDOWS
 # ===============================================================================
 afk-windows:
-  enabled: false                  # Set true to activate AFK-friendly windows
-  timezone: "SERVER"              # SERVER = host timezone, or specify IANA ID (e.g. Europe/Madrid)
+  enabled: false # Set true to activate AFK-friendly windows
+  timezone: "SERVER" # SERVER = host timezone, or specify IANA ID (e.g. Europe/Madrid)
   ranges:
     - "08:00-12:00"
     - "20:00-23:00"
-  behavior-inside-window: "SKIP_ACTIONS"   # SKIP_ACTIONS | EXTEND_THRESHOLD | MESSAGE_ONLY | DEFAULT
-  behavior-outside-window: "DEFAULT"       # Typically leave as DEFAULT
-  extend-seconds: 900             # Used only when behavior is EXTEND_THRESHOLD
-  bypass-permission: "antiafkplus.window.bypass"  # Players with this perm ignore the schedule
+  behavior-inside-window: "SKIP_ACTIONS" # SKIP_ACTIONS | EXTEND_THRESHOLD | MESSAGE_ONLY | DEFAULT
+  behavior-outside-window: "DEFAULT" # Typically leave as DEFAULT
+  extend-seconds: 900 # Used only when behavior is EXTEND_THRESHOLD
+  bypass-permission: "antiafkplus.window.bypass" # Players with this perm ignore the schedule
 
 # Legacy autoclick detection (superseded by module system)
 autoclick-detection: true
@@ -541,9 +608,9 @@ autoclick-detection-settings:
 # ===============================================================================
 
 server-transfer:
-  enabled: false               # Habilita la acción TRANSFER_SERVER
-  target-server: ""            # Nombre del servidor destino (proxy)
-  proxy-channel: "auto"        # auto | bungeecord | namespaced
+  enabled: false # Habilita la acción TRANSFER_SERVER
+  target-server: "" # Nombre del servidor destino (proxy)
+  proxy-channel: "auto" # auto | bungeecord | namespaced
   # Acción de respaldo si la transferencia falla o no hay canal disponible
   # Valores: KICK | TELEPORT | NONE
   fallback-action: "KICK"
@@ -552,7 +619,7 @@ server-transfer:
   # Reintentos si no hay canal disponible inmediatamente
   retry-attempts: 0
   retry-delay-ticks: 10
-  
+
   # Cuenta atrás (Fase 2)
   countdown:
     enabled: false
@@ -579,7 +646,7 @@ player-protection:
   # Position locking
   prevent-movement-while-afk: false
   movement-restriction-message: true
-  
+
   # Invulnerability system
   invulnerability-enabled: true
   invulnerability-delay-ms: 5000
@@ -589,7 +656,7 @@ player-protection:
     - "FIRE"
     - "LAVA"
   prevent-pvp-invulnerability: true
-  
+
   # Interaction blocking
   block-inventory-access: true
   block-command-execution: false
@@ -602,18 +669,30 @@ player-protection:
 # ===============================================================================
 # 🗺️ ZONE-BASED AFK MANAGEMENT
 # ===============================================================================
+#
+# ⚠️ IMPORTANT: Disabled by default for safety (v2.9.3)
+# Before enabling, you MUST configure safe teleport locations for your server.
+# Default coordinates may be unsafe (inside mountains, underground, etc.)
+#
+# How to enable safely:
+# 1. Set enabled: true below
+# 2. Configure safe teleport-location in zones section
+# 3. Test teleport coordinates before deploying to players
+# 4. Ensure WorldGuard is installed if require-worldguard: true
+# ===============================================================================
 
 zone-management:
-  enabled: true
+  # v2.9.3: Changed to false by default to prevent unsafe teleports
+  enabled: false
   require-worldguard: true
-  
+
   # Default zone settings
   default-afk-allowed: true
   default-timeout-seconds: 300
-  
+
   # Zone inheritance from parent regions
   allow-region-inheritance: true
-  
+
   # Predefined zones
   zones:
     spawn:
@@ -621,7 +700,7 @@ zone-management:
       timeout-seconds: 60
       kick-action: "TELEPORT"
       teleport-location: "world_normal_exploration,167,104,206"
-    
+
     afk-pool:
       afk-allowed: true
       timeout-seconds: 3600
@@ -635,7 +714,7 @@ zone-management:
 reward-system:
   enabled: false
   require-vault: false
-  
+
   # Reward intervals
   intervals:
     5: # 5 minutes
@@ -643,14 +722,14 @@ reward-system:
         - "eco give {player} 10"
       messages:
         - "&aYou received $10 for being AFK!"
-    
+
     15: # 15 minutes
       commands:
         - "eco give {player} 50"
         - "give {player} diamond 1"
       messages:
         - "&aYou received $50 and a diamond!"
-  
+
   # Anti-abuse measures
   max-daily-rewards: 144 # 24 hours worth at 10min intervals
   require-active-time-minutes: 30
@@ -664,7 +743,7 @@ reward-system:
 
 visual-effects:
   enabled: false
-  
+
   # Hologram settings
   holograms:
     enabled: false
@@ -673,13 +752,13 @@ visual-effects:
     update-interval-seconds: 5
     show-to-all-players: true
     per-player-visibility: false
-    
+
     # Hologram content
     lines:
       - "&c[AFK]"
       - "&7{player}"
       - "&eAFK for {time}"
-  
+
   # Particle effects
   particles:
     enabled: false
@@ -690,13 +769,13 @@ visual-effects:
     offset-y: 1.0
     offset-z: 0.5
     update-interval-ticks: 20
-  
+
   # Tab list modifications
   tab-list:
     enabled: true
     afk-prefix: "&7[AFK] "
     afk-suffix: ""
-  
+
   # Player name modifications
   name-tags:
     enabled: false
@@ -742,12 +821,12 @@ visual-effects:
 database:
   enabled: false
   type: "SQLite" # SQLite, MySQL, H2
-  
+
   # SQLite settings
   sqlite:
     file-name: "antiafkplus.db"
     connection-timeout: 30000
-  
+
   # MySQL settings
   mysql:
     host: "localhost"
@@ -758,12 +837,12 @@ database:
     connection-pool-size: 5
     connection-timeout: 30000
     ssl: false
-  
+
   # H2 settings
   h2:
     file-name: "antiafkplus"
     memory-mode: false
-  
+
   # Data management
   data-retention-days: 30
   cleanup-interval-hours: 24
@@ -776,17 +855,17 @@ database:
 
 analytics:
   enabled: false
-  
+
   # Data collection
   collect-player-statistics: true
   collect-performance-metrics: true
   collect-pattern-data: true
-  
+
   # Reporting
   generate-daily-reports: true
   generate-weekly-reports: true
   export-format: "JSON" # JSON, CSV, XML
-  
+
   # Web dashboard (future feature)
   web-dashboard:
     enabled: false
@@ -807,19 +886,19 @@ integrations:
       - "%antiafkplus_afktime%"
       - "%antiafkplus_activity_score%"
       - "%antiafkplus_pattern_confidence%"
-  
+
   # Vault (Economy)
   vault:
     enabled: false
     currency-name: "coins"
-  
+
   # DiscordSRV
   discordsrv:
     enabled: false
     send-afk-notifications: true
     send-pattern-alerts: true
     webhook-url: ""
-  
+
   # WorldGuard
   worldguard:
     enabled: false
@@ -827,7 +906,7 @@ integrations:
       - "afk-allowed"
       - "afk-timeout"
       - "afk-rewards"
-  
+
   # Floodgate (Bedrock support)
   floodgate:
     enabled: true
@@ -841,12 +920,12 @@ integrations:
 permissions:
   # Command permissions
   list-command-permission: "antiafkplus.list"
-  
+
   # Admin permissions
   admin-commands: "antiafkplus.admin"
   reload-config: "antiafkplus.reload"
   view-statistics: "antiafkplus.stats"
-  
+
   # Bypass permissions
   bypass-all: "antiafkplus.bypass"
   bypass-detection: "antiafkplus.bypass.detection"
@@ -866,7 +945,7 @@ migration-info:
 compatibility:
   # Legacy configuration support
   support-legacy-config: true
-  
+
   # Plugin compatibility
   compatible-plugins:
     - "Essentials"
@@ -884,28 +963,27 @@ technical:
   # Platform detection
   auto-detect-platform: true
   force-platform: "" # BUKKIT, SPIGOT, PAPER, PURPUR, FOLIA
-  
+
   # Threading
   async-processing: true
   thread-pool-size: 4
-  
+
   # Memory management
   enable-garbage-collection-hints: true
   object-pool-size: 100
-  
+
   # Networking
   packet-optimization: true
   bulk-operations: true
-
 # ===============================================================================
 # END OF CONFIGURATION
 # ===============================================================================
-# 
+#
 # 🎉 Thank you for using AntiAFKPlus!
-# 
+#
 # For support and updates:
 # 📖 Documentation: https://github.com/koyere/AntiAFKPlus
 # 💬 Discord: https://discord.gg/xKUjn3EJzR
 # 🐛 Issues: https://github.com/koyere/AntiAFKPlus/issues
-# 
+#
 # ===============================================================================
