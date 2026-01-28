@@ -30,15 +30,21 @@ public class PatternDetector {
     private final AFKManager afkManager;
 
     // Default pattern detection configuration (overridden by config)
-    private static final double DEFAULT_WATER_CIRCLE_RADIUS = 3.0;
-    private static final int DEFAULT_MIN_SAMPLES_FOR_PATTERN = 20;
-    private static final double DEFAULT_CONFINED_SPACE_THRESHOLD = 5.0;
+    // v2.9.4: Updated defaults to reduce false positives
+    private static final double DEFAULT_WATER_CIRCLE_RADIUS = 4.0;
+    private static final int DEFAULT_MIN_SAMPLES_FOR_PATTERN = 40;
+    private static final double DEFAULT_CONFINED_SPACE_THRESHOLD = 12.0;
     private static final long DEFAULT_PATTERN_ANALYSIS_INTERVAL_MS = 30000;
-    private static final double DEFAULT_REPETITIVE_MOVEMENT_THRESHOLD = 0.8;
-    private static final int DEFAULT_MAX_PATTERN_VIOLATIONS = 3;
+    private static final double DEFAULT_REPETITIVE_MOVEMENT_THRESHOLD = 0.95;
+    private static final int DEFAULT_MAX_PATTERN_VIOLATIONS = 8;
     private static final double DEFAULT_LARGE_POOL_THRESHOLD = 25.0;
     private static final int DEFAULT_MIN_SAMPLES_FOR_LARGE_POOL = 30;
     private static final long MINIMUM_ANALYSIS_INTERVAL_TICKS = 20L; // 1s safety floor
+
+    // v2.9.4 NEW: Constants for linear movement detection and activity grace period
+    private static final long DEFAULT_ACTIVITY_GRACE_PERIOD_MS = 60000; // 1 minute grace after active gameplay
+    private static final double DEFAULT_LINEAR_MOVEMENT_THRESHOLD = 0.3; // Max direction variance for linear movement
+    private static final double DEFAULT_MIN_DIRECTION_VARIANCE = 0.15; // Min variance required for repetitive detection
 
     // Player pattern tracking (thread-safe for concurrent access)
     private final Map<UUID, PatternData> playerPatterns = new java.util.concurrent.ConcurrentHashMap<>();
@@ -59,6 +65,12 @@ public class PatternDetector {
     private int minSamplesForLargePool;
     private boolean largePoolDetectionEnabled;
     private boolean keystrokeTimeoutDetectionEnabled;
+
+    // v2.9.4 NEW: Configurable values for false positive reduction
+    private long activityGracePeriodMs;
+    private double linearMovementThreshold;
+    private double minDirectionVariance;
+    private boolean linearMovementExclusionEnabled;
 
     public PatternDetector(AntiAFKPlus plugin, MovementListener movementListener, AFKManager afkManager) {
         this.plugin = plugin;
@@ -86,6 +98,11 @@ public class PatternDetector {
             this.minSamplesForLargePool = DEFAULT_MIN_SAMPLES_FOR_LARGE_POOL;
             this.largePoolDetectionEnabled = true;
             this.keystrokeTimeoutDetectionEnabled = true;
+            // v2.9.4 defaults
+            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD_MS;
+            this.linearMovementThreshold = DEFAULT_LINEAR_MOVEMENT_THRESHOLD;
+            this.minDirectionVariance = DEFAULT_MIN_DIRECTION_VARIANCE;
+            this.linearMovementExclusionEnabled = true;
             return;
         }
 
@@ -99,6 +116,12 @@ public class PatternDetector {
         this.minSamplesForLargePool = plugin.getConfigManager().getMinSamplesForLargePool();
         this.largePoolDetectionEnabled = plugin.getConfigManager().isLargePoolDetectionEnabled();
         this.keystrokeTimeoutDetectionEnabled = plugin.getConfigManager().isKeystrokeTimeoutDetectionEnabled();
+
+        // v2.9.4 NEW: Load false positive reduction settings
+        this.activityGracePeriodMs = plugin.getConfigManager().getActivityGracePeriodMs();
+        this.linearMovementThreshold = plugin.getConfigManager().getLinearMovementThreshold();
+        this.minDirectionVariance = plugin.getConfigManager().getMinDirectionVariance();
+        this.linearMovementExclusionEnabled = plugin.getConfigManager().isLinearMovementExclusionEnabled();
     }
 
     private void restartPatternAnalysis() {
@@ -164,10 +187,42 @@ public class PatternDetector {
         if (history.size() < minSamplesForPattern)
             return;
 
-        // Get recent movement history (last 20 positions)
+        // FIX: Prevent re-analyzing the same movement history if player hasn't moved
+        // This fixes the issue where standing still triggers repetitive movement
+        // violations
+        // because the cached history is analyzed repeatedly.
+        if (locationData.lastUpdate <= patternData.lastAnalysis) {
+            return;
+        }
+
+        // v2.9.4 NEW: Skip pattern detection if player has recent active gameplay
+        if (shouldSkipDueToRecentActivity(player)) {
+            if (plugin.getConfigManager().isDebugEnabled()) {
+                plugin.getLogger().info("[PatternDetector] Skipping " + player.getName() +
+                        " - recent activity grace period active");
+            }
+            // Decay violations during grace period
+            patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 2));
+            patternData.lastAnalysis = System.currentTimeMillis();
+            return;
+        }
+
+        // Get recent movement history (last N positions)
         List<MovementListener.LocationSnapshot> recentHistory = history.subList(
                 Math.max(0, history.size() - minSamplesForPattern),
                 history.size());
+
+        // v2.9.4 NEW: Check for linear movement (running straight) - NOT an AFK pattern
+        if (linearMovementExclusionEnabled && isLinearMovement(recentHistory)) {
+            if (plugin.getConfigManager().isDebugEnabled()) {
+                plugin.getLogger().info("[PatternDetector] Skipping " + player.getName() +
+                        " - linear movement detected (running straight)");
+            }
+            // Decay violations for linear movement
+            patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 1));
+            patternData.lastAnalysis = System.currentTimeMillis();
+            return;
+        }
 
         boolean suspiciousPattern = false;
         String detectionReason = "";
@@ -223,6 +278,167 @@ public class PatternDetector {
 
         patternData.lastAnalysis = System.currentTimeMillis();
     }
+
+    // ==================== v2.9.4 NEW: False Positive Reduction Methods ====================
+
+    /**
+     * v2.9.4 NEW: Checks if pattern detection should be skipped due to recent active gameplay.
+     * Active gameplay includes: breaking/placing blocks, chat, commands, item interactions, combat.
+     * This prevents false positives when players are actively playing but happen to move in
+     * patterns similar to AFK behaviors (e.g., running in their base, exploring tunnels).
+     *
+     * @param player The player to check
+     * @return true if recent activity warrants skipping pattern detection
+     */
+    private boolean shouldSkipDueToRecentActivity(Player player) {
+        if (activityGracePeriodMs <= 0) {
+            return false; // Feature disabled
+        }
+
+        long now = System.currentTimeMillis();
+
+        // Check command activity (strong indicator of active play)
+        long lastCommand = movementListener.getLastCommandTime(player);
+        if (lastCommand > 0 && (now - lastCommand) < activityGracePeriodMs) {
+            return true;
+        }
+
+        // Check head rotation (indicates looking around - active play)
+        long lastHeadRotation = movementListener.getLastHeadRotationTime(player);
+        if (lastHeadRotation > 0 && (now - lastHeadRotation) < (activityGracePeriodMs / 2)) {
+            return true;
+        }
+
+        // Check jump activity (indicates active movement control)
+        long lastJump = movementListener.getLastJumpTime(player);
+        if (lastJump > 0 && (now - lastJump) < (activityGracePeriodMs / 3)) {
+            return true;
+        }
+
+        // Check keystroke activity (v2.4+ - indicates manual input)
+        long lastKeystroke = movementListener.getLastKeystrokeTime(player);
+        if (lastKeystroke > 0 && (now - lastKeystroke) < (activityGracePeriodMs / 2)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * v2.9.4 NEW: Detects if the player is moving in a predominantly linear direction.
+     * Linear movement (running straight) is NOT an AFK pattern - it indicates active exploration,
+     * traveling, or running through areas like forests, tunnels, paths, etc.
+     *
+     * AFK patterns are characterized by:
+     * - Circular or confined movement
+     * - High repetition (returning to same spots)
+     * - Low direction variance over time
+     *
+     * Linear movement is characterized by:
+     * - Consistent direction (low direction variance)
+     * - Large travel distance
+     * - No returning to previous positions
+     *
+     * @param history Movement history to analyze
+     * @return true if movement appears to be linear (running straight)
+     */
+    private boolean isLinearMovement(List<MovementListener.LocationSnapshot> history) {
+        if (history.size() < 10) {
+            return false;
+        }
+
+        // Create defensive copy
+        List<MovementListener.LocationSnapshot> safeCopy = new java.util.ArrayList<>(history);
+
+        // Calculate total travel distance
+        double totalDistance = 0.0;
+        for (int i = 1; i < safeCopy.size(); i++) {
+            MovementListener.LocationSnapshot prev = safeCopy.get(i - 1);
+            MovementListener.LocationSnapshot curr = safeCopy.get(i);
+            totalDistance += Math.sqrt(
+                    Math.pow(curr.x - prev.x, 2) +
+                    Math.pow(curr.z - prev.z, 2));
+        }
+
+        // Calculate straight-line distance from start to end
+        MovementListener.LocationSnapshot first = safeCopy.get(0);
+        MovementListener.LocationSnapshot last = safeCopy.get(safeCopy.size() - 1);
+        double straightLineDistance = Math.sqrt(
+                Math.pow(last.x - first.x, 2) +
+                Math.pow(last.z - first.z, 2));
+
+        // If straight-line distance is close to total distance, movement is linear
+        // Ratio close to 1.0 = very linear movement
+        double linearityRatio = totalDistance > 0.1 ? (straightLineDistance / totalDistance) : 0.0;
+
+        // Also check direction variance
+        double directionVariance = calculateDirectionVariance(safeCopy);
+
+        // Movement is considered linear if:
+        // 1. Linearity ratio is high (>0.7 means path is mostly straight)
+        // 2. Direction variance is low (below threshold)
+        // 3. Total distance is significant (not standing still)
+        boolean isLinear = linearityRatio > 0.7 &&
+                directionVariance < linearMovementThreshold &&
+                totalDistance > 5.0; // At least 5 blocks traveled
+
+        if (plugin.getConfigManager().isDebugEnabled() && totalDistance > 1.0) {
+            plugin.getLogger().info(String.format(
+                    "[DEBUG_Linear] linearity=%.2f, variance=%.3f, distance=%.1f, isLinear=%s",
+                    linearityRatio, directionVariance, totalDistance, isLinear));
+        }
+
+        return isLinear;
+    }
+
+    /**
+     * v2.9.4 NEW: Calculates the variance in movement direction over the history.
+     * Low variance = consistent direction (linear movement)
+     * High variance = changing directions (could be circular/repetitive pattern)
+     *
+     * @param history Movement history to analyze
+     * @return Direction variance (0.0 = perfectly straight, higher = more varied)
+     */
+    private double calculateDirectionVariance(List<MovementListener.LocationSnapshot> history) {
+        if (history.size() < 3) {
+            return 0.0;
+        }
+
+        List<Double> angles = new java.util.ArrayList<>();
+
+        for (int i = 1; i < history.size(); i++) {
+            MovementListener.LocationSnapshot prev = history.get(i - 1);
+            MovementListener.LocationSnapshot curr = history.get(i);
+
+            double deltaX = curr.x - prev.x;
+            double deltaZ = curr.z - prev.z;
+
+            // Only calculate angle if there's meaningful movement
+            if (Math.abs(deltaX) > 0.05 || Math.abs(deltaZ) > 0.05) {
+                angles.add(Math.atan2(deltaZ, deltaX));
+            }
+        }
+
+        if (angles.size() < 2) {
+            return 0.0;
+        }
+
+        // Calculate variance in angles
+        double sumAngleDiff = 0.0;
+        for (int i = 1; i < angles.size(); i++) {
+            double diff = Math.abs(angles.get(i) - angles.get(i - 1));
+            // Normalize angle difference (handle wrap-around at ±π)
+            if (diff > Math.PI) {
+                diff = 2 * Math.PI - diff;
+            }
+            sumAngleDiff += diff;
+        }
+
+        // Return average angle change (normalized to 0-1 scale roughly)
+        return sumAngleDiff / (angles.size() - 1) / Math.PI;
+    }
+
+    // ==================== End v2.9.4 Methods ====================
 
     private boolean detectWaterCirclePattern(List<MovementListener.LocationSnapshot> history) {
         if (history.size() < 8)

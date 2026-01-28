@@ -1,5 +1,5 @@
 # ===============================================================================
-#                           AntiAFKPlus v2.9.3
+#                           AntiAFKPlus v2.9.4
 #                        Configuration File - COMPLETE EDITION
 # ===============================================================================
 #
@@ -53,35 +53,37 @@ modules:
     performance-monitoring: true
 
     # ========================================================================
-    # Pattern Detection Thresholds - v2.9.3 IMPROVED DEFAULTS
+    # Pattern Detection Thresholds - v2.9.4 IMPROVED DEFAULTS
     # ========================================================================
     # These values control how sensitive the pattern detection system is.
     # Higher values = less sensitive = fewer false positives
     # Lower values = more sensitive = catches more AFK players
     #
-    # v2.9.3 UPDATE: Default values adjusted to reduce false positives
-    # based on user feedback. Previous defaults were too aggressive.
+    # v2.9.4 UPDATE: Major improvements to reduce false positives.
+    # - Added linear movement detection (excludes running straight)
+    # - Added activity grace period (excludes recently active players)
+    # - Increased all thresholds based on extensive user feedback
     # ========================================================================
 
     # Water circle detection radius (in blocks)
-    # Range: 2.0 - 6.0 | Default: 4.0 (was 3.0)
+    # Range: 2.0 - 8.0 | Default: 5.0 (was 4.0 in v2.9.3)
     # Detects circular movement patterns in water (common AFK method)
-    # 4.0 blocks allows small legitimate pools without false positives
-    water-circle-radius: 4.0
+    # 5.0 blocks allows medium pools without false positives
+    water-circle-radius: 5.0
 
     # Minimum movement samples required before analyzing patterns
-    # Range: 20 - 50 | Default: 30 (was 20)
+    # Range: 20 - 60 | Default: 40 (was 30 in v2.9.3)
     # Higher values = more reliable detection but slower response
-    # Each sample ≈ 5 seconds, so 30 samples = ~2.5 minutes of data
+    # Each sample ≈ 5 seconds, so 40 samples = ~3.3 minutes of data
     # More samples = fewer false positives from temporary patterns
-    min-samples-for-pattern: 30
+    min-samples-for-pattern: 40
 
     # Confined space threshold (in blocks)
-    # Range: 5.0 - 15.0 | Default: 8.0 (was 5.0)
+    # Range: 5.0 - 20.0 | Default: 12.0 (was 8.0 in v2.9.3)
     # Defines maximum area (NxN blocks) before flagging as confined space
-    # 8.0 = 8x8 block area (64 square blocks)
-    # Allows small builds and rooms without triggering false positives
-    confined-space-threshold: 8.0
+    # 12.0 = 12x12 block area (144 square blocks)
+    # Allows medium-sized builds and bases without triggering false positives
+    confined-space-threshold: 12.0
 
     # Pattern analysis interval (in milliseconds)
     # Range: 20000 - 60000 | Default: 30000
@@ -90,19 +92,18 @@ modules:
     pattern-analysis-interval-ms: 30000
 
     # Repetitive movement similarity threshold (0.0 - 1.0)
-    # Range: 0.7 - 0.95 | Default: 0.9 (was 0.8)
+    # Range: 0.8 - 0.98 | Default: 0.95 (was 0.9 in v2.9.3)
     # How similar movement segments must be to flag as repetitive
-    # 0.9 = 90% similarity required (fewer false positives)
-    # 0.8 = 80% similarity required (more sensitive)
+    # 0.95 = 95% similarity required (very conservative, fewer false positives)
     # Higher values reduce false positives from normal gameplay patterns
-    repetitive-movement-threshold: 0.9
+    repetitive-movement-threshold: 0.95
 
     # Maximum pattern violations before taking action
-    # Range: 3 - 10 | Default: 5 (was 3)
+    # Range: 3 - 15 | Default: 8 (was 5 in v2.9.3)
     # Number of times a pattern must be detected before executing AFK action
     # Higher values = more tolerant of occasional patterns
-    # 5 violations gives players benefit of doubt before action
-    max-pattern-violations: 5
+    # 8 violations gives players significant benefit of doubt before action
+    max-pattern-violations: 8
 
     # v2.4: Large AFK pool detection (addresses 20x10+ block pools)
     large-pool-detection: true
@@ -110,7 +111,49 @@ modules:
     keystroke-timeout-detection: true
     keystroke-timeout-ms: 180000
 
-    # v2.9.3 NEW: Notification control system
+    # ========================================================================
+    # v2.9.4 NEW: Linear Movement Exclusion
+    # ========================================================================
+    # These settings prevent false positives when players run in straight
+    # lines (through forests, tunnels, paths, etc.)
+    # ========================================================================
+
+    # Enable linear movement exclusion
+    # When enabled, players running in a straight line won't be flagged
+    # Default: true (strongly recommended to prevent false positives)
+    linear-movement-exclusion: true
+
+    # Linear movement threshold (direction variance)
+    # Range: 0.1 - 0.5 | Default: 0.3
+    # Maximum direction variance to consider movement as "linear"
+    # Lower values = stricter (only very straight paths excluded)
+    # Higher values = more lenient (slight curves still excluded)
+    linear-movement-threshold: 0.3
+
+    # Minimum direction variance for repetitive detection
+    # Range: 0.1 - 0.4 | Default: 0.15
+    # Movement must have at least this much direction variance to be
+    # considered for repetitive pattern detection.
+    # Prevents flagging straight-line movement as repetitive.
+    min-direction-variance: 0.15
+
+    # ========================================================================
+    # v2.9.4 NEW: Activity Grace Period
+    # ========================================================================
+    # Skip pattern detection for players who have recently been active.
+    # Active gameplay includes: commands, jumping, head rotation, keystrokes.
+    # This prevents flagging players who are actively playing but happen
+    # to move in patterns similar to AFK machines.
+    # ========================================================================
+
+    # Activity grace period (in milliseconds)
+    # Range: 0 - 120000 | Default: 60000 (1 minute)
+    # After active gameplay, skip pattern detection for this duration.
+    # Set to 0 to disable this feature.
+    # 60000ms = 1 minute grace period after activity
+    activity-grace-period-ms: 60000
+
+    # v2.9.3: Notification control system
     # Controls when and to whom pattern detection messages are sent
     notifications:
       # Send notifications to players when patterns are detected

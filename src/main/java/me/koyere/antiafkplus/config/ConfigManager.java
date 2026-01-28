@@ -58,6 +58,12 @@ public class ConfigManager {
     private int minSamplesForLargePool;
     private long keystrokeTimeoutMs;
 
+    // v2.9.4 NEW: False positive reduction settings
+    private long activityGracePeriodMs;
+    private double linearMovementThreshold;
+    private double minDirectionVariance;
+    private boolean linearMovementExclusionEnabled;
+
     // v2.9.3 NEW: Pattern detection notification settings
     private boolean notifyPlayerOnDetection;
     private boolean notifyPlayerOnViolation;
@@ -258,28 +264,95 @@ public class ConfigManager {
     }
 
     private void loadPatternDetectionSettings() {
-        ConfigurationSection patternSection = config.getConfigurationSection("pattern-detection-settings");
-        if (patternSection != null) {
-            this.waterCircleRadius = patternSection.getDouble("water-circle-radius", 3.0);
-            this.minSamplesForPattern = patternSection.getInt("min-samples-for-pattern", 20);
-            this.confinedSpaceThreshold = patternSection.getDouble("confined-space-threshold", 5.0);
-            this.patternAnalysisInterval = patternSection.getLong("pattern-analysis-interval-ms", 30000L);
-            this.repetitiveMovementThreshold = patternSection.getDouble("repetitive-movement-threshold", 0.8);
-            this.maxPatternViolations = patternSection.getInt("max-pattern-violations", 3);
-            this.largePoolThreshold = patternSection.getDouble("large-pool-threshold", 25.0);
-            this.minSamplesForLargePool = patternSection.getInt("min-samples-for-large-pool", 30);
-            this.keystrokeTimeoutMs = patternSection.getLong("keystroke-timeout-ms", 180000L);
+        // v2.9.4 FIX: Read from new location (modules.pattern-detection.*) first,
+        // then fall back to legacy location (pattern-detection-settings) for backward compatibility.
+        // Default values updated to v2.9.4 recommended settings.
+
+        ConfigurationSection moduleSection = config.getConfigurationSection("modules.pattern-detection");
+        ConfigurationSection legacySection = config.getConfigurationSection("pattern-detection-settings");
+
+        // v2.9.4 defaults (very conservative to reduce false positives)
+        final double DEFAULT_WATER_CIRCLE_RADIUS = 5.0;
+        final int DEFAULT_MIN_SAMPLES = 40;
+        final double DEFAULT_CONFINED_SPACE = 12.0;
+        final long DEFAULT_ANALYSIS_INTERVAL = 30000L;
+        final double DEFAULT_REPETITIVE_THRESHOLD = 0.95;
+        final int DEFAULT_MAX_VIOLATIONS = 8;
+        final double DEFAULT_LARGE_POOL = 25.0;
+        final int DEFAULT_MIN_SAMPLES_LARGE_POOL = 30;
+        final long DEFAULT_KEYSTROKE_TIMEOUT = 180000L;
+
+        // v2.9.4 NEW: Defaults for false positive reduction
+        final long DEFAULT_ACTIVITY_GRACE_PERIOD = 60000L;
+        final double DEFAULT_LINEAR_THRESHOLD = 0.3;
+        final double DEFAULT_MIN_DIRECTION_VARIANCE = 0.15;
+        final boolean DEFAULT_LINEAR_EXCLUSION_ENABLED = true;
+
+        if (moduleSection != null) {
+            // Primary: Read from modules.pattern-detection.* (v2.9.4+ location)
+            this.waterCircleRadius = moduleSection.getDouble("water-circle-radius", DEFAULT_WATER_CIRCLE_RADIUS);
+            this.minSamplesForPattern = moduleSection.getInt("min-samples-for-pattern", DEFAULT_MIN_SAMPLES);
+            this.confinedSpaceThreshold = moduleSection.getDouble("confined-space-threshold", DEFAULT_CONFINED_SPACE);
+            this.patternAnalysisInterval = moduleSection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL);
+            this.repetitiveMovementThreshold = moduleSection.getDouble("repetitive-movement-threshold", DEFAULT_REPETITIVE_THRESHOLD);
+            this.maxPatternViolations = moduleSection.getInt("max-pattern-violations", DEFAULT_MAX_VIOLATIONS);
+            this.largePoolThreshold = moduleSection.getDouble("large-pool-threshold", DEFAULT_LARGE_POOL);
+            this.minSamplesForLargePool = moduleSection.getInt("min-samples-for-large-pool", DEFAULT_MIN_SAMPLES_LARGE_POOL);
+            this.keystrokeTimeoutMs = moduleSection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT);
+
+            // v2.9.4 NEW: Load false positive reduction settings
+            this.activityGracePeriodMs = moduleSection.getLong("activity-grace-period-ms", DEFAULT_ACTIVITY_GRACE_PERIOD);
+            this.linearMovementThreshold = moduleSection.getDouble("linear-movement-threshold", DEFAULT_LINEAR_THRESHOLD);
+            this.minDirectionVariance = moduleSection.getDouble("min-direction-variance", DEFAULT_MIN_DIRECTION_VARIANCE);
+            this.linearMovementExclusionEnabled = moduleSection.getBoolean("linear-movement-exclusion", DEFAULT_LINEAR_EXCLUSION_ENABLED);
+
+            if (debugEnabled) {
+                plugin.getLogger().info("[Config] Pattern detection settings loaded from modules.pattern-detection (v2.9.4)");
+                plugin.getLogger().info("[Config] max-pattern-violations = " + this.maxPatternViolations);
+                plugin.getLogger().info("[Config] linear-movement-exclusion = " + this.linearMovementExclusionEnabled);
+                plugin.getLogger().info("[Config] activity-grace-period-ms = " + this.activityGracePeriodMs);
+            }
+        } else if (legacySection != null) {
+            // Fallback: Read from pattern-detection-settings (legacy location for backward compatibility)
+            this.waterCircleRadius = legacySection.getDouble("water-circle-radius", DEFAULT_WATER_CIRCLE_RADIUS);
+            this.minSamplesForPattern = legacySection.getInt("min-samples-for-pattern", DEFAULT_MIN_SAMPLES);
+            this.confinedSpaceThreshold = legacySection.getDouble("confined-space-threshold", DEFAULT_CONFINED_SPACE);
+            this.patternAnalysisInterval = legacySection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL);
+            this.repetitiveMovementThreshold = legacySection.getDouble("repetitive-movement-threshold", DEFAULT_REPETITIVE_THRESHOLD);
+            this.maxPatternViolations = legacySection.getInt("max-pattern-violations", DEFAULT_MAX_VIOLATIONS);
+            this.largePoolThreshold = legacySection.getDouble("large-pool-threshold", DEFAULT_LARGE_POOL);
+            this.minSamplesForLargePool = legacySection.getInt("min-samples-for-large-pool", DEFAULT_MIN_SAMPLES_LARGE_POOL);
+            this.keystrokeTimeoutMs = legacySection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT);
+
+            // v2.9.4 NEW: Use defaults for legacy configs
+            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD;
+            this.linearMovementThreshold = DEFAULT_LINEAR_THRESHOLD;
+            this.minDirectionVariance = DEFAULT_MIN_DIRECTION_VARIANCE;
+            this.linearMovementExclusionEnabled = DEFAULT_LINEAR_EXCLUSION_ENABLED;
+
+            plugin.getLogger().warning("[Config] Using legacy pattern-detection-settings section. " +
+                    "Consider migrating to modules.pattern-detection for v2.9.4+");
         } else {
-            // Set defaults
-            this.waterCircleRadius = 3.0;
-            this.minSamplesForPattern = 20;
-            this.confinedSpaceThreshold = 5.0;
-            this.patternAnalysisInterval = 30000L;
-            this.repetitiveMovementThreshold = 0.8;
-            this.maxPatternViolations = 3;
-            this.largePoolThreshold = 25.0;
-            this.minSamplesForLargePool = 30;
-            this.keystrokeTimeoutMs = 180000L;
+            // No configuration found: use v2.9.4 conservative defaults
+            this.waterCircleRadius = DEFAULT_WATER_CIRCLE_RADIUS;
+            this.minSamplesForPattern = DEFAULT_MIN_SAMPLES;
+            this.confinedSpaceThreshold = DEFAULT_CONFINED_SPACE;
+            this.patternAnalysisInterval = DEFAULT_ANALYSIS_INTERVAL;
+            this.repetitiveMovementThreshold = DEFAULT_REPETITIVE_THRESHOLD;
+            this.maxPatternViolations = DEFAULT_MAX_VIOLATIONS;
+            this.largePoolThreshold = DEFAULT_LARGE_POOL;
+            this.minSamplesForLargePool = DEFAULT_MIN_SAMPLES_LARGE_POOL;
+            this.keystrokeTimeoutMs = DEFAULT_KEYSTROKE_TIMEOUT;
+
+            // v2.9.4 NEW
+            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD;
+            this.linearMovementThreshold = DEFAULT_LINEAR_THRESHOLD;
+            this.minDirectionVariance = DEFAULT_MIN_DIRECTION_VARIANCE;
+            this.linearMovementExclusionEnabled = DEFAULT_LINEAR_EXCLUSION_ENABLED;
+
+            if (debugEnabled) {
+                plugin.getLogger().info("[Config] Using default pattern detection settings (v2.9.4 conservative defaults)");
+            }
         }
     }
 
@@ -560,6 +633,48 @@ public class ConfigManager {
 
     public long getKeystrokeTimeoutMs() {
         return keystrokeTimeoutMs;
+    }
+
+    // --- v2.9.4 NEW: False positive reduction getters ---
+
+    /**
+     * Gets the activity grace period in milliseconds.
+     * After active gameplay (commands, jumps, head rotation), pattern detection
+     * is skipped for this duration to prevent false positives.
+     * Default: 60000 (1 minute)
+     */
+    public long getActivityGracePeriodMs() {
+        return activityGracePeriodMs;
+    }
+
+    /**
+     * Gets the linear movement threshold (direction variance).
+     * Movement with direction variance below this threshold is considered "linear"
+     * (running straight) and excluded from pattern detection.
+     * Default: 0.3
+     */
+    public double getLinearMovementThreshold() {
+        return linearMovementThreshold;
+    }
+
+    /**
+     * Gets the minimum direction variance required for repetitive pattern detection.
+     * Movement must have at least this much variance to be considered for
+     * repetitive pattern detection. Prevents flagging straight-line movement.
+     * Default: 0.15
+     */
+    public double getMinDirectionVariance() {
+        return minDirectionVariance;
+    }
+
+    /**
+     * Checks if linear movement exclusion is enabled.
+     * When enabled, players running in a straight line won't be flagged for
+     * repetitive movement patterns.
+     * Default: true
+     */
+    public boolean isLinearMovementExclusionEnabled() {
+        return linearMovementExclusionEnabled;
     }
 
     // --- v2.9.4 NEW: Pattern detection notification getters ---

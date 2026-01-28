@@ -1,7 +1,7 @@
 # AntiAFKPlus v2.9.3 — AFK Player Protection System & PlaceholderAPI Fix
 
 Release type: Feature & Bugfix
-Compatibility: Minecraft 1.16 – 1.21.10 | Java 17+
+Compatibility: Minecraft 1.16 – 1.21.11 | Java 17+
 
 ---
 
