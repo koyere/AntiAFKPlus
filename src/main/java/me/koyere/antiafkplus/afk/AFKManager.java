@@ -1,23 +1,7 @@
 // AFKManager.java - Enhanced v2.0 with Full Event Integration
 package me.koyere.antiafkplus.afk;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
-import me.koyere.antiafkplus.api.data.ActivityType;
-import me.koyere.antiafkplus.events.PlayerAFKKickEvent;
-import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
-import me.koyere.antiafkplus.events.PlayerAFKWarningEvent;
-import me.koyere.antiafkplus.utils.AFKLogger;
-import me.koyere.antiafkplus.time.TimeWindowService;
-import me.koyere.antiafkplus.time.TimeWindowService.WindowBehavior;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.entity.Player;
-import me.koyere.antiafkplus.platform.PlatformScheduler;
-
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.EnumMap;
@@ -27,6 +11,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
+import me.koyere.antiafkplus.api.data.ActivityType;
+import me.koyere.antiafkplus.events.PlayerAFKKickEvent;
+import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
+import me.koyere.antiafkplus.events.PlayerAFKWarningEvent;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
+import me.koyere.antiafkplus.time.TimeWindowService;
+import me.koyere.antiafkplus.time.TimeWindowService.WindowBehavior;
+import me.koyere.antiafkplus.utils.AFKLogger;
 
 /**
  * Enhanced AFK Manager v2.0 - Manages AFK detection, state, and voluntary AFK mode
@@ -246,9 +246,7 @@ public class AFKManager {
         if (plugin.getConfigManager() == null) {
             return false;
         }
-        return plugin.getConfigManager().isPatternDetectionModuleEnabled()
-                && plugin.getConfigManager().isEnhancedDetectionEnabled()
-                && plugin.getConfigManager().isPatternDetectionEnabled();
+        return plugin.getConfigManager().isPatternDetectionModuleEnabled();
     }
 
     public void handleConfigReload() {
@@ -379,11 +377,25 @@ public class AFKManager {
             return;
         }
         UUID uuid = player.getUniqueId();
-        PlayerActivityData data = playerActivityData.computeIfAbsent(uuid, k -> new PlayerActivityData());
+        PlayerActivityData data = playerActivityData.computeIfAbsent(uuid, k -> new PlayerActivityData(buildActivityWeights()));
         data.recordActivity(activityType != null ? activityType : ActivityType.UNKNOWN, timestamp);
         if (plugin.getPerformanceOptimizer() != null) {
             plugin.getPerformanceOptimizer().updatePlayerActivity(player);
         }
+    }
+
+    /**
+     * Builds activity weight overrides from config.
+     * Only includes weights that differ from enum defaults.
+     */
+    private EnumMap<ActivityType, Double> buildActivityWeights() {
+        EnumMap<ActivityType, Double> weights = new EnumMap<>(ActivityType.class);
+        if (plugin.getConfigManager() == null) return weights;
+        weights.put(ActivityType.MOVEMENT, plugin.getConfigManager().getMovementWeight());
+        weights.put(ActivityType.HEAD_ROTATION, plugin.getConfigManager().getHeadRotationWeight());
+        weights.put(ActivityType.JUMP, plugin.getConfigManager().getJumpWeight());
+        weights.put(ActivityType.COMMAND, plugin.getConfigManager().getCommandWeight());
+        return weights;
     }
 
     private void checkWarnings(Player player) {
@@ -422,7 +434,9 @@ public class AFKManager {
                         apiImpl.handleInternalAFKWarning(warningEvent);
                     }
 
-                    Bukkit.getPluginManager().callEvent(warningEvent);
+                    if (plugin.getConfigManager().isAFKWarningEventsEnabled()) {
+                        Bukkit.getPluginManager().callEvent(warningEvent);
+                    }
 
                     if (!warningEvent.isCancelled()) {
                         String message = warningEvent.getCustomMessage() != null ?
@@ -526,7 +540,9 @@ public class AFKManager {
             }
         }
 
-        Bukkit.getPluginManager().callEvent(kickEvent);
+        if (plugin.getConfigManager().isAFKKickEventsEnabled()) {
+            Bukkit.getPluginManager().callEvent(kickEvent);
+        }
 
         if (!kickEvent.isCancelled()) {
             // Handle different kick actions
@@ -782,7 +798,9 @@ public class AFKManager {
                 player, fromState, toState, reason, detectionMethod, activityScore, wasManual
         );
 
-        Bukkit.getPluginManager().callEvent(event);
+        if (plugin.getConfigManager().isAFKStateChangeEventsEnabled()) {
+            Bukkit.getPluginManager().callEvent(event);
+        }
         return event;
     }
 
@@ -1089,9 +1107,23 @@ public class AFKManager {
     public static class PlayerActivityData {
         private final Deque<ActivityEntry> activityHistory = new ArrayDeque<>();
         private final EnumMap<ActivityType, Long> lastActivityTimes = new EnumMap<>(ActivityType.class);
+        private final EnumMap<ActivityType, Double> configWeights;
         private long lastActivityTimestamp = 0L;
         private ActivityType lastActivityType = ActivityType.UNKNOWN;
         private double activityScore = 0.0;
+
+        /**
+         * Creates PlayerActivityData with custom activity weights from config.
+         * @param configWeights weight overrides from config; null or empty falls back to enum defaults
+         */
+        public PlayerActivityData(EnumMap<ActivityType, Double> configWeights) {
+            this.configWeights = configWeights != null ? configWeights : new EnumMap<>(ActivityType.class);
+        }
+
+        /** Creates PlayerActivityData with default enum weights. */
+        public PlayerActivityData() {
+            this(null);
+        }
 
         public synchronized void recordActivity(ActivityType type, long timestamp) {
             activityHistory.addLast(new ActivityEntry(type, timestamp));
@@ -1122,7 +1154,9 @@ public class AFKManager {
             double score = 0.0;
             for (ActivityEntry entry : activityHistory) {
                 if (currentTime - entry.timestamp <= ACTIVITY_SCORE_WINDOW_MS) {
-                    score += entry.type.getActivityWeight();
+                    // Use config weight if available, otherwise fall back to enum default
+                    double weight = configWeights.getOrDefault(entry.type, entry.type.getActivityWeight());
+                    score += weight;
                 }
             }
             activityScore = Math.min(100.0, score * 5.0); // Normalize to 0-100 range

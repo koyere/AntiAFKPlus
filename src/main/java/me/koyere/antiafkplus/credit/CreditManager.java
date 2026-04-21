@@ -1,22 +1,29 @@
 package me.koyere.antiafkplus.credit;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.platform.PlatformScheduler;
-import me.koyere.antiafkplus.api.data.CreditTransaction;
-import me.koyere.antiafkplus.api.data.CreditTransactionType;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.data.ActivityType;
+import me.koyere.antiafkplus.api.data.CreditTransaction;
+import me.koyere.antiafkplus.api.data.CreditTransactionType;
 import me.koyere.antiafkplus.credit.storage.CreditStorage;
 import me.koyere.antiafkplus.credit.storage.FileCreditStorage;
 import me.koyere.antiafkplus.credit.storage.SqlCreditStorage;
-
-import java.time.Duration;
-import me.koyere.antiafkplus.api.data.ActivityType;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import org.bukkit.configuration.ConfigurationSection;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 
 /**
  * CreditManager gestiona el saldo de créditos de los jugadores, el earning periódico
@@ -71,8 +78,7 @@ public class CreditManager {
     }
 
     public boolean isEnabled() {
-        return plugin.getConfig().getBoolean("credit-system.enabled", false) &&
-               plugin.getConfig().getBoolean("modules.credit-system.enabled", false);
+        return plugin.getConfig().getBoolean("credit-system.enabled", false);
     }
 
     public CreditData getData(UUID uuid) {
@@ -916,5 +922,51 @@ public class CreditManager {
                 storage.recordTransaction(target.getUniqueId(), CreditTransactionType.RESET, -prev, data.getBalanceMinutes(), "admin-reset", System.currentTimeMillis());
             }
         }
+    }
+
+    /**
+     * Transfers credits from one player to another.
+     * @return true if transfer succeeded, false if insufficient balance or invalid
+     */
+    public boolean transferCredits(Player from, Player to, long minutes) {
+        if (from == null || to == null || minutes <= 0) return false;
+        CreditData fromData = getData(from.getUniqueId());
+        if (fromData.getBalanceMinutes() < minutes) return false;
+
+        CreditData toData = getData(to.getUniqueId());
+        long toMax = getMaxCreditsFor(to);
+        long actualTransfer = Math.min(minutes, toMax - toData.getBalanceMinutes());
+        if (actualTransfer <= 0) return false;
+
+        fromData.setBalanceMinutes(fromData.getBalanceMinutes() - actualTransfer);
+        toData.setBalanceMinutes(toData.getBalanceMinutes() + actualTransfer);
+
+        if (storage != null) {
+            storage.saveOne(from.getUniqueId(), fromData);
+            storage.saveOne(to.getUniqueId(), toData);
+            if (storage.supportsHistory()) {
+                long now = System.currentTimeMillis();
+                storage.recordTransaction(from.getUniqueId(), CreditTransactionType.CONSUME, -actualTransfer,
+                        fromData.getBalanceMinutes(), "transfer-to:" + to.getName(), now);
+                storage.recordTransaction(to.getUniqueId(), CreditTransactionType.EARN, actualTransfer,
+                        toData.getBalanceMinutes(), "transfer-from:" + from.getName(), now);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns a sorted list of online players by credit balance (descending).
+     * @param limit max entries to return
+     */
+    public java.util.List<java.util.Map.Entry<String, Long>> getTopCredits(int limit) {
+        java.util.List<java.util.Map.Entry<String, Long>> entries = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<java.util.UUID, CreditData> entry : credits.entrySet()) {
+            Player p = org.bukkit.Bukkit.getPlayer(entry.getKey());
+            String name = p != null ? p.getName() : entry.getKey().toString();
+            entries.add(java.util.Map.entry(name, entry.getValue().getBalanceMinutes()));
+        }
+        entries.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+        return entries.subList(0, Math.min(limit, entries.size()));
     }
 }

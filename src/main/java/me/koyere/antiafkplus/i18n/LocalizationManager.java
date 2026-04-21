@@ -1,20 +1,25 @@
 package me.koyere.antiafkplus.i18n;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import me.koyere.antiafkplus.AntiAFKPlus;
 
 /**
  * Complete internationalization system for AntiAFKPlus.
@@ -42,7 +47,9 @@ public class LocalizationManager {
     private final Pattern placeholderPattern = Pattern.compile("\\{([^}]+)\\}");
     
     // Supported languages (built-in)
-    private final Set<String> builtInLanguages = Set.of("en");
+    private static final Set<String> BUILT_IN_LANGUAGES = Set.of(
+            "en", "es", "fr", "de", "pt", "ru", "zh", "ja", "ko", "it"
+    );
     
     public LocalizationManager(AntiAFKPlus plugin) {
         this.plugin = plugin;
@@ -105,8 +112,18 @@ public class LocalizationManager {
      * Setup the language directory and extract built-in language files.
      */
     private void setupLanguageDirectory() {
-        // Disabled - use traditional messages.yml only
-        // No language directory or multiple language files created
+        File langDir = new File(plugin.getDataFolder(), "languages");
+        if (!langDir.exists()) {
+            langDir.mkdirs();
+        }
+
+        // Extract built-in language files if they don't exist (or in development mode)
+        for (String langCode : BUILT_IN_LANGUAGES) {
+            File langFile = new File(langDir, langCode + ".yml");
+            if (!langFile.exists() || developmentMode) {
+                extractLanguageFile(langCode, langFile);
+            }
+        }
     }
     
     /**
@@ -244,23 +261,42 @@ public class LocalizationManager {
     }
     
     /**
-     * Load English language only.
+     * Load all available language files from the languages directory.
      */
     private void loadLanguages() {
-        // Only load English language
-        defaultLanguage = "en";
-        
-        // Check if English language file exists
         File langDir = new File(plugin.getDataFolder(), "languages");
-        File englishFile = new File(langDir, "en.yml");
-        
-        if (langDir.exists() && englishFile.exists()) {
-            loadLanguageFile("en", englishFile);
-        } else {
-            // Create emergency English language if no file exists
-            // Creating emergency English fallback
+
+        if (!langDir.exists() || !langDir.isDirectory()) {
+            logger.warning("Languages directory not found. Creating emergency English fallback.");
             createEmergencyLanguage();
+            return;
         }
+
+        File[] langFiles = langDir.listFiles((dir, name) -> name.endsWith(".yml"));
+        if (langFiles == null || langFiles.length == 0) {
+            logger.warning("No language files found. Creating emergency English fallback.");
+            createEmergencyLanguage();
+            return;
+        }
+
+        int loaded = 0;
+        for (File langFile : langFiles) {
+            String fileName = langFile.getName();
+            String langCode = fileName.substring(0, fileName.length() - 4); // Remove .yml
+            loadLanguageFile(langCode, langFile);
+            loaded++;
+        }
+
+        // Ensure default language is loaded
+        if (!languages.containsKey(defaultLanguage)) {
+            logger.warning("Default language '" + defaultLanguage + "' not found. Falling back to English.");
+            if (!languages.containsKey("en")) {
+                createEmergencyLanguage();
+            }
+            defaultLanguage = "en";
+        }
+
+        logger.info("Loaded " + loaded + " language(s): " + String.join(", ", languages.keySet()));
     }
     
     /**

@@ -1,31 +1,25 @@
 package me.koyere.antiafkplus.config;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import org.bukkit.ChatColor;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
-
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.bukkit.ChatColor;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.FileConfiguration;
+
+import me.koyere.antiafkplus.AntiAFKPlus;
+
 /**
- * Enhanced ConfigManager v2.0 - Handles loading and providing access to plugin
- * configuration (config.yml)
- * and customizable messages (messages.yml) with advanced v2.0 features
- * including pattern detection,
- * behavioral analysis, and comprehensive event system configuration.
+ * ConfigManager v3.0 - Handles loading and providing access to plugin
+ * configuration (config.yml) and localized messages via language files.
  */
 public class ConfigManager {
 
     private final AntiAFKPlus plugin;
     private FileConfiguration config; // For config.yml
-    private FileConfiguration messages; // For messages.yml
-    private File messagesFile; // File object for messages.yml
 
     // General settings
     private int defaultAfkTime;
@@ -35,14 +29,10 @@ public class ConfigManager {
     // Feature toggles & behavior
     private boolean debugEnabled;
     private boolean blockPickupWhileAFK;
-    private boolean autoclickDetectionEnabled; // This is the main on/off switch
+    private boolean autoclickDetectionEnabled;
     private boolean broadcastAfkStateChanges;
 
-    // Enhanced v2.0 detection settings
-    private boolean enhancedDetectionEnabled;
-    private boolean patternDetectionEnabled;
-    private boolean behavioralAnalysisEnabled;
-    private boolean advancedMovementTrackingEnabled;
+    // Pattern detection module toggle (single source of truth)
     private boolean patternDetectionModuleEnabled;
     private boolean largePoolDetectionEnabled;
     private boolean keystrokeTimeoutDetectionEnabled;
@@ -157,14 +147,13 @@ public class ConfigManager {
         // Feature toggles
         this.debugEnabled = config.getBoolean("debug", false);
         this.blockPickupWhileAFK = config.getBoolean("block-pickup-while-afk", true);
-        this.autoclickDetectionEnabled = config.getBoolean("autoclick-detection", false);
         this.broadcastAfkStateChanges = config.getBoolean("broadcast-afk-state-changes", true);
 
-        // Enhanced v2.0 detection settings
-        loadEnhancedDetectionSettings();
-
-        // Module-level toggles for pattern detection
+        // Module-level toggles for pattern detection (single source of truth)
         loadPatternDetectionModuleSettings();
+
+        // Autoclick detection toggle (read from module config)
+        this.autoclickDetectionEnabled = config.getBoolean("modules.autoclick-detection.enabled", true);
 
         // Pattern detection settings
         loadPatternDetectionSettings();
@@ -192,22 +181,6 @@ public class ConfigManager {
 
         // AFK windows
         loadAfkWindowSettings();
-    }
-
-    private void loadEnhancedDetectionSettings() {
-        ConfigurationSection enhancedSection = config.getConfigurationSection("enhanced-detection");
-        if (enhancedSection != null) {
-            this.enhancedDetectionEnabled = enhancedSection.getBoolean("enabled", true);
-            this.patternDetectionEnabled = enhancedSection.getBoolean("pattern-detection", true);
-            this.behavioralAnalysisEnabled = enhancedSection.getBoolean("behavioral-analysis", true);
-            this.advancedMovementTrackingEnabled = enhancedSection.getBoolean("advanced-movement-tracking", true);
-        } else {
-            // Set defaults if section doesn't exist
-            this.enhancedDetectionEnabled = true;
-            this.patternDetectionEnabled = true;
-            this.behavioralAnalysisEnabled = true;
-            this.advancedMovementTrackingEnabled = true;
-        }
     }
 
     private void loadPatternDetectionModuleSettings() {
@@ -271,37 +244,53 @@ public class ConfigManager {
         ConfigurationSection moduleSection = config.getConfigurationSection("modules.pattern-detection");
         ConfigurationSection legacySection = config.getConfigurationSection("pattern-detection-settings");
 
-        // v2.9.4 defaults (very conservative to reduce false positives)
+        // v3.0 defaults (conservative, in seconds for config — stored internally as ms)
         final double DEFAULT_WATER_CIRCLE_RADIUS = 5.0;
         final int DEFAULT_MIN_SAMPLES = 40;
         final double DEFAULT_CONFINED_SPACE = 12.0;
-        final long DEFAULT_ANALYSIS_INTERVAL = 30000L;
+        final int DEFAULT_ANALYSIS_INTERVAL_SEC = 30;
         final double DEFAULT_REPETITIVE_THRESHOLD = 0.95;
         final int DEFAULT_MAX_VIOLATIONS = 8;
         final double DEFAULT_LARGE_POOL = 25.0;
         final int DEFAULT_MIN_SAMPLES_LARGE_POOL = 30;
-        final long DEFAULT_KEYSTROKE_TIMEOUT = 180000L;
+        final int DEFAULT_KEYSTROKE_TIMEOUT_SEC = 180;
 
-        // v2.9.4 NEW: Defaults for false positive reduction
-        final long DEFAULT_ACTIVITY_GRACE_PERIOD = 60000L;
+        // False positive reduction defaults (seconds)
+        final int DEFAULT_ACTIVITY_GRACE_PERIOD_SEC = 60;
         final double DEFAULT_LINEAR_THRESHOLD = 0.3;
         final double DEFAULT_MIN_DIRECTION_VARIANCE = 0.15;
         final boolean DEFAULT_LINEAR_EXCLUSION_ENABLED = true;
 
         if (moduleSection != null) {
-            // Primary: Read from modules.pattern-detection.* (v2.9.4+ location)
+            // Primary: Read from modules.pattern-detection.*
             this.waterCircleRadius = moduleSection.getDouble("water-circle-radius", DEFAULT_WATER_CIRCLE_RADIUS);
             this.minSamplesForPattern = moduleSection.getInt("min-samples-for-pattern", DEFAULT_MIN_SAMPLES);
             this.confinedSpaceThreshold = moduleSection.getDouble("confined-space-threshold", DEFAULT_CONFINED_SPACE);
-            this.patternAnalysisInterval = moduleSection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL);
+
+            // v3.0: Read seconds, store as ms. Fall back to legacy ms key for pre-v3.0 configs.
+            if (moduleSection.contains("pattern-analysis-interval-seconds")) {
+                this.patternAnalysisInterval = moduleSection.getInt("pattern-analysis-interval-seconds", DEFAULT_ANALYSIS_INTERVAL_SEC) * 1000L;
+            } else {
+                this.patternAnalysisInterval = moduleSection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL_SEC * 1000L);
+            }
+
             this.repetitiveMovementThreshold = moduleSection.getDouble("repetitive-movement-threshold", DEFAULT_REPETITIVE_THRESHOLD);
             this.maxPatternViolations = moduleSection.getInt("max-pattern-violations", DEFAULT_MAX_VIOLATIONS);
             this.largePoolThreshold = moduleSection.getDouble("large-pool-threshold", DEFAULT_LARGE_POOL);
             this.minSamplesForLargePool = moduleSection.getInt("min-samples-for-large-pool", DEFAULT_MIN_SAMPLES_LARGE_POOL);
-            this.keystrokeTimeoutMs = moduleSection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT);
 
-            // v2.9.4 NEW: Load false positive reduction settings
-            this.activityGracePeriodMs = moduleSection.getLong("activity-grace-period-ms", DEFAULT_ACTIVITY_GRACE_PERIOD);
+            if (moduleSection.contains("keystroke-timeout-seconds")) {
+                this.keystrokeTimeoutMs = moduleSection.getInt("keystroke-timeout-seconds", DEFAULT_KEYSTROKE_TIMEOUT_SEC) * 1000L;
+            } else {
+                this.keystrokeTimeoutMs = moduleSection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT_SEC * 1000L);
+            }
+
+            // False positive reduction settings
+            if (moduleSection.contains("activity-grace-period-seconds")) {
+                this.activityGracePeriodMs = moduleSection.getInt("activity-grace-period-seconds", DEFAULT_ACTIVITY_GRACE_PERIOD_SEC) * 1000L;
+            } else {
+                this.activityGracePeriodMs = moduleSection.getLong("activity-grace-period-ms", DEFAULT_ACTIVITY_GRACE_PERIOD_SEC * 1000L);
+            }
             this.linearMovementThreshold = moduleSection.getDouble("linear-movement-threshold", DEFAULT_LINEAR_THRESHOLD);
             this.minDirectionVariance = moduleSection.getDouble("min-direction-variance", DEFAULT_MIN_DIRECTION_VARIANCE);
             this.linearMovementExclusionEnabled = moduleSection.getBoolean("linear-movement-exclusion", DEFAULT_LINEAR_EXCLUSION_ENABLED);
@@ -313,39 +302,37 @@ public class ConfigManager {
                 plugin.getLogger().info("[Config] activity-grace-period-ms = " + this.activityGracePeriodMs);
             }
         } else if (legacySection != null) {
-            // Fallback: Read from pattern-detection-settings (legacy location for backward compatibility)
+            // Fallback: Read from pattern-detection-settings (legacy pre-v3.0 configs)
             this.waterCircleRadius = legacySection.getDouble("water-circle-radius", DEFAULT_WATER_CIRCLE_RADIUS);
             this.minSamplesForPattern = legacySection.getInt("min-samples-for-pattern", DEFAULT_MIN_SAMPLES);
             this.confinedSpaceThreshold = legacySection.getDouble("confined-space-threshold", DEFAULT_CONFINED_SPACE);
-            this.patternAnalysisInterval = legacySection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL);
+            this.patternAnalysisInterval = legacySection.getLong("pattern-analysis-interval-ms", DEFAULT_ANALYSIS_INTERVAL_SEC * 1000L);
             this.repetitiveMovementThreshold = legacySection.getDouble("repetitive-movement-threshold", DEFAULT_REPETITIVE_THRESHOLD);
             this.maxPatternViolations = legacySection.getInt("max-pattern-violations", DEFAULT_MAX_VIOLATIONS);
             this.largePoolThreshold = legacySection.getDouble("large-pool-threshold", DEFAULT_LARGE_POOL);
             this.minSamplesForLargePool = legacySection.getInt("min-samples-for-large-pool", DEFAULT_MIN_SAMPLES_LARGE_POOL);
-            this.keystrokeTimeoutMs = legacySection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT);
+            this.keystrokeTimeoutMs = legacySection.getLong("keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT_SEC * 1000L);
 
-            // v2.9.4 NEW: Use defaults for legacy configs
-            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD;
+            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD_SEC * 1000L;
             this.linearMovementThreshold = DEFAULT_LINEAR_THRESHOLD;
             this.minDirectionVariance = DEFAULT_MIN_DIRECTION_VARIANCE;
             this.linearMovementExclusionEnabled = DEFAULT_LINEAR_EXCLUSION_ENABLED;
 
             plugin.getLogger().warning("[Config] Using legacy pattern-detection-settings section. " +
-                    "Consider migrating to modules.pattern-detection for v2.9.4+");
+                    "Please migrate to modules.pattern-detection for v3.0.");
         } else {
-            // No configuration found: use v2.9.4 conservative defaults
+            // No configuration found: use conservative defaults
             this.waterCircleRadius = DEFAULT_WATER_CIRCLE_RADIUS;
             this.minSamplesForPattern = DEFAULT_MIN_SAMPLES;
             this.confinedSpaceThreshold = DEFAULT_CONFINED_SPACE;
-            this.patternAnalysisInterval = DEFAULT_ANALYSIS_INTERVAL;
+            this.patternAnalysisInterval = DEFAULT_ANALYSIS_INTERVAL_SEC * 1000L;
             this.repetitiveMovementThreshold = DEFAULT_REPETITIVE_THRESHOLD;
             this.maxPatternViolations = DEFAULT_MAX_VIOLATIONS;
             this.largePoolThreshold = DEFAULT_LARGE_POOL;
             this.minSamplesForLargePool = DEFAULT_MIN_SAMPLES_LARGE_POOL;
-            this.keystrokeTimeoutMs = DEFAULT_KEYSTROKE_TIMEOUT;
+            this.keystrokeTimeoutMs = DEFAULT_KEYSTROKE_TIMEOUT_SEC * 1000L;
 
-            // v2.9.4 NEW
-            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD;
+            this.activityGracePeriodMs = DEFAULT_ACTIVITY_GRACE_PERIOD_SEC * 1000L;
             this.linearMovementThreshold = DEFAULT_LINEAR_THRESHOLD;
             this.minDirectionVariance = DEFAULT_MIN_DIRECTION_VARIANCE;
             this.linearMovementExclusionEnabled = DEFAULT_LINEAR_EXCLUSION_ENABLED;
@@ -391,10 +378,20 @@ public class ConfigManager {
     }
 
     private void loadAutoclickSettings() {
-        this.autoclickClickWindowMs = config.getInt("autoclick-detection-settings.click-window-ms", 5000);
-        this.autoclickClickThreshold = config.getInt("autoclick-detection-settings.click-threshold", 20);
-        this.autoclickMinIdleTimeMs = config.getLong("autoclick-detection-settings.min-idle-time-ms", 60000L);
-        this.autoclickAction = config.getString("autoclick-detection-settings.action", "LOG").toUpperCase();
+        // v3.0: Read from module config (consolidated from legacy root keys)
+        ConfigurationSection section = config.getConfigurationSection("modules.autoclick-detection");
+        if (section != null) {
+            this.autoclickClickWindowMs = section.getInt("click-window-ms", 5000);
+            this.autoclickClickThreshold = section.getInt("click-threshold", 20);
+            this.autoclickMinIdleTimeMs = section.getLong("min-idle-time-ms", 60000L);
+            this.autoclickAction = section.getString("action", "LOG").toUpperCase();
+        } else {
+            // Fallback to legacy root keys for backward compatibility with pre-v3.0 configs
+            this.autoclickClickWindowMs = config.getInt("autoclick-detection-settings.click-window-ms", 5000);
+            this.autoclickClickThreshold = config.getInt("autoclick-detection-settings.click-threshold", 20);
+            this.autoclickMinIdleTimeMs = config.getLong("autoclick-detection-settings.min-idle-time-ms", 60000L);
+            this.autoclickAction = config.getString("autoclick-detection-settings.action", "LOG").toUpperCase();
+        }
     }
 
     private void loadEventSystemSettings() {
@@ -439,54 +436,71 @@ public class ConfigManager {
     }
 
     /**
-     * Loads messages from messages.yml into memory.
-     * Saves the default messages.yml if it doesn't exist.
+     * Loads messages from the LocalizationManager (language files).
+     * v3.0: messages.yml has been removed. All messages come from languages/*.yml.
      */
     public void loadMessages() {
-        this.messagesFile = new File(plugin.getDataFolder(), "messages.yml");
-        if (!messagesFile.exists()) {
-            plugin.saveResource("messages.yml", false);
+        // v3.0: Messages are loaded by LocalizationManager from language files.
+        // Pre-load the cached message fields from the default language for backward compatibility.
+        String lang = plugin.getConfig().getString("internationalization.default-language", "en");
+
+        this.messagePlayerNowAFK = getLangMessage(lang, "player-now-afk", "&e{player} is now AFK.");
+        this.messagePlayerNoLongerAFK = getLangMessage(lang, "player-no-longer-afk", "&a{player} is no longer AFK.");
+        this.messageKickWarning = getLangMessage(lang, "kick-warning", "&cYou will be kicked in {seconds}s for being AFK!");
+        this.messageKicked = getLangMessage(lang, "kicked-for-afk", "&cYou have been kicked for being AFK.");
+        this.messageVoluntaryAFKLimit = getLangMessage(lang, "afk-voluntary-time-limit", "&cYou have been removed from AFK mode due to time limit.");
+        this.messageAlreadyAFK = getLangMessage(lang, "already-afk", "&eYou are already AFK.");
+        this.messageAutoclickSetAfk = getLangMessage(lang, "autoclick-detected-set-afk", "&cSuspicious clicking detected. You have been set to AFK.");
+        this.messageAutoclickKickReason = getLangMessage(lang, "autoclick-detected-kick-reason", "&cKicked for suspicious clicking activity (autoclick).");
+        this.messagePatternDetected = getLangMessage(lang, "pattern-detected", "&c[AntiAFK] Suspicious movement pattern detected: {pattern}");
+        this.messageSuspiciousActivity = getLangMessage(lang, "suspicious-activity", "&e[AntiAFK] Suspicious activity detected. Please move normally.");
+        this.messageEnhancedDetectionWarning = getLangMessage(lang, "enhanced-detection-warning", "&6[AntiAFK] Enhanced detection system is monitoring your activity.");
+        this.messageAfkWindowActive = getLangMessage(lang, "afk-window-active", "&aAFK protection is active until {time}.");
+    }
+
+    /**
+     * Gets a message from the LocalizationManager using the server's default language.
+     */
+    private String getLangMessage(String langCode, String key, String defaultValue) {
+        if (plugin.getLocalizationManager() != null) {
+            String msg = plugin.getLocalizationManager().getMessage(langCode, key);
+            if (msg != null && !msg.startsWith("[") && !msg.endsWith("]")) {
+                return msg; // Valid message from language file
+            }
         }
-        this.messages = YamlConfiguration.loadConfiguration(messagesFile);
-
-        // Load standard messages
-        this.messagePlayerNowAFK = loadColoredString("messages.player-now-afk", "&e{player} is now AFK.");
-        this.messagePlayerNoLongerAFK = loadColoredString("messages.player-no-longer-afk",
-                "&a{player} is no longer AFK.");
-        this.messageKickWarning = loadColoredString("messages.kick-warning",
-                "&cYou will be kicked in {seconds}s for being AFK!");
-        this.messageKicked = loadColoredString("messages.kicked-for-afk", "&cYou have been kicked for being AFK.");
-        this.messageVoluntaryAFKLimit = loadColoredString("messages.afk-voluntary-time-limit",
-                "&cYou have been removed from AFK mode due to time limit.");
-        this.messageAlreadyAFK = loadColoredString("messages.already-afk", "&eYou are already AFK.");
-
-        // Load autoclicker messages
-        this.messageAutoclickSetAfk = loadColoredString("messages.autoclick-detected-set-afk",
-                "&cSuspicious clicking detected. You have been set to AFK.");
-        this.messageAutoclickKickReason = loadColoredString("messages.autoclick-detected-kick-reason",
-                "&cKicked for suspicious clicking activity (autoclick).");
-
-        // Load enhanced v2.0 messages
-        this.messagePatternDetected = loadColoredString("messages.pattern-detected",
-                "&c[AntiAFK] Suspicious movement pattern detected: {pattern}");
-        this.messageSuspiciousActivity = loadColoredString("messages.suspicious-activity",
-                "&e[AntiAFK] Suspicious activity detected. Please move normally.");
-        this.messageEnhancedDetectionWarning = loadColoredString("messages.enhanced-detection-warning",
-                "&6[AntiAFK] Enhanced detection system is monitoring your activity.");
-        this.messageAfkWindowActive = loadColoredString("messages.afk-window-active",
-                "&aAFK protection is active until {time}.");
+        return colorize(defaultValue);
     }
 
-    private String loadColoredString(String path, String defaultValue) {
-        return ChatColor.translateAlternateColorCodes('&', messages.getString(path, defaultValue));
+    @SuppressWarnings("deprecation")
+    private String colorize(String text) {
+        return ChatColor.translateAlternateColorCodes('&', text);
     }
 
+    /**
+     * Gets a message by key from the server's default language file.
+     * This is the primary message retrieval method used throughout the plugin.
+     */
+    @SuppressWarnings("deprecation")
     public String getMessage(String key, String defaultValue) {
-        return ChatColor.translateAlternateColorCodes('&', messages.getString("messages." + key, defaultValue));
+        if (plugin.getLocalizationManager() != null) {
+            String lang = plugin.getConfig().getString("internationalization.default-language", "en");
+            String msg = plugin.getLocalizationManager().getMessage(lang, key);
+            if (msg != null && !msg.startsWith("[") && !msg.endsWith("]")) {
+                return msg;
+            }
+        }
+        return ChatColor.translateAlternateColorCodes('&', defaultValue);
     }
 
+    /**
+     * Gets a message by full path key from the server's default language file.
+     * Strips the "messages." prefix if present for compatibility.
+     */
+    @SuppressWarnings("deprecation")
     public String getMessageByFullPath(String fullPath, String defaultValue) {
-        return ChatColor.translateAlternateColorCodes('&', messages.getString(fullPath, defaultValue));
+        // Strip "messages." prefix for language file lookup
+        String key = fullPath.startsWith("messages.") ? fullPath.substring(9) : fullPath;
+        return getMessage(key, defaultValue);
     }
 
     // --- Standard getters for loaded configuration values ---
@@ -567,23 +581,7 @@ public class ConfigManager {
         loadWorldSettings();
     }
 
-    // --- Enhanced v2.0 detection getters ---
-
-    public boolean isEnhancedDetectionEnabled() {
-        return enhancedDetectionEnabled;
-    }
-
-    public boolean isPatternDetectionEnabled() {
-        return patternDetectionEnabled;
-    }
-
-    public boolean isBehavioralAnalysisEnabled() {
-        return behavioralAnalysisEnabled;
-    }
-
-    public boolean isAdvancedMovementTrackingEnabled() {
-        return advancedMovementTrackingEnabled;
-    }
+    // --- Detection getters ---
 
     public boolean isPatternDetectionModuleEnabled() {
         return patternDetectionModuleEnabled;
@@ -867,7 +865,7 @@ public class ConfigManager {
         }
 
         // Validate pattern detection settings
-        if (patternDetectionEnabled) {
+        if (patternDetectionModuleEnabled) {
             if (waterCircleRadius <= 0) {
                 plugin.getLogger().warning("water-circle-radius should be greater than 0 for effective detection.");
             }
@@ -881,12 +879,8 @@ public class ConfigManager {
             plugin.getLogger().warning("micro-movement-threshold should not be negative.");
         }
 
-        if (enhancedDetectionEnabled) {
-            plugin.getLogger().info("Enhanced Detection v2.0 is enabled with the following features:");
-            plugin.getLogger().info("  - Pattern Detection: " + (patternDetectionEnabled ? "ENABLED" : "DISABLED"));
-            plugin.getLogger().info("  - Behavioral Analysis: " + (behavioralAnalysisEnabled ? "ENABLED" : "DISABLED"));
-            plugin.getLogger().info(
-                    "  - Advanced Movement Tracking: " + (advancedMovementTrackingEnabled ? "ENABLED" : "DISABLED"));
+        if (patternDetectionModuleEnabled) {
+            plugin.getLogger().info("Pattern Detection module is ENABLED.");
         }
 
         return isValid;
@@ -900,13 +894,21 @@ public class ConfigManager {
         loadMessages();
         validateConfiguration();
         plugin.rebuildTimeWindowService();
+        // Reload module states from updated config
+        if (plugin.getModuleManager() != null) {
+            plugin.getModuleManager().reloadModuleStates();
+        }
         if (plugin.getAfkManager() != null) {
             plugin.getAfkManager().handleConfigReload();
+        }
+        // Reload movement listener thresholds from updated config
+        if (plugin.getMovementListener() != null) {
+            plugin.getMovementListener().loadConfigThresholds();
         }
         // Clear credit system group priority cache after config reload
         if (plugin.getCreditManager() != null) {
             plugin.getCreditManager().clearCache();
         }
-        plugin.getLogger().info("Configuration reloaded successfully with v2.0 enhancements.");
+        plugin.getLogger().info("Configuration reloaded successfully.");
     }
 }

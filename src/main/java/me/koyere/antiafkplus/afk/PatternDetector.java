@@ -1,14 +1,21 @@
 // PatternDetector.java - NEW v2.0 - Smart AFK Pool Detection
 package me.koyere.antiafkplus.afk;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
-import me.koyere.antiafkplus.utils.AFKLogger;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
-import me.koyere.antiafkplus.platform.PlatformScheduler;
 
-import java.util.*;
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
+import me.koyere.antiafkplus.utils.AFKLogger;
 
 /**
  * Detects suspicious movement patterns that indicate AFK machines or pools.
@@ -141,9 +148,7 @@ public class PatternDetector {
         if (plugin.getConfigManager() == null) {
             return false;
         }
-        return plugin.getConfigManager().isPatternDetectionModuleEnabled()
-                && plugin.getConfigManager().isEnhancedDetectionEnabled()
-                && plugin.getConfigManager().isPatternDetectionEnabled();
+        return plugin.getConfigManager().isPatternDetectionModuleEnabled();
     }
 
     private void analyzeAllPlayerPatterns() {
@@ -810,7 +815,9 @@ public class PatternDetector {
                     patternData,
                     additionalData);
 
-            plugin.getServer().getPluginManager().callEvent(patternEvent);
+            if (plugin.getConfigManager().isPatternDetectionEventsEnabled()) {
+                plugin.getServer().getPluginManager().callEvent(patternEvent);
+            }
 
             // Record detection (thread-safe map operation)
             recordDetectedPattern(player, patternEvent);

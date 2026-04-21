@@ -1,38 +1,28 @@
 package me.koyere.antiafkplus.modules;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import org.bukkit.Bukkit;
-
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
+
+import me.koyere.antiafkplus.AntiAFKPlus;
 
 /**
- * Manages all AntiAFKPlus modules with dependency resolution,
- * lifecycle management, and performance monitoring.
+ * Manages all AntiAFKPlus modules with state tracking.
  * 
- * This is a simplified implementation for the initial version.
- * Individual module classes will be implemented in future versions.
+ * v3.0 TODO: Rewrite to use actual Module instances with lifecycle management.
+ * Currently tracks module enabled/disabled state from config for use by other components.
  */
 public class ModuleManager {
     
     private final AntiAFKPlus plugin;
-    private final Logger logger;
     
-    // Module storage (simplified for initial implementation)
+    // Module state registry
     private final Map<String, Boolean> moduleStates = new ConcurrentHashMap<>();
     private final List<String> enabledModules = new ArrayList<>();
     
-    // Performance tracking
-    private long totalInitializationTime = 0;
-    private long totalShutdownTime = 0;
-    private boolean performanceLogging = false;
-    
     public ModuleManager(AntiAFKPlus plugin) {
         this.plugin = plugin;
-        this.logger = plugin.getLogger();
-        
         registerBuiltInModules();
     }
     
@@ -59,7 +49,6 @@ public class ModuleManager {
         // Integration modules
         registerModuleState("worldguard-integration", plugin.getConfig().getBoolean("modules.worldguard-integration.enabled", false));
         registerModuleState("placeholderapi-integration", plugin.getConfig().getBoolean("modules.placeholderapi-integration.enabled", true));
-        registerModuleState("vault-integration", plugin.getConfig().getBoolean("modules.vault-integration.enabled", false));
         registerModuleState("discordsrv-integration", plugin.getConfig().getBoolean("modules.discordsrv-integration.enabled", false));
         registerModuleState("floodgate-integration", plugin.getConfig().getBoolean("modules.floodgate-integration.enabled", true));
         
@@ -83,31 +72,28 @@ public class ModuleManager {
     }
     
     /**
-     * Initialize all modules (simplified implementation).
+     * Initialize all modules.
      */
     public void initializeModules() {
-        long startTime = System.currentTimeMillis();
-        
-        
-        // In a real implementation, this would initialize actual module instances
-        for (String moduleName : enabledModules) {
-        }
-        
-        totalInitializationTime = System.currentTimeMillis() - startTime;
+        // Module state is tracked but lifecycle is managed
+        // by individual components in AntiAFKPlus.initializeLegacyComponents()
+    }
+
+    /**
+     * Reloads module enabled/disabled states from the current config.
+     * Called after config reload to sync in-memory state with config.yml.
+     */
+    public void reloadModuleStates() {
+        moduleStates.clear();
+        enabledModules.clear();
+        registerBuiltInModules();
     }
     
     /**
-     * Shutdown all modules (for compatibility).
+     * Shutdown all modules.
      */
     public void shutdown() {
-        long startTime = System.currentTimeMillis();
-        
-        
-        // In a real implementation, this would shutdown module instances
-        for (String moduleName : enabledModules) {
-        }
-        
-        totalShutdownTime = System.currentTimeMillis() - startTime;
+        // Currently a no-op — shutdown is managed by AntiAFKPlus.onDisable()
     }
     
     /**
@@ -118,18 +104,18 @@ public class ModuleManager {
     }
     
     /**
-     * Get a module by name (simplified - returns null for now).
+     * Get a module by name.
+     * v3.0 TODO: Return actual Module instance.
      */
     public Module getModule(String name) {
-        // In a real implementation, this would return the actual module instance
         return null;
     }
     
     /**
-     * Get all enabled modules (simplified - returns empty list for now).
+     * Get all enabled modules.
+     * v3.0 TODO: Return actual Module instances.
      */
     public List<Module> getEnabledModules() {
-        // In a real implementation, this would return actual module instances
         return new ArrayList<>();
     }
     
@@ -152,17 +138,5 @@ public class ModuleManager {
      */
     public int getEnabledModuleCount() {
         return enabledModules.size();
-    }
-    
-    /**
-     * Get performance statistics.
-     */
-    public Map<String, Object> getPerformanceStats() {
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalModules", moduleStates.size());
-        stats.put("enabledModules", enabledModules.size());
-        stats.put("initializationTime", totalInitializationTime);
-        stats.put("shutdownTime", totalShutdownTime);
-        return stats;
     }
 }

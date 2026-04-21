@@ -1,13 +1,14 @@
 package me.koyere.antiafkplus.command;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.credit.CreditManager;
-import org.bukkit.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.credit.CreditManager;
 
 /**
  * /afkcredits [reload] - muestra información de créditos o recarga la configuración.
@@ -31,6 +32,72 @@ public class AFKCreditsCommand implements CommandExecutor {
             }
             plugin.getConfigManager().reloadConfiguration();
             sender.sendMessage(color(plugin.getConfigManager().getMessage("config-reloaded", "&aReloaded.")));
+            return true;
+        }
+
+        // Subcommand: /afkcredits transfer <player> <minutes>
+        if (args.length == 3 && args[0].equalsIgnoreCase("transfer")) {
+            if (!(sender instanceof Player player)) {
+                sender.sendMessage(color("&cThis command can only be used by players."));
+                return true;
+            }
+            if (!player.hasPermission("antiafkplus.credit.transfer")) {
+                sender.sendMessage(color(plugin.getConfigManager().getMessage("no-permission", "&cNo permission.")));
+                return true;
+            }
+            var cm = plugin.getCreditManager();
+            if (cm == null || !cm.isEnabled()) {
+                sender.sendMessage(color(plugin.getConfigManager().getMessage("credit-system.errors.system-disabled", "&cCredit system is disabled.")));
+                return true;
+            }
+            Player target = Bukkit.getPlayer(args[1]);
+            if (target == null) {
+                sender.sendMessage(color(plugin.getConfigManager().getMessage("player-not-found", "&cPlayer not found.").replace("{player}", args[1])));
+                return true;
+            }
+            if (target.getUniqueId().equals(player.getUniqueId())) {
+                sender.sendMessage(color("&cYou cannot transfer credits to yourself."));
+                return true;
+            }
+            long minutes;
+            try { minutes = Long.parseLong(args[2]); } catch (NumberFormatException e) {
+                sender.sendMessage(color(plugin.getConfigManager().getMessage("credit-system.usage.minutes-number", "&cMinutes must be a number")));
+                return true;
+            }
+            if (minutes <= 0) {
+                sender.sendMessage(color("&cAmount must be greater than 0."));
+                return true;
+            }
+            if (cm.transferCredits(player, target, minutes)) {
+                player.sendMessage(color("&aTransferred &f" + minutes + "m &ato &f" + target.getName()));
+                target.sendMessage(color("&aReceived &f" + minutes + "m &aAFK credits from &f" + player.getName()));
+            } else {
+                player.sendMessage(color("&cTransfer failed. Check your balance and the recipient's max credits."));
+            }
+            return true;
+        }
+
+        // Subcommand: /afkcredits top [limit]
+        if (args.length >= 1 && args[0].equalsIgnoreCase("top")) {
+            var cm = plugin.getCreditManager();
+            if (cm == null || !cm.isEnabled()) {
+                sender.sendMessage(color(plugin.getConfigManager().getMessage("credit-system.errors.system-disabled", "&cCredit system is disabled.")));
+                return true;
+            }
+            int limit = 10;
+            if (args.length >= 2) {
+                try { limit = Integer.parseInt(args[1]); } catch (NumberFormatException ignored) {}
+            }
+            limit = Math.max(1, Math.min(limit, 50));
+            var top = cm.getTopCredits(limit);
+            sender.sendMessage(color("&6=== AFK Credit Leaderboard (Top " + top.size() + ") ==="));
+            for (int i = 0; i < top.size(); i++) {
+                var entry = top.get(i);
+                sender.sendMessage(color("&e#" + (i + 1) + " &f" + entry.getKey() + " &7- &f" + entry.getValue() + "m"));
+            }
+            if (top.isEmpty()) {
+                sender.sendMessage(color("&7No credit data available."));
+            }
             return true;
         }
 

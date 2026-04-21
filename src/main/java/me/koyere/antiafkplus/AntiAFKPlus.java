@@ -1,57 +1,55 @@
 package me.koyere.antiafkplus;
 
-import me.koyere.antiafkplus.afk.AFKManager;
-import me.koyere.antiafkplus.afk.AntiAFKActivityDetector;
-import me.koyere.antiafkplus.afk.ItemPickupBlocker;
-import me.koyere.antiafkplus.afk.MovementListener;
-import me.koyere.antiafkplus.afk.PatternDetector;
-import me.koyere.antiafkplus.api.AntiAFKPlusAPI;
-import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
-import me.koyere.antiafkplus.api.APIEventListener;
-import me.koyere.antiafkplus.command.AFKCommand;
-import me.koyere.antiafkplus.command.AFKPlusCommand;
-import me.koyere.antiafkplus.config.ConfigManager;
-import me.koyere.antiafkplus.placeholder.PlaceholderHook;
-import me.koyere.antiafkplus.utils.bStatsManager;
-
-// Enterprise imports
-import me.koyere.antiafkplus.modules.ModuleManager;
-import me.koyere.antiafkplus.platform.PlatformScheduler;
-import me.koyere.antiafkplus.i18n.LocalizationManager;
-import me.koyere.antiafkplus.compatibility.BedrockCompatibility;
-import me.koyere.antiafkplus.performance.PerformanceOptimizer;
-import me.koyere.antiafkplus.utils.AFKLogger;
-import me.koyere.antiafkplus.time.TimeWindowService;
-import me.koyere.antiafkplus.credit.CreditManager;
-import me.koyere.antiafkplus.credit.CreditListener;
-import me.koyere.antiafkplus.integrations.WorldGuardIntegration;
-import me.koyere.antiafkplus.transfer.ServerTransferService;
-import me.koyere.antiafkplus.transfer.CountdownSequenceService;
-import me.koyere.antiafkplus.transfer.ActionPipelineService;
+import java.io.File;
 
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
+import me.koyere.antiafkplus.afk.AFKManager;
+import me.koyere.antiafkplus.afk.AntiAFKActivityDetector;
+import me.koyere.antiafkplus.afk.ItemPickupBlocker;
+import me.koyere.antiafkplus.afk.MovementListener;
+import me.koyere.antiafkplus.api.APIEventListener;
+import me.koyere.antiafkplus.api.AntiAFKPlusAPI;
+import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
+import me.koyere.antiafkplus.command.AFKCommand;
+import me.koyere.antiafkplus.command.AFKPlusCommand;
+import me.koyere.antiafkplus.compatibility.BedrockCompatibility;
+import me.koyere.antiafkplus.config.ConfigManager;
+import me.koyere.antiafkplus.credit.CreditManager;
+import me.koyere.antiafkplus.gui.GUIManager;
+import me.koyere.antiafkplus.i18n.LocalizationManager;
+import me.koyere.antiafkplus.integrations.WorldGuardIntegration;
+import me.koyere.antiafkplus.modules.ModuleManager;
+import me.koyere.antiafkplus.performance.PerformanceOptimizer;
+import me.koyere.antiafkplus.placeholder.PlaceholderHook;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
+import me.koyere.antiafkplus.time.TimeWindowService;
+import me.koyere.antiafkplus.transfer.ActionPipelineService;
+import me.koyere.antiafkplus.transfer.CountdownSequenceService;
+import me.koyere.antiafkplus.transfer.ServerTransferService;
+import me.koyere.antiafkplus.utils.bStatsManager;
+import me.koyere.antiafkplus.visual.VisualEffectsManager;
 
 /**
- * AntiAFKPlus v2.4.1 - Main Plugin Class
+ * AntiAFKPlus v3.0 Premium - Main Plugin Class
  * 
- * Professional-grade AFK detection and management system with advanced features:
- * • Modular architecture with enable/disable controls
- * • Folia/Paper/Spigot/Bukkit multi-platform compatibility
- * • Bedrock Edition support via Floodgate/Geyser
- * • Complete internationalization (20+ languages)
- * • Zero-lag performance optimization
- * • Advanced pattern detection and behavioral analysis
- * • Professional API for third-party integration
+ * Professional AFK detection and management system:
+ * - Modular architecture with in-game GUI configuration
+ * - Folia/Paper/Spigot/Bukkit multi-platform compatibility
+ * - Bedrock Edition support via Floodgate/Geyser
+ * - 10-language internationalization system
+ * - Advanced pattern detection with detection profiles
+ * - Credit system with transfers and leaderboard
+ * - Visual effects (particles, tab list, name tags)
+ * - Vault and DiscordSRV integrations
+ * - Professional API for third-party integration
  */
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "2.9.5";
-    private static final String API_VERSION = "2.9.5";
-    private static final String MIN_MIGRATION_VERSION = "1.0";
+    private static final String PLUGIN_VERSION = "3.0.0";
+    private static final String API_VERSION = "3.0.0";
 
     // Core components
     private static AntiAFKPlus instance;
@@ -66,13 +64,16 @@ public final class AntiAFKPlus extends JavaPlugin {
     private LocalizationManager localizationManager;
     private BedrockCompatibility bedrockCompatibility;
     private PerformanceOptimizer performanceOptimizer;
-    private AFKLogger afkLogger;
     private CreditManager creditManager;
     private WorldGuardIntegration worldGuardIntegration;
+    private me.koyere.antiafkplus.integrations.VaultIntegration vaultIntegration;
+    private me.koyere.antiafkplus.integrations.DiscordSRVIntegration discordSRVIntegration;
     private ServerTransferService serverTransferService;
     private CountdownSequenceService countdownSequenceService;
     private ActionPipelineService actionPipelineService;
     private TimeWindowService timeWindowService;
+    private GUIManager guiManager;
+    private VisualEffectsManager visualEffectsManager;
 
     // Command Handlers
     private AFKCommand afkCommandHandler;
@@ -82,12 +83,12 @@ public final class AntiAFKPlus extends JavaPlugin {
     private me.koyere.antiafkplus.listener.AutoClickListener autoClickListenerInstance;
     private me.koyere.antiafkplus.listener.PlayerProtectionListener playerProtectionListener;
     private AntiAFKActivityDetector antiAFKActivityDetectorInstance;
+    private bStatsManager bStatsMetrics;
 
     // Enterprise state tracking
     private long startupTime;
     private boolean fullyInitialized = false;
     private boolean debugEnabled = false;
-    private boolean migrationRequired = false;
 
     @Override
     public void onEnable() {
@@ -111,9 +112,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             getLogger().info("AntiAFKPlus v" + PLUGIN_VERSION + " enabled successfully!");
 
         } catch (Exception e) {
-            getLogger().severe("§cCritical error during initialization!");
-            getLogger().severe("§cError: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Critical error during initialization", e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -127,8 +126,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             // Shutdown in reverse order of initialization for maximum stability
             
             // Clean up API and clear player data
-            if (api instanceof AntiAFKPlusAPIImpl) {
-                AntiAFKPlusAPIImpl apiImpl = (AntiAFKPlusAPIImpl) api;
+            if (api instanceof AntiAFKPlusAPIImpl apiImpl) {
                 for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
                     apiImpl.clearPlayerData(player);
                 }
@@ -164,6 +162,16 @@ public final class AntiAFKPlus extends JavaPlugin {
                 creditManager.shutdown();
             }
 
+            // Shutdown GUI system
+            if (guiManager != null) {
+                guiManager.shutdown();
+            }
+
+            // Shutdown Visual Effects
+            if (visualEffectsManager != null) {
+                visualEffectsManager.shutdown();
+            }
+
             // Shutdown platform scheduler
             if (platformScheduler != null) {
                 getLogger().info("§6Shutting down platform scheduler...");
@@ -186,8 +194,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             getLogger().info("§aShutdown completed successfully.");
 
         } catch (Exception e) {
-            getLogger().severe("§cError during shutdown: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Error during shutdown", e);
         } finally {
             // Nullify all references for garbage collection
             nullifyReferences();
@@ -203,9 +210,6 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase1_CoreInfrastructure() {
         try {
-            // Initialize AFKLogger (placeholder for now)
-            this.afkLogger = null;
-            
             // Ensure default configuration exists first
             saveDefaultConfig();
 
@@ -222,8 +226,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cConfiguration initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Configuration initialization failed", e);
             return false;
         }
     }
@@ -239,8 +242,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cPlatform initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Platform initialization failed", e);
             return false;
         }
     }
@@ -256,8 +258,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cLocalization initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Localization initialization failed", e);
             return false;
         }
     }
@@ -279,8 +280,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cModule system initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Module system initialization failed", e);
             return false;
         }
     }
@@ -303,6 +303,16 @@ public final class AntiAFKPlus extends JavaPlugin {
                 this.worldGuardIntegration = new WorldGuardIntegration(this);
             }
 
+            // Initialize Vault integration (reflection-based, optional)
+            if (getConfig().getBoolean("integrations.vault.enabled", false)) {
+                this.vaultIntegration = new me.koyere.antiafkplus.integrations.VaultIntegration(this);
+            }
+
+            // Initialize DiscordSRV integration (reflection-based, optional)
+            if (getConfig().getBoolean("integrations.discordsrv.enabled", false)) {
+                this.discordSRVIntegration = new me.koyere.antiafkplus.integrations.DiscordSRVIntegration(this);
+            }
+
             // Initialize legacy components for backward compatibility
             initializeLegacyComponents();
 
@@ -317,12 +327,11 @@ public final class AntiAFKPlus extends JavaPlugin {
                 new PlaceholderHook(this).register();
             }
 
-            // Initialize Credit System (v2.5 core - Phase 1)
-            if (getConfig().getBoolean("modules.credit-system.enabled", false) &&
-                getConfig().getBoolean("credit-system.enabled", false)) {
+            // Initialize Credit System
+            if (getConfig().getBoolean("credit-system.enabled", false)) {
                 this.creditManager = new me.koyere.antiafkplus.credit.CreditManager(this);
                 getServer().getPluginManager().registerEvents(new me.koyere.antiafkplus.credit.CreditListener(this, this.creditManager), this);
-                // Protección básica de zona AFK (opcional vía config)
+                // AFK zone protection (optional via config)
                 getServer().getPluginManager().registerEvents(new me.koyere.antiafkplus.credit.AFKZoneProtectionListener(this, this.creditManager), this);
                 getLogger().info("§aCredit System initialized (Phase 1)");
             }
@@ -331,7 +340,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             this.serverTransferService = new ServerTransferService(this);
             this.countdownSequenceService = new CountdownSequenceService(this);
             this.actionPipelineService = new ActionPipelineService(this);
-            // Registrar canales siempre: es inocuo y mejora robustez
+            // Register channels always: harmless and improves robustness
             try {
                 Bukkit.getMessenger().registerOutgoingPluginChannel(this, ServerTransferService.LEGACY_CHANNEL);
                 Bukkit.getMessenger().registerOutgoingPluginChannel(this, ServerTransferService.NAMESPACE_CHANNEL);
@@ -343,8 +352,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cIntegration initialization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Integration initialization failed", e);
             return false;
         }
     }
@@ -355,12 +363,20 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     private boolean initializePhase6_Finalization() {
         try {
+            // Initialize GUI system
+            this.guiManager = new GUIManager(this);
+
+            // Initialize Visual Effects system
+            if (getModuleManager().isModuleEnabled("visual-effects")) {
+                this.visualEffectsManager = new VisualEffectsManager(this);
+            }
+
             // Register commands
             registerCommands();
 
             // Initialize bStats metrics
             try {
-                new bStatsManager(this);
+                this.bStatsMetrics = new bStatsManager(this);
             } catch (Exception e) {
                 getLogger().warning("Failed to initialize bStats: " + e.getMessage());
             }
@@ -368,8 +384,7 @@ public final class AntiAFKPlus extends JavaPlugin {
             return true;
 
         } catch (Exception e) {
-            getLogger().severe("§cFinalization failed: " + e.getMessage());
-            e.printStackTrace();
+            getLogger().log(java.util.logging.Level.SEVERE, "Finalization failed", e);
             return false;
         }
     }
@@ -451,8 +466,11 @@ public final class AntiAFKPlus extends JavaPlugin {
         this.localizationManager = null;
         this.bedrockCompatibility = null;
         this.performanceOptimizer = null;
-        this.afkLogger = null;
+        this.guiManager = null;
+        this.visualEffectsManager = null;
         this.worldGuardIntegration = null;
+        this.vaultIntegration = null;
+        this.discordSRVIntegration = null;
 
         // Legacy components
         this.api = null;
@@ -508,7 +526,7 @@ public final class AntiAFKPlus extends JavaPlugin {
     /**
      * Performs configuration migration from older versions.
      */
-    private void performConfigMigration(String fromVersion) {
+    private void performConfigMigration(@SuppressWarnings("unused") String fromVersion) {
         try {
             // Simple migration - just add essential module settings if missing
             if (!getConfig().contains("modules")) {
@@ -610,12 +628,12 @@ public final class AntiAFKPlus extends JavaPlugin {
         return serverTransferService;
     }
 
-    /** Countdown runner for per-player sequences (Fase 2). */
+    /** Countdown runner for per-player sequences. */
     public CountdownSequenceService getCountdownSequenceService() {
         return countdownSequenceService;
     }
 
-    /** Action pipeline for scripted sequences (Fase 4). */
+    /** Action pipeline for scripted sequences. */
     public ActionPipelineService getActionPipelineService() { return actionPipelineService; }
 
     /**
@@ -640,10 +658,17 @@ public final class AntiAFKPlus extends JavaPlugin {
     }
 
     /**
-     * Gets the AFKLogger instance.
+     * Gets the GUI manager.
      */
-    public AFKLogger getAFKLogger() {
-        return afkLogger;
+    public GUIManager getGUIManager() {
+        return guiManager;
+    }
+
+    /**
+     * Gets the visual effects manager (may be null if module is disabled).
+     */
+    public VisualEffectsManager getVisualEffectsManager() {
+        return visualEffectsManager;
     }
 
     /**
@@ -669,6 +694,12 @@ public final class AntiAFKPlus extends JavaPlugin {
 
     /** WorldGuard integration helper (may be null). */
     public WorldGuardIntegration getWorldGuardIntegration() { return worldGuardIntegration; }
+
+    /** Vault economy integration (may be null). */
+    public me.koyere.antiafkplus.integrations.VaultIntegration getVaultIntegration() { return vaultIntegration; }
+
+    /** DiscordSRV integration (may be null). */
+    public me.koyere.antiafkplus.integrations.DiscordSRVIntegration getDiscordSRVIntegration() { return discordSRVIntegration; }
 
     // ============= UTILITY METHODS =============
 
@@ -705,13 +736,6 @@ public final class AntiAFKPlus extends JavaPlugin {
      */
     public boolean isDebugEnabled() {
         return debugEnabled;
-    }
-
-    /**
-     * Checks if migration was required.
-     */
-    public boolean wasMigrated() {
-        return migrationRequired;
     }
 
     /**

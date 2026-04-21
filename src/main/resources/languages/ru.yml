@@ -1,0 +1,199 @@
+# AntiAFKPlus v3.0 — Русский языковой файл
+language:
+  code: "ru"
+  name: "Русский"
+  author: "AntiAFKPlus Team"
+  version: "3.0.0"
+
+messages:
+  # Общее
+  plugin-prefix: "&8[&6AntiAFK+&8] &r"
+  no-permission: "&cУ вас нет разрешения на использование этой команды."
+  player-not-found: "&cИгрок '{player}' не найден."
+  player-only-command: "&cThis command can only be used by players."
+  incorrect-usage: "&cIncorrect usage. Try: {usage}"
+  config-reloaded: "&aКонфигурация успешно перезагружена."
+  plugin-info: "&e{name} version {version} by Koyere. Use /afkplus reload to reload."
+
+  # Состояние AFK
+  player-now-afk: "&e{player} теперь AFK."
+  player-no-longer-afk: "&a{player} больше не AFK."
+  kick-warning: "&cВы будете кикнуты через {seconds}с за бездействие!"
+  kicked-for-afk: "&cВы были кикнуты за бездействие."
+  afk-voluntary-time-limit: "&cВы были выведены из режима AFK по истечении времени."
+  already-afk: "&eВы уже AFK."
+  afk-window-active: "&aAFK protection is active until {time}. Final actions are paused."
+
+  # /afk Command
+  manual-afk-title-on: "&eВы теперь AFK"
+  manual-afk-subtitle-on: "&7Двигайтесь, чтобы вернуться"
+  manual-afk-title-off: "&aВы больше не AFK"
+  manual-afk-subtitle-off: "&7С возвращением!"
+
+  # /afk list
+  afk-list-header: "&6Игроки AFK в данный момент:"
+  afk-list-empty: "&7Нет игроков AFK в данный момент."
+  afk-list-format: "&e- {player}"
+
+  # /afk status
+  afk-status-self: "&fВаш текущий статус: {status}"
+  afk-status-target-afk: "&c{player} сейчас AFK."
+  afk-status-target-active: "&a{player} сейчас активен."
+
+  # Pattern Detection
+  pattern-detected: "&c[AntiAFK] Обнаружен подозрительный паттерн движения: {pattern}"
+  pattern-water-circle: "&c[AntiAFK] Water circle movement pattern detected."
+  pattern-confined-space: "&e[AntiAFK] Movement confined to small area detected."
+  pattern-repetitive-movement: "&6[AntiAFK] Repetitive movement pattern detected."
+  pattern-pendulum-movement: "&6[AntiAFK] Back-and-forth movement pattern detected."
+  pattern-combined: "&4[AntiAFK] Multiple suspicious patterns detected simultaneously."
+  pattern-confidence-low: "&7Detection confidence: {confidence}% (Low)"
+  pattern-confidence-medium: "&eDetection confidence: {confidence}% (Medium)"
+  pattern-confidence-high: "&cDetection confidence: {confidence}% (High)"
+  pattern-violation-warning: "&eНарушение паттерна #{violations} обнаружено."
+  pattern-violation-final: "&cПоследнее нарушение. Вы отмечены как AFK."
+  pattern-violation-kicked: "&4[AntiAFK] Kicked for repeated pattern violations: {pattern}"
+  suspicious-activity: "&e[AntiAFK] Suspicious activity detected. Please move normally."
+
+  # Jump Detection
+  jump-spam-warning: "&e[AntiAFK] Excessive jumping detected. Jump spamming may not register as valid activity."
+  jump-pattern-suspicious: "&c[AntiAFK] Suspicious jumping pattern detected."
+
+  # Autoclicker Detection
+  autoclick-detected-set-afk: "&cSuspicious clicking detected. You have been set to AFK."
+  autoclick-detected-kick-reason: "&cKicked for suspicious clicking activity (autoclick)."
+  autoclick-warning: "&e[AntiAFK] Suspicious clicking pattern detected. Please click normally."
+  autoclick-confidence-high: "&c[AntiAFK] High confidence autoclick detection: {confidence}%"
+
+  # Warning Titles
+  warning-title-standard: "&c⚠ Предупреждение AFK"
+  warning-subtitle-standard: "&eОсталось {seconds} секунд"
+  warning-title-pattern: "&4⚠ Pattern Detection"
+  warning-subtitle-pattern: "&cSuspicious behavior detected"
+  warning-title-critical: "&4⚠ ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ"
+  warning-subtitle-critical: "&c{seconds} секунд до кика"
+  warning-context-movement: "&7Last activity: Movement {seconds} seconds ago"
+  warning-context-rotation: "&7Last activity: Head rotation {seconds} seconds ago"
+  warning-context-jump: "&7Last activity: Jumping {seconds} seconds ago"
+  warning-context-command: "&7Last activity: Command usage {seconds} seconds ago"
+  warning-context-interaction: "&7Last activity: Block/item interaction {seconds} seconds ago"
+
+  # Kick Actions
+  kick-action-teleport: "&e[AntiAFK] You have been teleported due to inactivity."
+  kick-action-gamemode: "&e[AntiAFK] Your gamemode has been changed due to inactivity."
+  kick-action-command: "&e[AntiAFK] Administrative action taken due to inactivity."
+  kick-action-mark-afk: "&e[AntiAFK] You have been marked as AFK due to inactivity."
+
+  # Player Protection
+  protection-invulnerable: "&aВы защищены от урона в режиме AFK."
+  protection-vulnerable: "&c[AntiAFK] You are no longer invulnerable."
+  protection-movement-blocked: "&eДвижение заблокировано в режиме AFK."
+  protection-pvp-blocked: "&cВы не можете атаковать AFK игроков."
+  protection-pvp-protected: "&a[AntiAFK] You are protected from PvP while AFK."
+  protection-inventory-blocked: "&e[AntiAFK] Inventory access blocked while AFK."
+  protection-interaction-blocked: "&e[AntiAFK] Block interaction blocked while AFK."
+  protection-command-blocked: "&e[AntiAFK] Command execution blocked while AFK. Use /afk to return."
+
+  # Server Transfer
+  server-transfer:
+    transferring: "&7[AntiAFK+] &aTransferring you to &f{server}&a..."
+    unavailable: "&7[AntiAFK+] &cServer transfer unavailable."
+    failed: "&7[AntiAFK+] &cCould not transfer you."
+
+  # Admin Notifications
+  admin-pattern-alert: "&4[ADMIN] Pattern detected: {player} - {pattern} (Confidence: {confidence}%)"
+  admin-behavior-alert: "&6[ADMIN] Behavioral anomaly: {player} - Activity score: {score}/100"
+  admin-violation-alert: "&c[ADMIN] Pattern violation: {player} - Violation #{violations} ({pattern})"
+
+  # Debug
+  debug-pattern-analysis: "&8[DEBUG] Pattern analysis for {player}: {pattern} (Samples: {samples})"
+  debug-activity-score: "&8[DEBUG] Activity score update for {player}: {score}/100"
+  debug-detection-method: "&8[DEBUG] Detection method for {player}: {method}"
+  debug-movement-data: "&8[DEBUG] Movement data for {player}: X:{x} Y:{y} Z:{z}"
+
+  # PlaceholderAPI
+  placeholder-status-afk: "AFK"
+  placeholder-status-active: "АКТИВЕН"
+  placeholder-status-manual-afk: "AFK ВРУЧНУЮ"
+  placeholder-status-auto-afk: "AFK АВТО"
+
+  # Statistics
+  stats-header: "&6=== AFK Statistics for {player} ==="
+  stats-total-afk-time: "&7Total AFK time: &e{time} seconds"
+  stats-pattern-violations: "&7Pattern violations: &e{violations}"
+  stats-activity-score: "&7Current activity score: &e{score}/100"
+  stats-detection-method: "&7Last detection method: &e{method}"
+  stats-afk-reason: "&7Current AFK reason: &e{reason}"
+  patterns-header: "&6=== Pattern Detection Data for {player} ==="
+  patterns-water-circle: "&7Water circle detections: &e{count}"
+  patterns-confined-space: "&7Confined space detections: &e{count}"
+  patterns-repetitive: "&7Repetitive pattern detections: &e{count}"
+  patterns-pendulum: "&7Pendulum movement detections: &e{count}"
+  patterns-most-common: "&7Most common pattern: &e{pattern}"
+  patterns-none: "&aNo suspicious patterns detected for this player."
+
+  # State Change Events
+  state-change-active-to-afk: "&7[StateChange] {player}: ACTIVE → AFK ({reason})"
+  state-change-afk-to-active: "&7[StateChange] {player}: AFK → ACTIVE ({reason})"
+  state-change-manual-toggle: "&7[StateChange] {player}: Manual AFK toggle ({reason})"
+
+  # Zone Management
+  zone-entered-afk-allowed: "&e[AntiAFK] Entered AFK-allowed zone: {zone}"
+  zone-entered-afk-restricted: "&c[AntiAFK] Entered AFK-restricted zone: {zone}"
+  zone-afk-timeout-custom: "&6[AntiAFK] Custom AFK timeout in {zone}: {timeout} seconds"
+
+  # Credit System
+  credit-system:
+    earned: "&a+ &f{minutes}m &7AFK credits earned! &8(&f{total}m &7total)"
+    consuming-start: "&eUsing AFK credits to delay action..."
+    consumed: "&c- &f{minutes}m &7AFK credits used &8(&f{remaining}m &7left)"
+    low-warning: "&e⚠ &7Low AFK credits: &f{remaining}m &7remaining"
+    exhausted: "&c❌ &7AFK credits exhausted. You will be moved."
+    zone-teleport: "&7[AntiAFK+] &aTeleported to AFK zone."
+    decay-warning: "&e⚠ &7Your AFK credits will expire in &f{days} &7days"
+    decayed: "&c❌ &7Your AFK credits have expired"
+    errors:
+      system-disabled: "&7[AntiAFK+] &cCredit system is disabled."
+      invalid-location: "&7[AntiAFK+] &cInvalid AFK zone location configured."
+    return:
+      success: "&7[AntiAFK+] &aReturned to your previous location!"
+      not-in-zone: "&7[AntiAFK+] &cYou must be in the AFK zone to use this command."
+      no-saved-location: "&7[AntiAFK+] &cNo saved location found."
+      cooldown: "&7[AntiAFK+] &cPlease wait &f{seconds}s &cbefore using this command again."
+      too-far: "&7[AntiAFK+] &cYou are too far from the AFK zone to return."
+      unsafe-location: "&7[AntiAFK+] &cYour previous location is no longer safe. Teleported to spawn."
+    status:
+      balance: "&7AFK Credits: &f{minutes}m &8(&f{hours}h {remaining_minutes}m&8)"
+      ratio: "&7Credit Ratio: &f{active}m &7active = &f{credit}m &7AFK credit"
+      max-credits: "&7Maximum Credits: &f{max}m"
+    history:
+      unavailable: "&7[AntiAFK+] &eHistory is only available with SQL backend enabled."
+      header: "&6=== AFK Credit History: &f{player} &6(Last {count}) ==="
+      entry: "&7- &f{time} &8| &e{type} &8| &7{delta}m &8| &7bal: &f{balance}m &8| &7{note}"
+      empty: "&7No credit transactions found."
+    admin:
+      gave: "&aGave &f{minutes}m &ato &f{player}"
+      took: "&eTook &f{minutes}m &efrom &f{player}"
+      set: "&aSet &f{player} &abalance to &f{minutes}m"
+      reset: "&aCredits reset for &f{player}"
+    usage:
+      history: "&cUsage: /afkcredits history <player> [limit]"
+      modify: "&cUsage: /afkcredits <give|take|set> <player> <minutes>"
+      minutes-number: "&cMinutes must be a number"
+    protection:
+      pvp-prevented: "&7[AntiAFK+] &eAFK zone: PVP is disabled here."
+      damage-prevented: "&7[AntiAFK+] &eAFK zone: damage prevented."
+
+  # GUI feedback messages
+  gui:
+    toggle-enabled: "&6[AntiAFK+] &7{name}: &aEnabled"
+    toggle-disabled: "&6[AntiAFK+] &7{name}: &cDisabled"
+    toggle-restart: "&6[AntiAFK+] &7{name}: {status} &7(restart to fully apply)"
+    profile-set: "&6[AntiAFK+] &7Detection profile set to: &e{profile}"
+    config-reloaded: "&6[AntiAFK+] &aConfiguration reloaded successfully."
+    performance-refreshed: "&6[AntiAFK+] &7Performance stats refreshed."
+
+formatting:
+  date-format: "dd.MM.yyyy"
+  time-format: "HH:mm:ss"
+  number-format: "#,##0.##"

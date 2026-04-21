@@ -1,20 +1,26 @@
 package me.koyere.antiafkplus.afk;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.api.data.ActivityType;
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
-import io.papermc.paper.event.player.AsyncChatEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.*;
-import org.bukkit.event.player.PlayerFishEvent;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerFishEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+
+import io.papermc.paper.event.player.AsyncChatEvent;
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.data.ActivityType;
 
 public class MovementListener implements Listener {
 
@@ -33,19 +39,36 @@ public class MovementListener implements Listener {
     private final Map<UUID, Long> lastKeystrokeTime = new HashMap<>();
     private final Map<UUID, Boolean> lastMovementWasAutomatic = new HashMap<>();
 
-    // Configuration thresholds for micro-movement detection
-    private static final double MICRO_MOVEMENT_THRESHOLD = 0.1; // Minimum movement to count as activity
-    private static final double HEAD_ROTATION_THRESHOLD = 5.0; // Minimum degrees for head rotation
-    private static final long JUMP_SPAM_THRESHOLD = 1000; // Milliseconds between jumps to detect spam
-    private static final int MAX_JUMPS_PER_PERIOD = 10; // Maximum jumps in spam detection period
-    private static final long JUMP_RESET_PERIOD = 30000; // Reset jump counter every 30 seconds
+    // Configuration thresholds for micro-movement detection (loaded from config)
+    private double microMovementThreshold = 0.1;
+    private double headRotationThreshold = 5.0;
+    private long jumpSpamThreshold = 1000;
+    private int maxJumpsPerPeriod = 10;
+    private long jumpResetPeriod = 30000;
     
     // v2.4 NEW: Keystroke timeout detection constants
     private static final long DEFAULT_KEYSTROKE_TIMEOUT_MS = 180000; // 3 minutes without keystrokes
     private static final double AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD = 0.15; // Water current movement speed
 
     // Constructor does not need AFKManager if it gets it via AntiAFKPlus.getInstance()
-    public MovementListener() {}
+    public MovementListener() {
+        loadConfigThresholds();
+    }
+
+    /**
+     * Loads movement detection thresholds from config.
+     * Falls back to safe defaults if config is not yet available.
+     */
+    public void loadConfigThresholds() {
+        AntiAFKPlus plugin = AntiAFKPlus.getInstance();
+        if (plugin != null && plugin.getConfigManager() != null) {
+            this.microMovementThreshold = plugin.getConfigManager().getMicroMovementThreshold();
+            this.headRotationThreshold = plugin.getConfigManager().getHeadRotationThreshold();
+            this.jumpSpamThreshold = plugin.getConfigManager().getJumpSpamThreshold();
+            this.maxJumpsPerPeriod = plugin.getConfigManager().getMaxJumpsPerPeriod();
+            this.jumpResetPeriod = plugin.getConfigManager().getJumpResetPeriod();
+        }
+    }
 
     private AFKManager getAfkManager() {
         // Helper method to reduce verbosity
@@ -231,9 +254,9 @@ public class MovementListener implements Listener {
         double deltaZ = Math.abs(event.getTo().getZ() - event.getFrom().getZ());
 
         // Check for micro-movement threshold
-        return deltaX > MICRO_MOVEMENT_THRESHOLD ||
-                deltaY > MICRO_MOVEMENT_THRESHOLD ||
-                deltaZ > MICRO_MOVEMENT_THRESHOLD;
+        return deltaX > microMovementThreshold ||
+                deltaY > microMovementThreshold ||
+                deltaZ > microMovementThreshold;
     }
 
     private boolean detectHeadRotation(Player player, PlayerMoveEvent event) {
@@ -247,7 +270,7 @@ public class MovementListener implements Listener {
             deltaYaw = 360 - deltaYaw;
         }
 
-        return deltaYaw > HEAD_ROTATION_THRESHOLD || deltaPitch > HEAD_ROTATION_THRESHOLD;
+        return deltaYaw > headRotationThreshold || deltaPitch > headRotationThreshold;
     }
 
     private boolean detectJumpActivity(Player player, PlayerMoveEvent event) {
@@ -263,16 +286,16 @@ public class MovementListener implements Listener {
 
         if (isJumping) {
             Long lastJump = lastJumpTime.get(uuid);
-            if (lastJump == null || (currentTime - lastJump) > JUMP_SPAM_THRESHOLD) {
+            if (lastJump == null || (currentTime - lastJump) > jumpSpamThreshold) {
                 // Reset jump counter if enough time has passed
-                if (lastJump == null || (currentTime - lastJump) > JUMP_RESET_PERIOD) {
+                if (lastJump == null || (currentTime - lastJump) > jumpResetPeriod) {
                     jumpCounter.put(uuid, 1);
                 } else {
                     int jumps = jumpCounter.getOrDefault(uuid, 0) + 1;
                     jumpCounter.put(uuid, jumps);
 
                     // If too many jumps in short period, might be AFK farm
-                    if (jumps > MAX_JUMPS_PER_PERIOD) {
+                    if (jumps > maxJumpsPerPeriod) {
                         // Log suspicious jump activity
                         AntiAFKPlus plugin = AntiAFKPlus.getInstance();
                         if (plugin != null && plugin.getConfigManager().isDebugEnabled()) {
@@ -355,7 +378,7 @@ public class MovementListener implements Listener {
             }
         } else {
             // On land: any significant movement is likely manual
-            if (horizontalVelocity > MICRO_MOVEMENT_THRESHOLD) {
+            if (horizontalVelocity > microMovementThreshold) {
                 appearsManual = true;
             }
         }

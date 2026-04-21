@@ -1,14 +1,14 @@
 // PlaceholderHook.java - English comments
 package me.koyere.antiafkplus.placeholder;
 
-import me.clip.placeholderapi.expansion.PlaceholderExpansion;
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.afk.AFKManager; // For AFKManager reference
-import org.bukkit.Bukkit; // Not strictly needed here if using offlinePlayer.getPlayer()
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.NotNull; // For AFKManager reference
+import org.jetbrains.annotations.Nullable; // Not strictly needed here if using offlinePlayer.getPlayer()
+
+import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.afk.AFKManager;
 
 /**
  * PlaceholderAPI Expansion for AntiAFKPlus.
@@ -109,7 +109,7 @@ public class PlaceholderHook extends PlaceholderExpansion {
         switch (identifier.toLowerCase()) {
             case "status":
                 // Uses the AFKManager's isAFK method to determine current status.
-                // Get localized status messages from messages.yml
+                // Get localized status from language files
                 if (this.afkManager.isAFK(player)) {
                     // Check if it's manual AFK or auto AFK
                     if (this.afkManager.isManuallyAFK(player)) {
@@ -168,6 +168,18 @@ public class PlaceholderHook extends PlaceholderExpansion {
                 long days = java.time.Duration.between(java.time.Instant.now(), exp).toDays();
                 if (days < 0) days = 0;
                 return String.valueOf(days);
+            }
+
+            case "credits_rank": {
+                var cm = plugin.getCreditManager();
+                if (cm == null || !cm.isEnabled()) return "";
+                var top = cm.getTopCredits(100);
+                for (int i = 0; i < top.size(); i++) {
+                    if (top.get(i).getKey().equals(player.getName())) {
+                        return String.valueOf(i + 1);
+                    }
+                }
+                return "";
             }
 
             default:

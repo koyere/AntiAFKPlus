@@ -1,19 +1,19 @@
 package me.koyere.antiafkplus.command;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.config.ConfigManager; // Import ConfigManager
-import me.koyere.antiafkplus.afk.AFKManager;      // Import AFKManager
+import java.util.ArrayList;
+import java.util.List; // Import ConfigManager
+import java.util.stream.Collectors;      // Import AFKManager
+
 import org.bukkit.Bukkit;
-// import org.bukkit.ChatColor; // Not directly needed if all messages come from ConfigManager
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter; // For tab completion
 import org.bukkit.entity.Player;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.afk.AFKManager;
+import me.koyere.antiafkplus.config.ConfigManager;
 
 /**
  * Handles the /afk command and its subcommands (e.g., /afk list, /afk status).
@@ -148,7 +148,8 @@ public class AFKCommand implements CommandExecutor, TabCompleter { // Implement 
         }
 
         // If no subcommands matched and args were provided, it's an unknown subcommand or incorrect usage.
-        sender.sendMessage(configManager.getMessage("incorrect-usage", "&cIncorrect usage. Try /afk or /afk <list|status> [player]"));
+        sender.sendMessage(configManager.getMessage("incorrect-usage", "&cIncorrect usage. Try: /afk [list|status]")
+                .replace("{usage}", "/afk [list|status]"));
         return true;
     }
 

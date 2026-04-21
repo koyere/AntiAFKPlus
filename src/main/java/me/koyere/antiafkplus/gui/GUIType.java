@@ -1,0 +1,12 @@
+package me.koyere.antiafkplus.gui;
+
+public enum GUIType {
+    MAIN_MENU,
+    DETECTION_SETTINGS,
+    MODULE_SETTINGS,
+    CREDIT_SETTINGS,
+    GENERAL_SETTINGS,
+    ZONE_SETTINGS,
+    REWARD_SETTINGS,
+    LANGUAGE_SELECTOR
+}
