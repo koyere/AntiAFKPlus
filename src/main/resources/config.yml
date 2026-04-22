@@ -422,6 +422,7 @@ visual-effects:
   name-tags:
     enabled: false
     afk-prefix: "&7[AFK] "
+    afk-suffix: ""
 
 # ===============================================================================
 #  DATABASE

@@ -138,7 +138,8 @@ public class VisualEffectsManager implements Listener {
         }
 
         String prefix = plugin.getConfig().getString("visual-effects.tab-list.afk-prefix", "&7[AFK] ");
-        player.setPlayerListName(color(prefix) + player.getName());
+        String suffix = plugin.getConfig().getString("visual-effects.tab-list.afk-suffix", "");
+        player.setPlayerListName(color(prefix) + player.getName() + color(suffix));
     }
 
     /**
@@ -173,7 +174,8 @@ public class VisualEffectsManager implements Listener {
         }
 
         String prefix = plugin.getConfig().getString("visual-effects.name-tags.afk-prefix", "&7[AFK] ");
-        player.setDisplayName(color(prefix) + player.getName());
+        String suffix = plugin.getConfig().getString("visual-effects.name-tags.afk-suffix", "");
+        player.setDisplayName(color(prefix) + player.getName() + color(suffix));
     }
 
     /**
