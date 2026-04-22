@@ -1,184 +1,403 @@
-# AntiAFKPlus v3.0 Premium — Changelog
+# AntiAFKPlus v3.0 Premium — What's New
 
-## Overview
-Complete rewrite from free to premium ($5.99). Optimized codebase, 10 new features, 10-language support, in-game GUI, unified message system, and JAR size reduced from 3.2 MB to 396 KB.
+> Complete rewrite. New features, in-game GUI, 10 languages, optimized to 396 KB.
 
 ---
 
-## New Features
+## 🖥️ In-Game GUI — Configure everything without editing files
 
-### In-Game GUI Configuration (`/afkplus gui`)
-- Full settings panel accessible in-game — no need to edit YAML files
-- **Main Menu (54 slots):** Plugin info head, Detection Settings, Module Toggles, Credit System toggle, Performance stats (live TPS/memory/operations), Detection Profile selector, Debug toggle, Reload Config, AFK player count
-- **Detection Settings submenu:** Displays water circle radius, min samples, max violations, pattern analysis interval. Toggles for linear movement exclusion, large pool detection, keystroke timeout. Back button
-- **Module Toggles submenu:** 8 feature modules displayed as green wool (enabled) / red wool (disabled). Click to toggle — changes persist to config.yml and reload instantly
-- All GUI feedback messages are localized via language files
-- Requires permission `antiafkplus.reload`
+Open with `/afkplus gui` (requires `antiafkplus.reload` permission).
 
-### Detection Profiles
-- One-click preset system accessible from the GUI main menu
-- **Conservative:** max-violations=12, threshold=0.98, min-samples=50, grace-period=90s — fewest false positives, most tolerant
-- **Balanced:** max-violations=8, threshold=0.95, min-samples=40, grace-period=60s — default, recommended for most servers
-- **Aggressive:** max-violations=4, threshold=0.85, min-samples=25, grace-period=30s — strictest, catches more AFK bots
-- Auto-detects current profile based on config values
-- Cycles with a single click: Conservative → Balanced → Aggressive → Conservative
+**Main Menu** — Central hub with 11 interactive buttons:
+- Detection Settings, Module Toggles, General Settings, Zone Settings, Reward Settings
+- Credit System toggle, Detection Profile selector, Debug toggle, Reload Config
+- Performance stats (live TPS, memory, operations)
+- Language selector — change the server language instantly
 
-### Visual Effects System
-- **Particles:** Configurable particle effects above AFK players. Supports any Bukkit particle type (CLOUD, HEART, FLAME, etc.), configurable count, speed, and XYZ offsets. Runs every second via async task
-- **Tab List Prefix:** Automatically prepends `[AFK]` to player names in the tab list when they go AFK. Restores original name when they return. Configurable prefix text and color
-- **Display Name Prefix:** Same as tab list but for the player's display name (visible in chat). Independent toggle
-- Listens to `PlayerAFKStateChangeEvent` for automatic apply/remove
-- Cleans up on player disconnect and plugin shutdown
-- Enable: set `modules.visual-effects.enabled: true` in config, then configure under `visual-effects:` section
-- Config options:
-  ```yaml
-  visual-effects:
-    particles:
-      enabled: true
-      type: "CLOUD"        # Any Bukkit Particle enum value
-      count: 5
-      speed: 0.02
-      offset-x: 0.3
-      offset-y: 0.5
-      offset-z: 0.3
-    tab-list:
-      enabled: true
-      afk-prefix: "&7[AFK] "
-    name-tags:
-      enabled: false
-      afk-prefix: "&7[AFK] "
-  ```
+**General Settings** — Adjust AFK timing without restarting:
+- Default AFK Time: click to add 30 seconds, sneak+click to subtract
+- Check Interval: click +1s, sneak+click -1s
+- Max Voluntary AFK Time: click +60s, sneak+click -60s
+- Toggle: Block item pickup while AFK
+- Toggle: Broadcast AFK state changes to chat
 
-### Credit System Enhancements
-- **Transfer:** `/afkcredits transfer <player> <minutes>` — players can send credits to each other. Validates balance, max credits of recipient, prevents self-transfer. Transactions recorded in SQL history if enabled
-- **Leaderboard:** `/afkcredits top [limit]` — displays top credit holders sorted by balance (default 10, max 50)
-- **Multiplier Events:** `/afkplus event credits <multiplier> <duration_minutes>` — admins can start temporary credit multiplier events (e.g. `2 60` = double credits for 1 hour). Broadcasts to all online players. Validates range (0.1-10x, 1-1440 min)
-- **New placeholder:** `%antiafkplus_credits_rank%` — shows the player's position in the credit leaderboard
+**Detection Settings** — View and toggle pattern detection features:
+- Displays current values: water circle radius, min samples, max violations, analysis interval
+- Toggle: Linear movement exclusion (reduces false positives)
+- Toggle: Large pool detection
+- Toggle: Keystroke timeout detection
 
-### PlaceholderAPI Integration (Enhanced)
-All placeholders require PlaceholderAPI installed on the server.
+**Module Toggles** — Enable/disable 8 feature modules with one click:
+- Pattern Detection, Autoclick Detection, Player Protection, AFK Zones
+- Reward System, Visual Effects, Database, Analytics
+- Changes apply immediately — the wool color switches from red to green (or vice versa)
 
-| Placeholder | Description | Example Output |
-|---|---|---|
-| `%antiafkplus_status%` | AFK status text (localized) | `AFK`, `ACTIVE`, `MANUAL AFK` |
-| `%antiafkplus_afktime%` | Seconds since last activity | `120` |
-| `%antiafkplus_credits%` | Credit balance in minutes | `45` |
-| `%antiafkplus_credits_hours%` | Credit balance in hours | `2` |
-| `%antiafkplus_max_credits%` | Maximum credits for player | `120` |
-| `%antiafkplus_credit_ratio%` | Credit earning ratio | `5:1` |
-| `%antiafkplus_in_afk_zone%` | Whether player is in AFK zone | `true` / `false` |
-| `%antiafkplus_credits_expire_days%` | Days until credits expire | `5` |
-| `%antiafkplus_credits_rank%` | Position in credit leaderboard | `3` |
+**Zone Settings** — Configure AFK zone management:
+- Toggle: Zone management on/off
+- Toggle: Require WorldGuard
+- Toggle: Default AFK allowed in zones
+- Adjust: Default zone timeout (click/sneak+click)
+- Toggle: Region inheritance from parent WorldGuard regions
 
-**Tip:** To show `[AFK]` prefix in tab list or chat via PlaceholderAPI, edit your language file:
+**Reward Settings** — Configure the AFK reward system:
+- Toggle: Reward system on/off
+- Toggle: Require Vault economy
+- Adjust: Max daily rewards (±10 per click)
+- Adjust: Required active time before rewards (±5 min per click)
+- Toggle: IP-based limits to prevent alt abuse
+
+**Language Selector** — 10 languages displayed as books:
+- The active language shows as an enchanted book with a green ✔
+- Click any language to switch instantly — the entire plugin changes language immediately
+- No restart needed
+
+All changes made in the GUI are saved to `config.yml` automatically and take effect immediately.
+
+---
+
+## 📋 Detection Profiles — One-click sensitivity presets
+
+Instead of manually adjusting 4+ detection parameters, choose a preset:
+
+| Profile | Max Violations | Threshold | Min Samples | Grace Period | Best For |
+|---|---|---|---|---|---|
+| **Conservative** | 12 | 0.98 | 50 | 90s | Survival servers, fewer false positives |
+| **Balanced** | 8 | 0.95 | 40 | 60s | Most servers (default) |
+| **Aggressive** | 4 | 0.85 | 25 | 30s | Minigame servers, strict anti-AFK |
+
+How to use: Open the GUI (`/afkplus gui`) and click the book icon "Detection Profile". Each click cycles to the next profile. The change applies immediately.
+
+---
+
+## ✨ Visual Effects — See who's AFK at a glance
+
+Three visual indicators for AFK players, all independently configurable:
+
+**Particles** — Floating particles above AFK players' heads:
 ```yaml
-# In languages/en.yml (or your language)
+visual-effects:
+  particles:
+    enabled: true
+    type: "CLOUD"       # Any Minecraft particle: CLOUD, HEART, FLAME, SMOKE, etc.
+    count: 5
+    speed: 0.02
+    offset-x: 0.3
+    offset-y: 0.5
+    offset-z: 0.3
+```
+
+**Tab List Prefix** — `[AFK]` appears before the player's name in the tab list:
+```yaml
+visual-effects:
+  tab-list:
+    enabled: true
+    afk-prefix: "&7[AFK] "
+```
+
+**Display Name Prefix** — `[AFK]` appears before the player's name in chat:
+```yaml
+visual-effects:
+  name-tags:
+    enabled: false
+    afk-prefix: "&7[AFK] "
+```
+
+To enable: set `modules.visual-effects.enabled: true` in config.yml, or toggle it in the GUI under Module Toggles.
+
+Effects apply automatically when a player goes AFK and are removed when they return. Names are restored on disconnect and plugin shutdown.
+
+---
+
+## 💰 Credit System — New features
+
+### Transfer credits between players
+Players can send their AFK credits to others:
+```
+/afkcredits transfer Steve 30
+```
+Sends 30 minutes of credits to Steve. Validates: sufficient balance, recipient's max credits, prevents self-transfer.
+
+Permission: `antiafkplus.credit.transfer`
+
+### Credit leaderboard
+See who has the most credits:
+```
+/afkcredits top        → shows top 10
+/afkcredits top 25     → shows top 25
+```
+
+### Credit multiplier events
+Admins can start temporary bonus events:
+```
+/afkplus event credits 2 60     → double credits for 1 hour
+/afkplus event credits 3 30     → triple credits for 30 minutes
+```
+Broadcasts to all online players when activated. Multiplier range: 0.1x to 10x. Duration: 1 to 1440 minutes.
+
+Permission: `antiafkplus.reload`
+
+---
+
+## 📊 PlaceholderAPI — All available placeholders
+
+Requires PlaceholderAPI installed on the server.
+
+| Placeholder | Returns | Example |
+|---|---|---|
+| `%antiafkplus_status%` | AFK status text | `AFK`, `ACTIVE`, `MANUAL AFK` |
+| `%antiafkplus_afktime%` | Seconds since last activity | `120` |
+| `%antiafkplus_credits%` | Credit balance (minutes) | `45` |
+| `%antiafkplus_credits_hours%` | Credit balance (hours) | `2` |
+| `%antiafkplus_max_credits%` | Max credits for player | `120` |
+| `%antiafkplus_credit_ratio%` | Earning ratio | `5:1` |
+| `%antiafkplus_in_afk_zone%` | In AFK zone? | `true` / `false` |
+| `%antiafkplus_credits_expire_days%` | Days until credits expire | `5` |
+| `%antiafkplus_credits_rank%` | Leaderboard position | `3` |
+
+**Tip — Show `[AFK]` in tab list via PlaceholderAPI:**
+
+Edit your language file (`languages/en.yml`):
+```yaml
 placeholder-status-afk: "&7[AFK] "
 placeholder-status-active: ""
 placeholder-status-manual-afk: "&e[AFK] "
 ```
-Then use `%antiafkplus_status%` in your tab/chat plugin (TAB, LuckPerms, etc.).
+Then use `%antiafkplus_status%` in your tab/chat plugin (TAB, LuckPerms, etc.). When the player is active, it returns empty — when AFK, it shows `[AFK]`.
 
-Alternatively, the built-in Visual Effects system adds `[AFK]` to tab list automatically without PlaceholderAPI — see Visual Effects section above.
-
-### Analytics & Performance Dashboard
-- `/afkplus status` — shows: plugin version, uptime, online/AFK player count, enabled modules count, pattern detection status, credit system status, TPS, memory usage. Requires `antiafkplus.stats`
-- `/afkplus performance` — shows: server TPS, average execution time, total operations, memory usage, cache entries, tracked components, high/low activity player counts. Requires `antiafkplus.stats`
-
-### Vault Economy Integration
-- Reflection-based — no compile-time dependency, works if Vault is installed
-- API methods: `getBalance()`, `withdraw()`, `deposit()`, `has()`
-- Enable: `integrations.vault.enabled: true`
-- Accessible via `plugin.getVaultIntegration()` for other plugins
-
-### DiscordSRV Integration
-- Reflection-based — no compile-time dependency, works if DiscordSRV is installed
-- Automatically sends AFK state change notifications to the main Discord channel
-- Configurable: `integrations.discordsrv.send-afk-notifications: true`
-- Enable: `integrations.discordsrv.enabled: true`
-
-### Internationalization (10 Languages)
-- **Unified message system:** `messages.yml` has been removed. All messages come from `languages/*.yml` files
-- **Server language:** controlled by `internationalization.default-language` in config.yml (e.g. `"es"` for Spanish)
-- **10 built-in languages:** English (en), Spanish (es), French (fr), German (de), Portuguese (pt), Russian (ru), Chinese (zh), Japanese (ja), Korean (ko), Italian (it)
-- **~150 message keys** per language file covering: general, AFK state, commands, pattern detection, autoclicker, warnings, kick actions, protection, server transfer, admin notifications, debug, placeholders, statistics, zones, credit system (with all sub-sections), and GUI feedback
-- **Auto-extraction:** Language files are extracted to `plugins/AntiAFKPlus/languages/` on first startup. Admins can edit them directly or add new languages
-- **Player language detection:** `LocalizationManager` auto-detects player client locale for PlaceholderAPI responses
-- **Custom languages:** Admins can create additional `.yml` files in the `languages/` folder following the same structure
+Alternatively, the built-in Visual Effects tab list prefix does this automatically without PlaceholderAPI.
 
 ---
 
-## Commands Reference
+## 📈 Plugin Status & Performance
 
-| Command | Description | Permission |
+### `/afkplus status` — Quick overview
+Shows: plugin version, server uptime, online/AFK player count, enabled modules, pattern detection and credit system status, TPS, memory usage.
+
+Permission: `antiafkplus.stats`
+
+### `/afkplus performance` — Detailed metrics
+Shows: server TPS, average execution time per operation, total operations count, memory usage, cache entries, tracked components, high/low activity player counts.
+
+Permission: `antiafkplus.stats`
+
+Both are also visible in the GUI main menu (Performance item shows live stats on hover).
+
+---
+
+## 🔗 Integrations
+
+### Vault Economy
+Connects with any Vault-compatible economy plugin (EssentialsX, CMI, etc.). Detected automatically via reflection — no extra dependencies needed.
+
+Enable: `integrations.vault.enabled: true`
+
+### DiscordSRV
+Sends AFK notifications to your Discord server automatically. When a player goes AFK or returns, a message is posted to the main Discord channel.
+
+Enable: `integrations.discordsrv.enabled: true`
+
+Configure: `integrations.discordsrv.send-afk-notifications: true`
+
+Both integrations are optional — the plugin works perfectly without them.
+
+---
+
+## 🌍 10 Languages — Full internationalization
+
+Every message in the plugin — commands, warnings, GUI text, placeholders, credit system, admin notifications — comes from language files.
+
+**Included languages:**
+
+| Code | Language | Code | Language |
+|---|---|---|---|
+| `en` | English | `ru` | Русский |
+| `es` | Español | `zh` | 中文 |
+| `fr` | Français | `ja` | 日本語 |
+| `de` | Deutsch | `ko` | 한국어 |
+| `pt` | Português | `it` | Italiano |
+
+**How to change the server language:**
+
+Option 1 — In the GUI: `/afkplus gui` → click the book icon "Language" → click your language. Changes instantly.
+
+Option 2 — In config.yml:
+```yaml
+internationalization:
+  default-language: "es"    # Change to any language code
+```
+Then `/afkplus reload`.
+
+**How to customize messages:**
+
+Edit the language file directly: `plugins/AntiAFKPlus/languages/en.yml` (or your language). All messages are there — AFK state, warnings, commands, GUI text, credit system, everything.
+
+**How to add a new language:**
+
+Create a new `.yml` file in `plugins/AntiAFKPlus/languages/` (e.g. `nl.yml`), copy the structure from `en.yml`, translate the messages, and set `default-language: "nl"` in config.yml.
+
+---
+
+## ⚙️ Configuration improvements
+
+- **Config.yml reduced 44%** — from 1033 to 580 lines. Cleaner, less intimidating, better organized
+- **Single toggle per feature** — no more confusing duplicate toggles. Each feature has one on/off switch
+- **Time units standardized** — all config values use seconds (was a mix of seconds and milliseconds)
+- **Activity scoring now works** — the `activity-scoring-weights` section actually affects detection. Adjust how much each activity type (movement, jumping, commands, chat, etc.) counts toward the player's activity score
+- **Movement thresholds now configurable** — `movement-detection-settings` values are actually applied. Adjust sensitivity for micro-movement, head rotation, and jump spam detection
+- **Event system toggles work** — disable unused Bukkit events in `event-system` section to improve performance on servers that don't use them
+- **Plugin size: 396 KB** — down from 3.2 MB (removed unnecessary bundled library)
+
+---
+
+## 📝 All Commands
+
+| Command | What it does | Permission |
 |---|---|---|
-| `/afk` | Toggle manual AFK mode | `antiafkplus.afk` |
-| `/afk list` | List AFK players | `antiafkplus.list` |
-| `/afk status [player]` | Check player AFK status | `antiafkplus.status.check` |
-| `/afkplus reload` | Reload configuration | `antiafkplus.reload` |
-| `/afkplus gui` | Open settings GUI | `antiafkplus.reload` |
-| `/afkplus status` | Plugin status & analytics | `antiafkplus.stats` |
-| `/afkplus performance` | Performance metrics | `antiafkplus.stats` |
-| `/afkplus event credits <mult> <min>` | Start credit multiplier event | `antiafkplus.reload` |
+| `/afk` | Toggle your AFK status | `antiafkplus.afk` |
+| `/afk list` | See who's AFK | `antiafkplus.list` |
+| `/afk status [player]` | Check if a player is AFK | `antiafkplus.status.check` |
+| `/afkplus reload` | Reload config and language files | `antiafkplus.reload` |
+| `/afkplus gui` | Open the settings GUI | `antiafkplus.reload` |
+| `/afkplus status` | Plugin status and analytics | `antiafkplus.stats` |
+| `/afkplus performance` | Detailed performance metrics | `antiafkplus.stats` |
+| `/afkplus event credits <mult> <min>` | Start a credit multiplier event | `antiafkplus.reload` |
 | `/afkcredits` | Check your credit balance | `antiafkplus.credit.check` |
-| `/afkcredits transfer <player> <min>` | Transfer credits | `antiafkplus.credit.transfer` |
+| `/afkcredits transfer <player> <min>` | Send credits to another player | `antiafkplus.credit.transfer` |
 | `/afkcredits top [limit]` | Credit leaderboard | `antiafkplus.credit.check` |
-| `/afkcredits history <player> [limit]` | Credit transaction history | `antiafkplus.credit.admin` |
-| `/afkcredits give/take/set <player> <min>` | Admin credit management | `antiafkplus.credit.admin` |
-| `/afkcredits reset <player>` | Reset player credits | `antiafkplus.credit.admin` |
+| `/afkcredits history <player> [limit]` | View credit transaction history | `antiafkplus.credit.admin` |
+| `/afkcredits give/take/set <player> <min>` | Admin: modify player credits | `antiafkplus.credit.admin` |
+| `/afkcredits reset <player>` | Admin: reset player credits | `antiafkplus.credit.admin` |
 | `/afkback` | Return from AFK zone | `antiafkplus.credit.return` |
 
 ---
 
-## Improvements
+## ⚠️ Upgrading from v2.x
 
-### Configuration
-- config.yml reduced from 1033 to 580 lines (44% reduction)
-- Removed all dead/unused config sections (migration-info, compatibility, technical, analytics.web-dashboard)
-- Consolidated duplicate toggles: pattern detection (was 3 toggles, now 1), autoclick (was 2 locations, now 1), credit system (was 2 toggles, now 1)
-- Standardized time units to seconds in config (was mixed ms/seconds). Keys renamed: `pattern-analysis-interval-ms` → `pattern-analysis-interval-seconds`, `keystroke-timeout-ms` → `keystroke-timeout-seconds`, `activity-grace-period-ms` → `activity-grace-period-seconds`. Legacy ms keys still supported as fallback
-- Removed unimplemented integration stubs (vault, discordsrv) — re-added with real reflection-based code
-- JAR size reduced from 3.2 MB to 396 KB (removed unnecessary Guava dependency that was bundled but never used)
-
-### Code Quality
-- Removed dead code: unused `afkLogger` field, `migrationRequired` flag, `MIN_MIGRATION_VERSION` constant, empty `ModuleManager` loops, orphaned `Module` framework
-- Activity scoring weights now functional — config values in `activity-scoring-weights` section are actually applied to the score calculation via `PlayerActivityData`
-- Movement detection thresholds now configurable — `movement-detection-settings` values are loaded into `MovementListener` (were hardcoded constants)
-- Event system toggles now functional — `event-system` section controls whether Bukkit events are fired (disabling unused events improves performance)
-- Module states reload on config change — `ModuleManager.reloadModuleStates()` syncs in-memory state with config.yml
-- All `printStackTrace()` replaced with `Logger.log(Level.SEVERE, message, exception)`
-- Java 17 pattern matching (`instanceof` patterns) used where applicable
-- All comments standardized to English
-
-### Detection System
-- Single toggle: `modules.pattern-detection.enabled` (removed confusing `enhanced-detection` section with 3 overlapping toggles)
-- Autoclick settings consolidated under `modules.autoclick-detection` (removed legacy root keys)
-
----
-
-## Breaking Changes
-
-| Change | Migration |
+| What changed | What to do |
 |---|---|
-| `messages.yml` removed | Edit `languages/en.yml` (or your language file) instead |
-| `enhanced-detection` section removed | Use `modules.pattern-detection.enabled` |
-| `autoclick-detection` root key removed | Use `modules.autoclick-detection.enabled` |
-| `autoclick-detection-settings` root section removed | Settings now under `modules.autoclick-detection` |
+| `messages.yml` no longer exists | Your messages are now in `languages/en.yml`. Edit that file instead |
+| `enhanced-detection` section removed | Pattern detection is controlled by `modules.pattern-detection.enabled` |
+| `autoclick-detection` root key removed | Now under `modules.autoclick-detection.enabled` |
+| Time keys renamed (`*-ms` → `*-seconds`) | Old `-ms` keys still work as fallback, but update when convenient |
 | `modules.credit-system.enabled` removed | Use `credit-system.enabled` only |
-| Time keys renamed (`*-ms` → `*-seconds`) | Legacy `-ms` keys still work as fallback |
-| `migration-info` section removed | No action needed |
-| `compatibility` section removed | No action needed |
-| `technical` section removed | No action needed |
+
+The plugin auto-migrates your config on first startup. A backup is recommended before upgrading.
 
 ---
 
-## File Changes Summary
-- **New Java classes:** `GUIManager`, `GUIType`, `VisualEffectsManager`, `VaultIntegration`, `DiscordSRVIntegration`
-- **New resources:** 10 language files (`languages/en.yml` through `languages/it.yml`)
-- **New docs:** `CHANGELOG_3_0.md`, `LICENSE` (commercial)
-- **Modified Java classes:** `AntiAFKPlus`, `ConfigManager`, `AFKManager`, `AFKPlusCommand`, `AFKCreditsCommand`, `CreditManager`, `ModuleManager`, `MovementListener`, `PatternDetector`, `PlaceholderHook`, `LocalizationManager`
-- **Modified resources:** `config.yml` (rewritten), `plugin.yml` (v3.0), `pom.xml` (v3.0, Guava removed)
-- **Deleted:** `messages.yml`
-- **Total Java files:** 70
-- **Total resources:** 12 (config.yml + plugin.yml + 10 languages)
-- **JAR size:** 396 KB
+## 🔧 Compatibility
+
+### Server Platforms
+The plugin auto-detects your server platform and adapts automatically:
+
+| Platform | Supported | Notes |
+|---|---|---|
+| **Bukkit** | ✅ | Base compatibility |
+| **Spigot** | ✅ | Full support |
+| **Paper** | ✅ | Recommended. Built against Paper API 1.20.1 |
+| **Purpur** | ✅ | Full support |
+| **Folia** | ✅ | Full support via regionized scheduler (reflection-based, no hard dependency) |
+
+### Minecraft Versions
+- **Minimum:** 1.16 (`api-version: '1.16'` in plugin.yml)
+- **Tested up to:** 1.21.x
+- **Java requirement:** Java 17 or higher
+
+### Bedrock Edition
+Bedrock players connecting via Geyser/Floodgate are detected automatically. Detection methods (in priority order):
+1. Floodgate API (reflection-based)
+2. Geyser API (reflection-based)
+3. Username prefix (configurable)
+4. Client brand detection
+
+No extra configuration needed — enable `bedrock-compatibility.enabled: true` (default).
+
+### Optional Plugin Integrations
+These plugins are **not required** — AntiAFKPlus works standalone. If detected, extra features activate automatically:
+
+| Plugin | What it enables |
+|---|---|
+| **PlaceholderAPI** | 9 placeholders (`%antiafkplus_status%`, credits, etc.) |
+| **WorldGuard** | Zone-based AFK management with region flags |
+| **Vault** | Economy integration (balance, withdraw, deposit) |
+| **DiscordSRV** | AFK notifications sent to Discord channels |
+| **Floodgate/Geyser** | Bedrock player detection and UI adaptations |
+
+All integrations use reflection — no compile-time dependencies, no extra JARs needed.
+
+---
+
+## 📦 Installation
+
+### Fresh install
+1. Download `antiafkplus-3.0.0.jar` (396 KB)
+2. Place in your server's `plugins/` folder
+3. Start or restart the server
+4. The plugin creates: `config.yml` and `languages/` folder with 10 language files
+5. Configure in-game with `/afkplus gui` or edit `config.yml`
+
+### Upgrading from v2.x
+1. **Back up** your current `plugins/AntiAFKPlus/` folder
+2. Replace the old JAR with `antiafkplus-3.0.0.jar`
+3. Start the server — the plugin detects the old config version and migrates automatically
+4. Your `config.yml` settings are preserved. New sections are added with defaults
+5. `messages.yml` is no longer used — your messages are now in `languages/en.yml` (or your language)
+6. Review the new `languages/en.yml` file and customize any messages you had changed in the old `messages.yml`
+7. Optional: open `/afkplus gui` to explore the new settings
+
+### Compatibility with v2.x configs
+- The plugin reads the `version` field in `config.yml` to detect old configs
+- If the config has fewer than 5 main sections, it regenerates completely (backup first!)
+- Legacy config keys (`pattern-analysis-interval-ms`, `autoclick-detection-settings`, etc.) are still read as fallback — you don't need to rename them immediately
+- The `enhanced-detection` section is ignored if present (no errors, just unused)
+
+---
+
+## 🔌 API Changes for Developers
+
+The public API interface (`AntiAFKPlusAPI`) is **backward compatible** — no methods were removed or had their signatures changed. Plugins using the v2.x API will continue to work without modification.
+
+### What's the same
+- All existing API methods (`isAFK()`, `getAFKStatus()`, `getActivityStatistics()`, etc.) work identically
+- Event classes (`PlayerAFKStateChangeEvent`, `PlayerAFKWarningEvent`, `PlayerAFKKickEvent`, `PlayerAFKPatternDetectedEvent`) are unchanged
+- The API is accessed the same way: `AntiAFKPlusAPI api = AntiAFKPlusAPI.getInstance();`
+
+### What's new in the API
+- **Event system toggles:** Events can now be disabled via config (`event-system` section). If disabled, `Bukkit.getPluginManager().callEvent()` is not called, but the event object is still created internally. Plugins listening for these events should check if the feature is enabled
+- **Credit system methods:** `CreditManager` now has `transferCredits(Player from, Player to, long minutes)` and `getTopCredits(int limit)`
+- **Module state reload:** `ModuleManager.reloadModuleStates()` syncs in-memory module states with config after a reload
+- **Visual effects manager:** Accessible via `plugin.getVisualEffectsManager()` (may be null if module is disabled)
+- **GUI manager:** Accessible via `plugin.getGUIManager()`
+- **Vault integration:** Accessible via `plugin.getVaultIntegration()` (may be null)
+- **DiscordSRV integration:** Accessible via `plugin.getDiscordSRVIntegration()` (may be null)
+
+### Maven dependency
+```xml
+<dependency>
+    <groupId>me.koyere</groupId>
+    <artifactId>antiafkplus</artifactId>
+    <version>3.0.0</version>
+    <scope>provided</scope>
+</dependency>
+```
+
+### API version
+The API version constant in the interface default method still returns `"2.0.0"` for backward compatibility. The plugin version is `3.0.0` and can be retrieved via `AntiAFKPlus.getInstance().getPluginVersion()`.
+
+---
+
+## 📊 Technical Summary
+
+| Metric | v2.9.5 | v3.0.0 |
+|---|---|---|
+| JAR size | ~3.2 MB | 396 KB |
+| Config lines | 1033 | 580 |
+| Languages | 1 (English only) | 10 |
+| GUI menus | 0 | 8 |
+| Commands | 4 | 15 (4 base + 11 subcommands) |
+| Placeholders | 6 | 9 |
+| Integrations | 2 (PAPI, WorldGuard) | 5 (+Vault, DiscordSRV, Geyser) |
+| Java version | 17 | 17 |
+| Min MC version | 1.16 | 1.16 |
+| Folia support | Yes | Yes |
+| Bedrock support | Yes | Yes |

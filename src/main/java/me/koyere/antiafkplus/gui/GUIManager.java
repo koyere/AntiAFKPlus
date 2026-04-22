@@ -31,14 +31,6 @@ import me.koyere.antiafkplus.performance.PerformanceOptimizer;
 @SuppressWarnings("deprecation")
 public class GUIManager implements Listener {
 
-    private static final String MAIN_MENU_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Settings";
-    private static final String DETECTION_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Detection";
-    private static final String MODULE_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Modules";
-    private static final String GENERAL_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "General";
-    private static final String ZONE_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Zones";
-    private static final String REWARD_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Rewards";
-    private static final String LANGUAGE_TITLE = ChatColor.DARK_GRAY + "AntiAFK+ " + ChatColor.GOLD + "Language";
-
     private static final List<String> FEATURE_MODULES = Arrays.asList(
             "pattern-detection",
             "autoclick-detection",
@@ -71,54 +63,55 @@ public class GUIManager implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    // ======================== Inventory Titles ========================
+
+    private String mainMenuTitle() { return color(msg("gui.main-title")); }
+    private String detectionTitle() { return color(msg("gui.det-title")); }
+    private String moduleTitle() { return color(msg("gui.mod-title")); }
+    private String generalTitle() { return color(msg("gui.gen-title")); }
+    private String zoneTitle() { return color(msg("gui.zone-title")); }
+    private String rewardTitle() { return color(msg("gui.reward-title")); }
+    private String languageTitle() { return color(msg("gui.lang-title")); }
+
     // ======================== Menu Openers ========================
 
     /**
      * Opens the main settings menu for a player.
      */
     public void openMainMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, MAIN_MENU_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, mainMenuTitle());
 
         // Slot 4: Plugin info head
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
         SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
         if (skullMeta != null) {
-            skullMeta.setDisplayName(color("&6AntiAFK+ &7v" + plugin.getPluginVersion()));
+            skullMeta.setDisplayName(color(msg("gui.main-head-name").replace("{version}", plugin.getPluginVersion())));
             List<String> headLore = new ArrayList<>();
-            headLore.add(color("&8Advanced AFK Detection & Management"));
+            headLore.add(color(msg("gui.main-head-subtitle")));
             headLore.add("");
-            headLore.add(color("&7Modules loaded: &f" + plugin.getModuleManager().getModuleCount()));
-            headLore.add(color("&7Modules enabled: &a" + plugin.getModuleManager().getEnabledModuleCount()));
-            headLore.add(color("&7API version: &f" + plugin.getAPIVersion()));
+            headLore.add(color(msg("gui.main-head-modules-loaded").replace("{count}", String.valueOf(plugin.getModuleManager().getModuleCount()))));
+            headLore.add(color(msg("gui.main-head-modules-enabled").replace("{count}", String.valueOf(plugin.getModuleManager().getEnabledModuleCount()))));
+            headLore.add(color(msg("gui.main-head-api").replace("{version}", plugin.getAPIVersion())));
             skullMeta.setLore(headLore);
             head.setItemMeta(skullMeta);
         }
         inv.setItem(4, head);
 
         // Slot 19: Detection Settings
-        inv.setItem(19, createItem(Material.COMPASS, "&e⚙ Detection Settings",
-                "&7Configure pattern detection",
-                "&7thresholds and analysis.",
-                "",
-                "&aClick to open"));
+        inv.setItem(19, createItem(Material.COMPASS, msg("gui.main-detection"),
+                msg("gui.main-detection-lore1"), msg("gui.main-detection-lore2"), "", msg("gui.click-to-open")));
 
         // Slot 21: Module Toggles
-        inv.setItem(21, createItem(Material.REDSTONE_TORCH, "&e⚙ Module Toggles",
-                "&7Enable or disable individual",
-                "&7plugin modules.",
-                "",
-                "&aClick to open"));
+        inv.setItem(21, createItem(Material.REDSTONE_TORCH, msg("gui.main-modules"),
+                msg("gui.main-modules-lore1"), msg("gui.main-modules-lore2"), "", msg("gui.click-to-open")));
 
         // Slot 23: Credit System toggle
         boolean creditEnabled = plugin.getConfig().getBoolean("credit-system.enabled", false);
-        inv.setItem(23, createItem(Material.GOLD_INGOT, "&e💰 Credit System",
-                "&7Status: " + (creditEnabled ? "&aEnabled" : "&cDisabled"),
-                "",
-                "&7Credits allow players to earn",
-                "&7AFK protection time.",
-                "",
-                "&aClick to toggle",
-                "&c⚠ Requires server restart to fully apply"));
+        String creditStatus = creditEnabled ? msg("gui.status-enabled") : msg("gui.status-disabled");
+        inv.setItem(23, createItem(Material.GOLD_INGOT, msg("gui.main-credits"),
+                msg("gui.status-label") + creditStatus, "",
+                msg("gui.main-credits-lore1"), msg("gui.main-credits-lore2"), "",
+                msg("gui.click-to-toggle"), msg("gui.requires-restart")));
 
         // Slot 25: Performance
         inv.setItem(25, buildPerformanceItem());
@@ -128,46 +121,30 @@ public class GUIManager implements Listener {
 
         // Slot 39: Debug Toggle
         boolean debug = plugin.isDebugEnabled();
-        inv.setItem(39, createItem(Material.COMMAND_BLOCK, "&e🔧 Debug Mode",
-                "&7Status: " + (debug ? "&aEnabled" : "&cDisabled"),
-                "",
-                "&7Toggles verbose debug logging.",
-                "&aClick to toggle"));
+        String debugStatus = debug ? msg("gui.status-enabled") : msg("gui.status-disabled");
+        inv.setItem(39, createItem(Material.COMMAND_BLOCK, msg("gui.main-debug"),
+                msg("gui.status-label") + debugStatus, "", msg("gui.main-debug-lore"), msg("gui.click-to-toggle")));
 
         // Slot 41: Reload Config
-        inv.setItem(41, createItem(Material.ANVIL, "&e🔄 Reload Config",
-                "&7Reloads configuration and",
-                "&7language files from disk.",
-                "",
-                "&aClick to reload"));
+        inv.setItem(41, createItem(Material.ANVIL, msg("gui.main-reload"),
+                msg("gui.main-reload-lore1"), msg("gui.main-reload-lore2"), "", msg("gui.click-to-reload")));
 
         // Slot 29: General Settings
-        inv.setItem(29, createItem(Material.COMPARATOR, "&e⚙ General Settings",
-                "&7AFK times, check intervals,",
-                "&7and feature toggles.",
-                "",
-                "&aClick to open"));
+        inv.setItem(29, createItem(Material.COMPARATOR, msg("gui.main-general"),
+                msg("gui.main-general-lore1"), msg("gui.main-general-lore2"), "", msg("gui.click-to-open")));
 
         // Slot 31: Zone Settings
-        inv.setItem(31, createItem(Material.GRASS_BLOCK, "&e🗺 Zone Settings",
-                "&7Configure AFK zone",
-                "&7management and timeouts.",
-                "",
-                "&aClick to open"));
+        inv.setItem(31, createItem(Material.GRASS_BLOCK, msg("gui.main-zones"),
+                msg("gui.main-zones-lore1"), msg("gui.main-zones-lore2"), "", msg("gui.click-to-open")));
 
         // Slot 33: Reward Settings
-        inv.setItem(33, createItem(Material.DIAMOND, "&e🎁 Reward Settings",
-                "&7Configure AFK reward",
-                "&7system and limits.",
-                "",
-                "&aClick to open"));
+        inv.setItem(33, createItem(Material.DIAMOND, msg("gui.main-rewards"),
+                msg("gui.main-rewards-lore1"), msg("gui.main-rewards-lore2"), "", msg("gui.click-to-open")));
 
         // Slot 43: Language Selector
         String currentLang = plugin.getConfig().getString("internationalization.default-language", "en");
-        inv.setItem(43, createItem(Material.WRITABLE_BOOK, "&e🌍 Language",
-                "&7Current: &f" + currentLang,
-                "",
-                "&aClick to change"));
+        inv.setItem(43, createItem(Material.WRITABLE_BOOK, msg("gui.main-language"),
+                msg("gui.current").replace("{value}", currentLang), "", msg("gui.click-to-change")));
 
         // Fill empty border slots with glass panes
         fillBorder(inv);
@@ -180,77 +157,64 @@ public class GUIManager implements Listener {
      * Opens the detection settings submenu.
      */
     public void openDetectionSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, DETECTION_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, detectionTitle());
         ConfigManager cfg = plugin.getConfigManager();
 
         // Slot 4: Title
-        inv.setItem(4, createItem(Material.COMPASS, "&6Detection Settings",
-                "&8Configure pattern detection parameters"));
+        inv.setItem(4, createItem(Material.COMPASS, msg("gui.det-header"), msg("gui.det-header-lore")));
 
         // Slot 19: Water Circle Radius
         double radius = cfg.getWaterCircleRadius();
         int radiusAmount = Math.max(1, Math.min(64, (int) radius));
-        ItemStack radiusItem = createItem(Material.WATER_BUCKET, "&b Water Circle Radius",
-                "&7Current: &f" + radius + " blocks",
-                "",
-                "&7Radius used to detect circular",
-                "&7water pool AFK patterns.");
+        ItemStack radiusItem = createItem(Material.WATER_BUCKET, msg("gui.det-water-radius"),
+                msg("gui.current").replace("{value}", radius + " blocks"), "");
+        addLore(radiusItem, lore("gui.det-water-radius-lore"));
         radiusItem.setAmount(radiusAmount);
         inv.setItem(19, radiusItem);
 
         // Slot 21: Min Samples
         int minSamples = cfg.getMinSamplesForPattern();
         int samplesAmount = Math.max(1, Math.min(64, minSamples / 4));
-        ItemStack samplesItem = createItem(Material.PAPER, "&f Min Samples",
-                "&7Current: &f" + minSamples,
-                "",
-                "&7Minimum movement samples needed",
-                "&7before pattern analysis runs.");
+        ItemStack samplesItem = createItem(Material.PAPER, msg("gui.det-min-samples"),
+                msg("gui.current").replace("{value}", String.valueOf(minSamples)), "");
+        addLore(samplesItem, lore("gui.det-min-samples-lore"));
         samplesItem.setAmount(samplesAmount);
         inv.setItem(21, samplesItem);
 
         // Slot 23: Max Violations
         int maxViolations = cfg.getMaxPatternViolations();
         int violationsAmount = Math.max(1, Math.min(64, maxViolations));
-        ItemStack violationsItem = createItem(Material.TNT, "&c Max Violations",
-                "&7Current: &f" + maxViolations,
-                "",
-                "&7Maximum pattern violations before",
-                "&7action is taken on the player.");
+        ItemStack violationsItem = createItem(Material.TNT, msg("gui.det-max-violations"),
+                msg("gui.current").replace("{value}", String.valueOf(maxViolations)), "");
+        addLore(violationsItem, lore("gui.det-max-violations-lore"));
         violationsItem.setAmount(violationsAmount);
         inv.setItem(23, violationsItem);
 
         // Slot 25: Pattern Analysis Interval
         long intervalMs = cfg.getPatternAnalysisInterval();
         long intervalSec = intervalMs / 1000;
-        inv.setItem(25, createItem(Material.CLOCK, "&e Pattern Analysis Interval",
-                "&7Current: &f" + intervalSec + "s &7(" + intervalMs + "ms)",
-                "",
-                "&7How often the pattern analysis",
-                "&7engine runs its checks."));
+        ItemStack intervalItem = createItem(Material.CLOCK, msg("gui.det-interval"),
+                msg("gui.current").replace("{value}", intervalSec + "s (" + intervalMs + "ms)"), "");
+        addLore(intervalItem, lore("gui.det-interval-lore"));
+        inv.setItem(25, intervalItem);
 
         // Slot 37: Linear Movement Exclusion toggle
         boolean linearExclusion = cfg.isLinearMovementExclusionEnabled();
-        inv.setItem(37, createToggle("Linear Movement Exclusion", linearExclusion,
-                "&7Excludes straight-line movement",
-                "&7from pattern detection to reduce",
-                "&7false positives."));
+        inv.setItem(37, createToggle(msg("gui.det-linear"), linearExclusion,
+                lore("gui.det-linear-lore")));
 
         // Slot 39: Large Pool Detection toggle
         boolean largePool = cfg.isLargePoolDetectionEnabled();
-        inv.setItem(39, createToggle("Large Pool Detection", largePool,
-                "&7Detects players AFK in large",
-                "&7water pools or open areas."));
+        inv.setItem(39, createToggle(msg("gui.det-large-pool"), largePool,
+                lore("gui.det-large-pool-lore")));
 
         // Slot 41: Keystroke Timeout toggle
         boolean keystroke = cfg.isKeystrokeTimeoutDetectionEnabled();
-        inv.setItem(41, createToggle("Keystroke Timeout", keystroke,
-                "&7Detects lack of keyboard input",
-                "&7over extended periods."));
+        inv.setItem(41, createToggle(msg("gui.det-keystroke"), keystroke,
+                lore("gui.det-keystroke-lore")));
 
         // Slot 49: Back button
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back",
-                "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
 
         fillBorder(inv);
 
@@ -262,11 +226,10 @@ public class GUIManager implements Listener {
      * Opens the module toggles submenu.
      */
     public void openModuleSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, MODULE_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, moduleTitle());
 
         // Slot 4: Title
-        inv.setItem(4, createItem(Material.REDSTONE_TORCH, "&6Module Toggles",
-                "&8Enable or disable plugin modules"));
+        inv.setItem(4, createItem(Material.REDSTONE_TORCH, msg("gui.mod-header"), msg("gui.mod-header-lore")));
 
         // Place each feature module as a toggle
         int[] moduleSlots = {19, 20, 21, 22, 23, 24, 25, 26};
@@ -275,14 +238,13 @@ public class GUIManager implements Listener {
             boolean enabled = plugin.getModuleManager().isModuleEnabled(moduleName);
             String displayName = formatModuleName(moduleName);
             inv.setItem(moduleSlots[i], createToggle(displayName, enabled,
-                    "&7Module: &f" + moduleName,
+                    msg("gui.module-label").replace("{name}", moduleName),
                     "",
-                    "&aClick to toggle"));
+                    msg("gui.click-to-toggle")));
         }
 
         // Slot 49: Back button
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back",
-                "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
 
         fillBorder(inv);
 
@@ -294,49 +256,46 @@ public class GUIManager implements Listener {
      * Opens the general settings submenu.
      */
     public void openGeneralSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, GENERAL_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, generalTitle());
         var cfg = plugin.getConfig();
 
-        inv.setItem(4, createItem(Material.COMPARATOR, "&6General Settings",
-                "&8AFK times and feature toggles"));
+        inv.setItem(4, createItem(Material.COMPARATOR, msg("gui.gen-header"), msg("gui.gen-header-lore")));
 
         // Slot 19: Default AFK Time
         int afkTime = cfg.getInt("default-afk-time", 300);
-        ItemStack afkItem = createItem(Material.CLOCK, "&e Default AFK Time",
-                "&7Current: &f" + afkTime + "s &7(" + (afkTime/60) + " min)",
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack afkItem = createItem(Material.CLOCK, msg("gui.gen-afk-time"),
+                msg("gui.current").replace("{value}", afkTime + "s (" + (afkTime/60) + " min)"),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         afkItem.setAmount(Math.max(1, Math.min(64, afkTime / 30)));
         inv.setItem(19, afkItem);
 
         // Slot 21: Check Interval
         int interval = cfg.getInt("afk-check-interval-seconds", 5);
-        ItemStack intervalItem = createItem(Material.REPEATER, "&e Check Interval",
-                "&7Current: &f" + interval + "s",
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack intervalItem = createItem(Material.REPEATER, msg("gui.gen-check-interval"),
+                msg("gui.current").replace("{value}", interval + "s"),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         intervalItem.setAmount(Math.max(1, Math.min(64, interval)));
         inv.setItem(21, intervalItem);
 
         // Slot 23: Max Voluntary AFK Time
         int volTime = cfg.getInt("max-voluntary-afk-time-seconds", 600);
-        ItemStack volItem = createItem(Material.HOPPER, "&e Max Voluntary AFK",
-                "&7Current: &f" + volTime + "s &7(" + (volTime/60) + " min)",
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack volItem = createItem(Material.HOPPER, msg("gui.gen-voluntary-time"),
+                msg("gui.current").replace("{value}", volTime + "s (" + (volTime/60) + " min)"),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         volItem.setAmount(Math.max(1, Math.min(64, volTime / 60)));
         inv.setItem(23, volItem);
 
         // Slot 37: Block Pickup toggle
         boolean blockPickup = cfg.getBoolean("block-pickup-while-afk", true);
-        inv.setItem(37, createToggle("Block Pickup While AFK", blockPickup,
-                "&7Prevents AFK players from",
-                "&7picking up items."));
+        inv.setItem(37, createToggle(msg("gui.gen-block-pickup"), blockPickup,
+                lore("gui.gen-block-pickup-lore")));
 
         // Slot 39: Broadcast AFK toggle
         boolean broadcast = cfg.getBoolean("broadcast-afk-state-changes", true);
-        inv.setItem(39, createToggle("Broadcast AFK Changes", broadcast,
-                "&7Broadcasts when players go",
-                "&7AFK or return."));
+        inv.setItem(39, createToggle(msg("gui.gen-broadcast"), broadcast,
+                lore("gui.gen-broadcast-lore")));
 
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back", "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
         fillBorder(inv);
         player.openInventory(inv);
         openGUIs.put(player.getUniqueId(), GUIType.GENERAL_SETTINGS);
@@ -346,45 +305,40 @@ public class GUIManager implements Listener {
      * Opens the zone settings submenu.
      */
     public void openZoneSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, ZONE_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, zoneTitle());
         var cfg = plugin.getConfig();
 
-        inv.setItem(4, createItem(Material.GRASS_BLOCK, "&6Zone Management",
-                "&8Configure AFK zone settings"));
+        inv.setItem(4, createItem(Material.GRASS_BLOCK, msg("gui.zone-header"), msg("gui.zone-header-lore")));
 
         // Slot 19: Zone enabled toggle
         boolean zoneEnabled = cfg.getBoolean("zone-management.enabled", false);
-        inv.setItem(19, createToggle("Zone Management", zoneEnabled,
-                "&7Enable zone-based AFK management.",
-                "&7Requires WorldGuard."));
+        inv.setItem(19, createToggle(msg("gui.zone-enabled"), zoneEnabled,
+                lore("gui.zone-enabled-lore")));
 
         // Slot 21: Require WorldGuard toggle
         boolean reqWG = cfg.getBoolean("zone-management.require-worldguard", true);
-        inv.setItem(21, createToggle("Require WorldGuard", reqWG,
-                "&7Require WorldGuard plugin",
-                "&7for zone features."));
+        inv.setItem(21, createToggle(msg("gui.zone-worldguard"), reqWG,
+                lore("gui.zone-worldguard-lore")));
 
         // Slot 23: Default AFK Allowed toggle
         boolean afkAllowed = cfg.getBoolean("zone-management.default-afk-allowed", true);
-        inv.setItem(23, createToggle("Default AFK Allowed", afkAllowed,
-                "&7Allow AFK by default in",
-                "&7zones without explicit config."));
+        inv.setItem(23, createToggle(msg("gui.zone-afk-allowed"), afkAllowed,
+                lore("gui.zone-afk-allowed-lore")));
 
         // Slot 25: Default Timeout
         int timeout = cfg.getInt("zone-management.default-timeout-seconds", 300);
-        ItemStack timeoutItem = createItem(Material.CLOCK, "&e Default Zone Timeout",
-                "&7Current: &f" + timeout + "s &7(" + (timeout/60) + " min)",
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack timeoutItem = createItem(Material.CLOCK, msg("gui.zone-timeout"),
+                msg("gui.current").replace("{value}", timeout + "s (" + (timeout/60) + " min)"),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         timeoutItem.setAmount(Math.max(1, Math.min(64, timeout / 60)));
         inv.setItem(25, timeoutItem);
 
         // Slot 37: Region Inheritance toggle
         boolean inheritance = cfg.getBoolean("zone-management.allow-region-inheritance", true);
-        inv.setItem(37, createToggle("Region Inheritance", inheritance,
-                "&7Allow zones to inherit settings",
-                "&7from parent WorldGuard regions."));
+        inv.setItem(37, createToggle(msg("gui.zone-inheritance"), inheritance,
+                lore("gui.zone-inheritance-lore")));
 
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back", "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
         fillBorder(inv);
         player.openInventory(inv);
         openGUIs.put(player.getUniqueId(), GUIType.ZONE_SETTINGS);
@@ -394,46 +348,43 @@ public class GUIManager implements Listener {
      * Opens the reward settings submenu.
      */
     public void openRewardSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, REWARD_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, rewardTitle());
         var cfg = plugin.getConfig();
 
-        inv.setItem(4, createItem(Material.DIAMOND, "&6Reward System",
-                "&8Configure AFK reward settings"));
+        inv.setItem(4, createItem(Material.DIAMOND, msg("gui.reward-header"), msg("gui.reward-header-lore")));
 
         // Slot 19: Reward enabled toggle
         boolean enabled = cfg.getBoolean("reward-system.enabled", false);
-        inv.setItem(19, createToggle("Reward System", enabled,
-                "&7Enable rewards for AFK players."));
+        inv.setItem(19, createToggle(msg("gui.reward-enabled"), enabled,
+                lore("gui.reward-enabled-lore")));
 
         // Slot 21: Require Vault toggle
         boolean reqVault = cfg.getBoolean("reward-system.require-vault", false);
-        inv.setItem(21, createToggle("Require Vault", reqVault,
-                "&7Require Vault economy plugin",
-                "&7for monetary rewards."));
+        inv.setItem(21, createToggle(msg("gui.reward-vault"), reqVault,
+                lore("gui.reward-vault-lore")));
 
         // Slot 23: Max Daily Rewards
         int maxDaily = cfg.getInt("reward-system.max-daily-rewards", 144);
-        ItemStack maxItem = createItem(Material.CHEST, "&e Max Daily Rewards",
-                "&7Current: &f" + maxDaily,
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack maxItem = createItem(Material.CHEST, msg("gui.reward-max-daily"),
+                msg("gui.current").replace("{value}", String.valueOf(maxDaily)),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         maxItem.setAmount(Math.max(1, Math.min(64, maxDaily / 10)));
         inv.setItem(23, maxItem);
 
         // Slot 25: Required Active Time
         int activeTime = cfg.getInt("reward-system.require-active-time-minutes", 30);
-        ItemStack activeItem = createItem(Material.EXPERIENCE_BOTTLE, "&e Required Active Time",
-                "&7Current: &f" + activeTime + " min",
-                "", "&a+Click: increase", "&c+Sneak+Click: decrease");
+        ItemStack activeItem = createItem(Material.EXPERIENCE_BOTTLE, msg("gui.reward-active-time"),
+                msg("gui.current").replace("{value}", activeTime + " min"),
+                "", msg("gui.click-increase"), msg("gui.click-decrease"));
         activeItem.setAmount(Math.max(1, Math.min(64, activeTime / 5)));
         inv.setItem(25, activeItem);
 
         // Slot 37: IP-based Limits toggle
         boolean ipLimits = cfg.getBoolean("reward-system.ip-based-limits", true);
-        inv.setItem(37, createToggle("IP-Based Limits", ipLimits,
-                "&7Limit rewards per IP address",
-                "&7to prevent alt abuse."));
+        inv.setItem(37, createToggle(msg("gui.reward-ip-limits"), ipLimits,
+                lore("gui.reward-ip-limits-lore")));
 
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back", "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
         fillBorder(inv);
         player.openInventory(inv);
         openGUIs.put(player.getUniqueId(), GUIType.REWARD_SETTINGS);
@@ -443,12 +394,12 @@ public class GUIManager implements Listener {
      * Opens the language selector submenu.
      */
     public void openLanguageSelector(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, LANGUAGE_TITLE);
+        Inventory inv = Bukkit.createInventory(null, 54, languageTitle());
         String currentLang = plugin.getConfig().getString("internationalization.default-language", "en");
 
-        inv.setItem(4, createItem(Material.WRITABLE_BOOK, "&6Language Selection",
-                "&8Select the server language",
-                "&7Current: &f" + currentLang));
+        inv.setItem(4, createItem(Material.WRITABLE_BOOK, msg("gui.lang-header"),
+                msg("gui.lang-header-lore"),
+                msg("gui.current").replace("{value}", currentLang)));
 
         int[] langSlots = {19, 20, 21, 22, 23, 24, 25, 28, 29, 30};
         for (int i = 0; i < LANGUAGES.size() && i < langSlots.length; i++) {
@@ -458,11 +409,11 @@ public class GUIManager implements Listener {
             boolean isActive = code.equals(currentLang);
             Material mat = isActive ? Material.ENCHANTED_BOOK : Material.BOOK;
             inv.setItem(langSlots[i], createItem(mat, (isActive ? "&a✔ " : "&7") + name,
-                    "&7Code: &f" + code,
-                    isActive ? "&aCurrently active" : "&eClick to select"));
+                    msg("gui.lang-code").replace("{code}", code),
+                    isActive ? msg("gui.currently-active") : msg("gui.click-to-select")));
         }
 
-        inv.setItem(49, createItem(Material.ARROW, "&c← Back", "&7Return to main menu"));
+        inv.setItem(49, createItem(Material.ARROW, msg("gui.back"), msg("gui.back-lore")));
         fillBorder(inv);
         player.openInventory(inv);
         openGUIs.put(player.getUniqueId(), GUIType.LANGUAGE_SELECTOR);
@@ -808,7 +759,7 @@ public class GUIManager implements Listener {
      */
     private void sendToggleMessage(Player player, String name, boolean enabled, boolean requiresRestart) {
         if (requiresRestart) {
-            String status = enabled ? "&aEnabled" : "&cDisabled";
+            String status = enabled ? msg("gui.status-enabled") : msg("gui.status-disabled");
             player.sendMessage(msg("gui.toggle-restart").replace("{name}", name).replace("{status}", color(status)));
         } else {
             String key = enabled ? "gui.toggle-enabled" : "gui.toggle-disabled";
@@ -821,6 +772,13 @@ public class GUIManager implements Listener {
      */
     private String msg(String key) {
         return plugin.getConfigManager().getMessage(key, "[" + key + "]");
+    }
+
+    /**
+     * Splits a localized message on the pipe character for multi-line lore values.
+     */
+    private String[] lore(String key) {
+        return msg(key).split("\\|");
     }
 
     // ======================== Profile Logic ========================
@@ -867,22 +825,21 @@ public class GUIManager implements Listener {
     private ItemStack buildPerformanceItem() {
         PerformanceOptimizer optimizer = plugin.getPerformanceOptimizer();
         if (optimizer == null) {
-            return createItem(Material.CLOCK, "&e📊 Performance",
-                    "&7Performance optimizer not available.");
+            return createItem(Material.CLOCK, msg("gui.perf-title"), msg("gui.perf-unavailable"));
         }
 
         PerformanceOptimizer.PerformanceStats stats = optimizer.getPerformanceStats();
         double avgMs = stats.getAverageExecutionTime();
         long memoryMB = stats.getMemoryUsage() / (1024 * 1024);
 
-        return createItem(Material.CLOCK, "&e📊 Performance",
-                "&7TPS: &f" + String.format("%.1f", stats.getTps()),
-                "&7Avg exec time: &f" + String.format("%.2f", avgMs) + "ms",
-                "&7Memory: &f" + memoryMB + " MB",
-                "&7Cache entries: &f" + stats.getCacheSize(),
-                "&7Operations: &f" + stats.getTotalOperations(),
-                "&7High activity: &a" + stats.getHighActivityPlayers(),
-                "&7Low activity: &c" + stats.getLowActivityPlayers());
+        return createItem(Material.CLOCK, msg("gui.perf-title"),
+                msg("gui.perf-tps").replace("{value}", String.format("%.1f", stats.getTps())),
+                msg("gui.perf-exec").replace("{value}", String.format("%.2f", avgMs)),
+                msg("gui.perf-memory").replace("{value}", String.valueOf(memoryMB)),
+                msg("gui.perf-cache").replace("{value}", String.valueOf(stats.getCacheSize())),
+                msg("gui.perf-ops").replace("{value}", String.valueOf(stats.getTotalOperations())),
+                msg("gui.perf-high").replace("{value}", String.valueOf(stats.getHighActivityPlayers())),
+                msg("gui.perf-low").replace("{value}", String.valueOf(stats.getLowActivityPlayers())));
     }
 
     private ItemStack buildProfileItem() {
@@ -895,14 +852,14 @@ public class GUIManager implements Listener {
             default -> "&7";
         };
 
-        return createItem(Material.BOOK, "&e📋 Detection Profile",
-                "&7Current: " + profileColor + capitalize(profile),
+        return createItem(Material.BOOK, msg("gui.profile-title"),
+                msg("gui.current").replace("{value}", profileColor + capitalize(profile)),
                 "",
-                "&7Conservative: &aLenient &7(12 violations)",
-                "&7Balanced: &eModerate &7(8 violations)",
-                "&7Aggressive: &cStrict &7(4 violations)",
+                msg("gui.profile-conservative"),
+                msg("gui.profile-balanced"),
+                msg("gui.profile-aggressive"),
                 "",
-                "&aClick to cycle profiles");
+                msg("gui.click-cycle"));
     }
 
     private ItemStack createItem(Material material, String name, String... lore) {
@@ -923,10 +880,10 @@ public class GUIManager implements Listener {
 
     private ItemStack createToggle(String name, boolean enabled, String... description) {
         Material mat = enabled ? Material.LIME_WOOL : Material.RED_WOOL;
-        String status = enabled ? "&aEnabled" : "&cDisabled";
+        String status = enabled ? msg("gui.status-enabled") : msg("gui.status-disabled");
 
         List<String> lore = new ArrayList<>();
-        lore.add(color("&7Status: " + status));
+        lore.add(color(msg("gui.status-label") + status));
         lore.add("");
         for (String line : description) {
             lore.add(color(line));
@@ -941,6 +898,22 @@ public class GUIManager implements Listener {
         meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    /**
+     * Appends additional lore lines to an existing item.
+     * Used for items that combine msg() values with lore() split values.
+     */
+    private void addLore(ItemStack item, String... extraLines) {
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return;
+        List<String> lore = meta.getLore();
+        if (lore == null) lore = new ArrayList<>();
+        for (String line : extraLines) {
+            lore.add(color(line));
+        }
+        meta.setLore(lore);
+        item.setItemMeta(meta);
     }
 
     // ======================== Utilities ========================
