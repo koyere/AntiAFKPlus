@@ -6,7 +6,7 @@
 
     <groupId>me.koyere</groupId>
     <artifactId>antiafkplus</artifactId>
-    <version>3.0.0</version>
+    <version>3.0.1</version>
     <packaging>jar</packaging>
 
     <name>AntiAFKPlus</name>
