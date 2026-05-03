@@ -502,35 +502,24 @@ public class AFKManager {
                 plugin.getConfigManager().getMessageKicked()
         );
 
-        // Check if zone management is enabled and configure kick action override
+        // --- Priority 1: Zone management override ---
+        boolean zoneActionApplied = false;
         if (plugin.getConfig().getBoolean("zone-management.enabled", false)) {
-            // Check if player is in spawn zone (or any configured zone)
             String zoneName = determinePlayerZone(player);
             if (zoneName != null && plugin.getConfig().contains("zone-management.zones." + zoneName)) {
-                String action = plugin.getConfig().getString("zone-management.zones." + zoneName + ".kick-action", "kick");
-                if ("TELEPORT".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TELEPORT);
-                    String teleportLocation = plugin.getConfig().getString("zone-management.zones." + zoneName + ".teleport-location", "");
-                    kickEvent.setCustomActionData(teleportLocation);
-                } else if ("TRANSFER".equalsIgnoreCase(action) || "TRANSFER_SERVER".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TRANSFER_SERVER);
-                    // Prefer per-zone server if provided; fallback to global target-server
-                    String transferServer = plugin.getConfig().getString("zone-management.zones." + zoneName + ".transfer-server",
-                            plugin.getConfig().getString("server-transfer.target-server", ""));
-                    kickEvent.setCustomActionData(transferServer);
-                } else if ("KICK".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.KICK);
-                } else if ("MARK_AFK_ONLY".equalsIgnoreCase(action) || "MARK".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
-                } else if ("GAMEMODE".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
-                } else if ("COMMAND".equalsIgnoreCase(action)) {
-                    kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
-                }
+                zoneActionApplied = applyZoneAction(kickEvent, zoneName);
             }
         }
 
-        // If no zone override applied (still default KICK) and server-transfer is enabled, set default TRANSFER_SERVER
+        // --- Priority 2: Global afk-action (if no zone override applied) ---
+        if (!zoneActionApplied && kickEvent.getCustomAction() == PlayerAFKKickEvent.KickAction.KICK) {
+            String globalAction = plugin.getConfig().getString("afk-action.type", "KICK");
+            if (globalAction != null) {
+                applyGlobalAction(kickEvent, globalAction.trim().toUpperCase());
+            }
+        }
+
+        // --- Priority 3: Server transfer fallback (if still default KICK) ---
         if (kickEvent.getCustomAction() == PlayerAFKKickEvent.KickAction.KICK) {
             boolean stEnabled = plugin.getConfig().getBoolean("server-transfer.enabled", false);
             String target = plugin.getConfig().getString("server-transfer.target-server", "");
@@ -545,93 +534,166 @@ public class AFKManager {
         }
 
         if (!kickEvent.isCancelled()) {
-            // Handle different kick actions
-            switch (kickEvent.getCustomAction()) {
-                case KICK:
+            executeKickAction(kickEvent, player, afkTimeMillis);
+        }
+    }
+
+    /**
+     * Applies zone-specific action override to the kick event.
+     * 
+     * @param kickEvent The kick event to modify
+     * @param zoneName The zone name from config
+     * @return true if a zone action was applied (even if it was KICK)
+     */
+    private boolean applyZoneAction(PlayerAFKKickEvent kickEvent, String zoneName) {
+        String action = plugin.getConfig().getString("zone-management.zones." + zoneName + ".kick-action", "KICK");
+        if (action == null || action.trim().isEmpty()) {
+            return false;
+        }
+
+        String normalizedAction = action.trim().toUpperCase();
+        switch (normalizedAction) {
+            case "TELEPORT" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TELEPORT);
+                String teleportLocation = plugin.getConfig().getString(
+                        "zone-management.zones." + zoneName + ".teleport-location", "");
+                kickEvent.setCustomActionData(teleportLocation);
+            }
+            case "TRANSFER", "TRANSFER_SERVER" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TRANSFER_SERVER);
+                String transferServer = plugin.getConfig().getString(
+                        "zone-management.zones." + zoneName + ".transfer-server",
+                        plugin.getConfig().getString("server-transfer.target-server", ""));
+                kickEvent.setCustomActionData(transferServer);
+            }
+            case "KICK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.KICK);
+            case "MARK_AFK_ONLY", "MARK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
+            case "GAMEMODE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
+            case "COMMAND" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
+            case "NONE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.NONE);
+            default -> {
+                AFKLogger.logActivity("Unknown zone kick-action '" + action + "' for zone '" + zoneName + "', defaulting to KICK");
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.KICK);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Applies the global afk-action configuration to the kick event.
+     * This is used when no zone-specific action is configured.
+     * 
+     * @param kickEvent The kick event to modify
+     * @param actionType The action type string from config (already uppercased)
+     */
+    private void applyGlobalAction(PlayerAFKKickEvent kickEvent, String actionType) {
+        switch (actionType) {
+            case "TELEPORT" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.TELEPORT);
+                String teleportLocation = plugin.getConfig().getString("afk-action.teleport-location", "");
+                kickEvent.setCustomActionData(teleportLocation);
+            }
+            case "MARK_AFK_ONLY", "MARK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
+            case "NONE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.NONE);
+            case "KICK" -> { /* Already default, no change needed */ }
+            default -> AFKLogger.logActivity("Unknown global afk-action type: '" + actionType + "', defaulting to KICK");
+        }
+    }
+
+    /**
+     * Executes the final action from the kick event (kick, teleport, transfer, etc.).
+     * 
+     * @param kickEvent The processed kick event
+     * @param player The target player
+     * @param afkTimeMillis How long the player has been AFK
+     */
+    private void executeKickAction(PlayerAFKKickEvent kickEvent, Player player, long afkTimeMillis) {
+        switch (kickEvent.getCustomAction()) {
+            case KICK:
+                if (player.isOnline()) {
+                    player.kickPlayer(kickEvent.getKickMessage());
+                    AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
+                }
+                break;
+            case MARK_AFK_ONLY:
+                forceSetManualAFKState(player, true);
+                break;
+            case TELEPORT:
+                if (player.isOnline()) {
+                    teleportPlayer(player, kickEvent.getCustomActionData());
+                    AFKLogger.logActivity(player.getName() + " teleported instead of kicked (AFK)");
+                }
+                break;
+            case TRANSFER_SERVER:
+                if (player.isOnline()) {
+                    executeServerTransfer(kickEvent, player, afkTimeMillis);
+                }
+                break;
+            case GAMEMODE:
+                // Could implement gamemode change
+                break;
+            case COMMAND:
+                // Could execute custom command
+                break;
+            case NONE:
+                // Do nothing
+                break;
+            default:
+                if (player.isOnline()) {
+                    player.kickPlayer(kickEvent.getKickMessage());
+                    AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
+                }
+                break;
+        }
+    }
+
+    /**
+     * Handles server transfer logic with optional countdown and pipeline support.
+     */
+    private void executeServerTransfer(PlayerAFKKickEvent kickEvent, Player player, long afkTimeMillis) {
+        String target = kickEvent.getCustomActionData();
+
+        Runnable doTransfer = () -> {
+            boolean ok = false;
+            try {
+                if (plugin.getServerTransferService() != null) {
+                    ok = plugin.getServerTransferService().transferPlayer(player, target);
+                }
+            } catch (Exception e) {
+                ok = false;
+            }
+
+            if (!ok) {
+                String fb = plugin.getConfig().getString("server-transfer.fallback-action", "KICK");
+                if ("NONE".equalsIgnoreCase(fb)) {
+                    return;
+                } else if ("TELEPORT".equalsIgnoreCase(fb)) {
+                    teleportPlayer(player, plugin.getConfig().getString("server-transfer.fallback-teleport-location", ""));
+                } else {
                     if (player.isOnline()) {
                         player.kickPlayer(kickEvent.getKickMessage());
                         AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
                     }
-                    break;
-                case MARK_AFK_ONLY:
-                    // Just mark as AFK, don't kick
-                    forceSetManualAFKState(player, true);
-                    break;
-                case TELEPORT:
-                    // Teleport player instead of kicking
-                    if (player.isOnline()) {
-                        teleportPlayer(player, kickEvent.getCustomActionData());
-                        AFKLogger.logActivity(player.getName() + " teleported instead of kicked (AFK)");
-                    }
-                    break;
-                case TRANSFER_SERVER:
-                    // Transferir a otro servidor con soporte de cuenta atrás (si está habilitado)
-                    if (player.isOnline()) {
-                        String target = kickEvent.getCustomActionData();
+                }
+            }
+        };
 
-                        Runnable doTransfer = () -> {
-                            boolean ok = false;
-                            try {
-                                if (plugin.getServerTransferService() != null) {
-                                    ok = plugin.getServerTransferService().transferPlayer(player, target);
-                                }
-                            } catch (Exception e) {
-                                ok = false;
-                            }
-
-                            if (!ok) {
-                                // Fallback configurable: por defecto, KICK
-                                String fb = plugin.getConfig().getString("server-transfer.fallback-action", "KICK");
-                                if ("NONE".equalsIgnoreCase(fb)) {
-                                    return;
-                                } else if ("TELEPORT".equalsIgnoreCase(fb)) {
-                                    teleportPlayer(player, plugin.getConfig().getString("server-transfer.fallback-teleport-location", ""));
-                                } else {
-                                    if (player.isOnline()) {
-                                        player.kickPlayer(kickEvent.getKickMessage());
-                                        AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
-                                    }
-                                }
-                            }
-                        };
-
-                        boolean pipelineEnabled = plugin.getConfig().getBoolean("server-transfer.pipeline.enabled", false);
-                        java.util.List<String> steps = plugin.getConfig().getStringList("server-transfer.actions");
-                        boolean hasSteps = steps != null && !steps.isEmpty();
-                        if (pipelineEnabled && hasSteps && plugin.getActionPipelineService() != null) {
-                            String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-                            player.sendMessage(msg.replace("{server}", target == null ? "" : target));
-                            plugin.getActionPipelineService().startPipelineFromConfig(player, doTransfer);
-                        } else {
-                            boolean countdownEnabled = plugin.getConfig().getBoolean("server-transfer.countdown.enabled", false);
-                            int cdSeconds = Math.max(0, plugin.getConfig().getInt("server-transfer.countdown.seconds", 10));
-                            if (countdownEnabled && cdSeconds > 0 && plugin.getCountdownSequenceService() != null) {
-                                String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-                                player.sendMessage(msg.replace("{server}", target == null ? "" : target));
-                                plugin.getCountdownSequenceService().startServerTransferCountdown(player, doTransfer);
-                            } else {
-                                // Transferencia inmediata en el hilo de la entidad
-                                plugin.getPlatformScheduler().runTaskForEntity(player, doTransfer);
-                            }
-                        }
-                    }
-                    break;
-                case GAMEMODE:
-                    // Could implement gamemode change
-                    break;
-                case COMMAND:
-                    // Could execute custom command
-                    break;
-                case NONE:
-                    // Do nothing
-                    break;
-                default:
-                    // Default kick behavior
-                    if (player.isOnline()) {
-                        player.kickPlayer(kickEvent.getKickMessage());
-                        AFKLogger.logAFKKick(player, afkTimeMillis / 1000L);
-                    }
-                    break;
+        boolean pipelineEnabled = plugin.getConfig().getBoolean("server-transfer.pipeline.enabled", false);
+        java.util.List<String> steps = plugin.getConfig().getStringList("server-transfer.actions");
+        boolean hasSteps = steps != null && !steps.isEmpty();
+        if (pipelineEnabled && hasSteps && plugin.getActionPipelineService() != null) {
+            String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
+            player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+            plugin.getActionPipelineService().startPipelineFromConfig(player, doTransfer);
+        } else {
+            boolean countdownEnabled = plugin.getConfig().getBoolean("server-transfer.countdown.enabled", false);
+            int cdSeconds = Math.max(0, plugin.getConfig().getInt("server-transfer.countdown.seconds", 10));
+            if (countdownEnabled && cdSeconds > 0 && plugin.getCountdownSequenceService() != null) {
+                String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
+                player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+                plugin.getCountdownSequenceService().startServerTransferCountdown(player, doTransfer);
+            } else {
+                plugin.getPlatformScheduler().runTaskForEntity(player, doTransfer);
             }
         }
     }
@@ -649,11 +711,14 @@ public class AFKManager {
             return;
         }
 
+        String teleportMessage = plugin.getConfigManager().getMessage("kick-action-teleport",
+                "&e[AntiAFK] You have been teleported due to inactivity.");
+
         // Use default spawn if no location specified
         if (locationString == null || locationString.trim().isEmpty()) {
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage("§7[AntiAFK+] §aTeleported to spawn due to AFK.");
+            player.sendMessage(teleportMessage);
             AFKLogger.logActivity(player.getName() + " teleported to world spawn (AFK)");
             return;
         }
@@ -693,7 +758,7 @@ public class AFKManager {
             }
 
             player.teleport(teleportLocation);
-            player.sendMessage("§7[AntiAFK+] §aTeleported due to AFK timeout.");
+            player.sendMessage(teleportMessage);
             AFKLogger.logActivity(player.getName() + " teleported to " + worldName + " (" + x + "," + y + "," + z + ") due to AFK");
 
         } catch (NumberFormatException e) {
@@ -701,7 +766,7 @@ public class AFKManager {
             // Fallback to spawn
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage("§7[AntiAFK+] §aTeleported to spawn due to AFK.");
+            player.sendMessage(teleportMessage);
         } catch (Exception e) {
             AFKLogger.logActivity("Error teleporting player " + player.getName() + ": " + e.getMessage());
         }
@@ -1088,18 +1153,34 @@ public class AFKManager {
 
     /**
      * Determines which AFK zone the player is currently in.
-     * For now, assumes all players are in the "spawn" zone.
-     * In a full implementation, this would check player coordinates against zone boundaries.
+     * 
+     * With WorldGuard: Uses region-based detection to match player location to a zone.
+     * Without WorldGuard: Returns the first configured zone as a global fallback,
+     * allowing zone-management to work without WorldGuard for simple setups.
      */
     private String determinePlayerZone(Player player) {
         // Prefer WorldGuard integration when available
         var wg = plugin.getWorldGuardIntegration();
+        boolean requireWorldGuard = plugin.getConfig().getBoolean("zone-management.require-worldguard", false);
+
         if (wg != null && wg.isAvailable() && plugin.getConfig().getBoolean("zone-management.enabled", false)) {
             String z = wg.determineZoneAt(player != null ? player.getLocation() : null);
             if (z != null) return z;
         }
-        // Fallback: spawn zone if configured
-        if (plugin.getConfig().contains("zone-management.zones.spawn")) return "spawn";
+
+        // If WorldGuard is required but not available/didn't match, don't fallback
+        if (requireWorldGuard) {
+            return null;
+        }
+
+        // Fallback without WorldGuard: return the first configured zone that exists
+        var zonesSection = plugin.getConfig().getConfigurationSection("zone-management.zones");
+        if (zonesSection != null) {
+            var zoneNames = zonesSection.getKeys(false);
+            if (!zoneNames.isEmpty()) {
+                return zoneNames.iterator().next();
+            }
+        }
         return null;
     }
 

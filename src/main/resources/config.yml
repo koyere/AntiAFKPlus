@@ -1,5 +1,5 @@
 # ===============================================================================
-#                        AntiAFKPlus v3.0 Premium
+#                        AntiAFKPlus v3.0.2 Premium
 #                           Configuration File
 # ===============================================================================
 #
@@ -9,7 +9,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY)
-version: "3.0"
+version: "3.0.2"
 
 # ===============================================================================
 #  MODULE SYSTEM
@@ -120,6 +120,42 @@ afk-check-interval-seconds: 5
 
 # Maximum seconds a player can stay in voluntary AFK mode (/afk)
 max-voluntary-afk-time-seconds: 600
+
+# ===============================================================================
+#  AFK ACTION (Global)
+# ===============================================================================
+# What happens when a player exceeds the AFK time limit.
+# This is the GLOBAL default action. Zone-specific actions (zone-management)
+# and server-transfer override this when configured.
+#
+# Available actions:
+#   KICK             - Kick the player from the server (default)
+#   TELEPORT         - Teleport the player to a specific location
+#   MARK_AFK_ONLY    - Only mark the player as AFK, no kick or teleport
+#   NONE             - Do nothing (disable AFK action entirely)
+#
+# Examples:
+#   # Kick players (default behavior):
+#   afk-action:
+#     type: "KICK"
+#
+#   # Teleport AFK players to specific coordinates:
+#   afk-action:
+#     type: "TELEPORT"
+#     teleport-location: "world,0,100,0"
+#
+#   # Teleport with yaw and pitch (player facing direction):
+#   afk-action:
+#     type: "TELEPORT"
+#     teleport-location: "world,250,76,30,90.0,0.0"
+#
+#   # Just mark as AFK without kicking or teleporting:
+#   afk-action:
+#     type: "MARK_AFK_ONLY"
+
+afk-action:
+  type: "KICK"
+  teleport-location: ""
 
 # ===============================================================================
 #  WARNINGS AND TIMEOUTS
@@ -337,11 +373,32 @@ player-protection:
 # ===============================================================================
 #  ZONE MANAGEMENT
 # ===============================================================================
-# Requires WorldGuard. Configure safe teleport locations before enabling.
+# Define zones with custom AFK behavior. Each zone can have its own timeout,
+# action, and teleport location.
+#
+# WITHOUT WorldGuard: All players are matched against the FIRST zone that has
+# no region restrictions. Use this for simple setups where you want a single
+# custom action (e.g., teleport all AFK players to a location).
+#
+# WITH WorldGuard: Players are matched to zones based on the WorldGuard region
+# they are standing in. The zone name must match a WorldGuard region name.
+#
+# NOTE: If you only need a simple global teleport/action, use the "afk-action"
+# setting above instead. Zone management is for advanced per-region behavior.
+#
+# Available kick-action values:
+#   KICK             - Kick the player from the server
+#   TELEPORT         - Teleport to the specified teleport-location
+#   TRANSFER_SERVER  - Transfer to another BungeeCord/Velocity server
+#   MARK_AFK_ONLY    - Only mark as AFK, no kick or teleport
+#   GAMEMODE         - Change the player's gamemode
+#   COMMAND          - Execute a custom command
+#
+# teleport-location format: "world,x,y,z" or "world,x,y,z,yaw,pitch"
 
 zone-management:
   enabled: false
-  require-worldguard: true
+  require-worldguard: false
   default-afk-allowed: true
   default-timeout-seconds: 300
   allow-region-inheritance: true

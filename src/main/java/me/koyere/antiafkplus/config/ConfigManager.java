@@ -864,6 +864,41 @@ public class ConfigManager {
             isValid = false;
         }
 
+        // Validate global afk-action
+        String globalAction = config.getString("afk-action.type", "KICK");
+        if (globalAction != null) {
+            String normalized = globalAction.trim().toUpperCase();
+            if (!normalized.equals("KICK") && !normalized.equals("TELEPORT")
+                    && !normalized.equals("MARK_AFK_ONLY") && !normalized.equals("NONE")) {
+                plugin.getLogger().warning("Unknown afk-action.type: '" + globalAction
+                        + "'. Valid values: KICK, TELEPORT, MARK_AFK_ONLY, NONE. Defaulting to KICK.");
+            }
+            if ("TELEPORT".equals(normalized)) {
+                String teleportLoc = config.getString("afk-action.teleport-location", "");
+                if (teleportLoc == null || teleportLoc.trim().isEmpty()) {
+                    plugin.getLogger().warning("afk-action.type is TELEPORT but afk-action.teleport-location is empty! "
+                            + "Players will be teleported to world spawn. Set a location like: \"world,100,64,200\"");
+                }
+            }
+        }
+
+        // Validate zone-management configuration
+        if (config.getBoolean("zone-management.enabled", false)) {
+            var zonesSection = config.getConfigurationSection("zone-management.zones");
+            if (zonesSection != null) {
+                for (String zoneName : zonesSection.getKeys(false)) {
+                    String kickAction = config.getString("zone-management.zones." + zoneName + ".kick-action", "KICK");
+                    if ("TELEPORT".equalsIgnoreCase(kickAction)) {
+                        String loc = config.getString("zone-management.zones." + zoneName + ".teleport-location", "");
+                        if (loc == null || loc.trim().isEmpty()) {
+                            plugin.getLogger().warning("Zone '" + zoneName + "' has kick-action TELEPORT but no teleport-location! "
+                                    + "Players will be teleported to world spawn.");
+                        }
+                    }
+                }
+            }
+        }
+
         // Validate pattern detection settings
         if (patternDetectionModuleEnabled) {
             if (waterCircleRadius <= 0) {

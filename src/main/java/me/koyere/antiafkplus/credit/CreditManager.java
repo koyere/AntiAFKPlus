@@ -593,20 +593,41 @@ public class CreditManager {
     }
 
     private void teleportToAfkZone(Player player) {
-        // Prefer zone-management: first 'afk' zone, then 'spawn' zone
+        // Prefer zone-management: search all configured zones for a teleport-location
         if (plugin.getConfig().getBoolean("zone-management.enabled", false)) {
-            String loc = plugin.getConfig().getString("zone-management.zones.afk.teleport-location", null);
-            if (loc == null || loc.isBlank()) {
-                loc = plugin.getConfig().getString("zone-management.zones.spawn.teleport-location", "");
+            var zonesSection = plugin.getConfig().getConfigurationSection("zone-management.zones");
+            if (zonesSection != null) {
+                // First try 'afk' zone, then any zone with a teleport-location
+                String loc = plugin.getConfig().getString("zone-management.zones.afk.teleport-location", null);
+                if (loc == null || loc.isBlank()) {
+                    // Search all zones for the first one with a teleport-location
+                    for (String zoneName : zonesSection.getKeys(false)) {
+                        String zoneLoc = plugin.getConfig().getString("zone-management.zones." + zoneName + ".teleport-location", null);
+                        if (zoneLoc != null && !zoneLoc.isBlank()) {
+                            loc = zoneLoc;
+                            break;
+                        }
+                    }
+                }
+                if (loc != null && !loc.isEmpty()) {
+                    platformTeleport(player, loc);
+                    return;
+                }
             }
-            if (loc != null && !loc.isEmpty()) {
-                platformTeleport(player, loc);
+        }
+
+        // Fallback: global afk-action teleport-location
+        String globalAction = plugin.getConfig().getString("afk-action.type", "KICK");
+        if ("TELEPORT".equalsIgnoreCase(globalAction)) {
+            String globalLoc = plugin.getConfig().getString("afk-action.teleport-location", "");
+            if (globalLoc != null && !globalLoc.isBlank()) {
+                platformTeleport(player, globalLoc);
                 return;
             }
         }
+
         // Fallback: credit-system.afk-zone
         if (!plugin.getConfig().getBoolean("credit-system.afk-zone.enabled", true)) {
-            // Sin zona válida: usar spawn del mundo actual
             plugin.getPlatformScheduler().runTaskForEntity(player, () -> player.teleport(player.getWorld().getSpawnLocation()));
             return;
         }
@@ -822,15 +843,38 @@ public class CreditManager {
     }
 
     public Location getAFKZoneLocation(Player player) {
-        // Priorizar zone-management .zones.afk o .zones.spawn si existe
+        // Prioritize zone-management: search all configured zones for a teleport-location
         if (plugin.getConfig().getBoolean("zone-management.enabled", false)) {
-            String loc = plugin.getConfig().getString("zone-management.zones.afk.teleport-location", null);
-            if (loc == null || loc.isBlank()) {
-                loc = plugin.getConfig().getString("zone-management.zones.spawn.teleport-location", "");
+            var zonesSection = plugin.getConfig().getConfigurationSection("zone-management.zones");
+            if (zonesSection != null) {
+                // First try 'afk' zone explicitly
+                String loc = plugin.getConfig().getString("zone-management.zones.afk.teleport-location", null);
+                if (loc == null || loc.isBlank()) {
+                    // Search all zones for the first one with a teleport-location
+                    for (String zoneName : zonesSection.getKeys(false)) {
+                        String zoneLoc = plugin.getConfig().getString("zone-management.zones." + zoneName + ".teleport-location", null);
+                        if (zoneLoc != null && !zoneLoc.isBlank()) {
+                            loc = zoneLoc;
+                            break;
+                        }
+                    }
+                }
+                Location parsed = parseLocation(player, loc);
+                if (parsed != null) return parsed;
             }
-            Location parsed = parseLocation(player, loc);
-            if (parsed != null) return parsed;
         }
+
+        // Fallback: global afk-action teleport-location
+        String globalAction = plugin.getConfig().getString("afk-action.type", "KICK");
+        if ("TELEPORT".equalsIgnoreCase(globalAction)) {
+            String globalLoc = plugin.getConfig().getString("afk-action.teleport-location", "");
+            if (globalLoc != null && !globalLoc.isBlank()) {
+                Location parsed = parseLocation(player, globalLoc);
+                if (parsed != null) return parsed;
+            }
+        }
+
+        // Fallback: credit-system.afk-zone
         String world = plugin.getConfig().getString("credit-system.afk-zone.world", player.getWorld().getName());
         String coords = plugin.getConfig().getString("credit-system.afk-zone.location", "0,100,0");
         return parseLocation(player, world + "," + coords);
