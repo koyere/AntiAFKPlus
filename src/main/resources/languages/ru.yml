@@ -184,6 +184,12 @@ messages:
       pvp-prevented: "&7[AntiAFK+] &eAFK зона: PVP отключён здесь."
       damage-prevented: "&7[AntiAFK+] &eAFK зона: Урон предотвращён."
 
+  # Совместимость с Bedrock
+  bedrock-detected: "&a[AntiAFK] &7Обнаружена Bedrock Edition! Интерфейс адаптирован для сенсорного управления."
+  bedrock-tip-mobile: "&7💡 Совет: Используйте длинные нажатия для действий с инвентарём"
+  bedrock-tip-console: "&7💡 Совет: Навигация контроллером адаптирована"
+  bedrock-tip-desktop: "&7💡 Совет: Доступны горячие клавиши"
+
   # GUI - All text displayed in the in-game settings menus
   gui:
     # Feedback messages (chat)

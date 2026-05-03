@@ -1,11 +1,10 @@
 // AntiAFKActivityDetector.java - Enhanced v2.0 with Event Integration
 package me.koyere.antiafkplus.afk;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
-import me.koyere.antiafkplus.api.data.ActivityType;
-import me.koyere.antiafkplus.config.ConfigManager;
-import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
-import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -15,12 +14,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import me.koyere.antiafkplus.platform.PlatformScheduler;
-import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.api.data.ActivityType;
+import me.koyere.antiafkplus.config.ConfigManager;
+import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
+import me.koyere.antiafkplus.platform.PlatformScheduler;
 
 /**
  * Enhanced Activity Detector v2.0 - Detects specific player activities like fishing, mining,
@@ -306,13 +305,17 @@ public class AntiAFKActivityDetector implements Listener {
                 }
                 break;
             case WARN_PLAYER:
-                player.sendMessage("§e[AntiAFK] Warning: " +
-                        event.getPatternType().getDisplayName() + " detected.");
+                String warnMsg = plugin.getConfigManager().getMessage(
+                        "suspicious-activity", "&e[AntiAFK] Suspicious activity detected. Please move normally.");
+                player.sendMessage(warnMsg);
                 break;
             case KICK_PLAYER:
                 String kickMessage = event.getCustomMessage() != null ?
                         event.getCustomMessage() :
-                        "§cKicked for suspicious AFK activity: " + event.getPatternType().getDisplayName();
+                        plugin.getConfigManager().getMessage(
+                                "pattern-violation-kicked",
+                                "&4[AntiAFK] Kicked for repeated pattern violations: {pattern}")
+                                .replace("{pattern}", event.getPatternType().getDisplayName());
                 plugin.getPlatformScheduler().runTaskForEntity(player, () -> {
                     if (player.isOnline()) {
                         player.kickPlayer(kickMessage);

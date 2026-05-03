@@ -31,11 +31,23 @@ If you used zone management with a custom zone name (e.g., `spawn_final`, `lobby
 ### Zone management required WorldGuard even for simple setups
 `require-worldguard` defaulted to `true`, making zone management unusable without WorldGuard. **Now defaults to `false`.** If you need region-based zones, set it back to `true`.
 
-### Teleport message always showed in English
-The teleport message (`"Teleported due to AFK timeout"`) was hardcoded in English and ignored the language files. **Now it reads from your language file** using the `kick-action-teleport` key.
+### Warning times showed wrong numbers (29 instead of 30, 7 instead of 10)
+If you configured warnings at 30, 10, and 5 seconds, the actual message could show 27, 9, or 3 instead. **Now warnings display the exact configured time** (30, 10, 5) regardless of the check interval.
+
+### Warning titles on screen always in English
+The big title that appears on screen during AFK warnings (`"⚠ AFK Warning"`, `"X seconds remaining"`) was hardcoded in English and ignored the language files. **Now reads from your language file** using the `warning-title-standard` and `warning-subtitle-standard` keys.
+
+### Teleport message always in English
+The teleport message (`"Teleported due to AFK timeout"`) was hardcoded in English. **Now reads from your language file** using the `kick-action-teleport` key.
+
+### Pattern detection warnings in English
+The warning message when suspicious activity is detected was hardcoded. **Now reads from your language file** using the `suspicious-activity` and `pattern-violation-kicked` keys.
+
+### Bedrock welcome messages in English
+The Bedrock Edition detection messages were hardcoded. **Now reads from your language file** using the new `bedrock-detected`, `bedrock-tip-mobile`, `bedrock-tip-console`, and `bedrock-tip-desktop` keys.
 
 ### Language files not fully translated
-All 10 language files (en, es, fr, de, pt, ru, zh, ja, ko, it) had many messages still in English. **All messages are now fully translated** in every language.
+All 10 language files (en, es, fr, de, pt, ru, zh, ja, ko, it) had many messages still in English. **Every single message is now fully translated** in all languages.
 
 ---
 
@@ -43,7 +55,7 @@ All 10 language files (en, es, fr, de, pt, ru, zh, ja, ko, it) had many messages
 
 ### Better config documentation
 - The `afk-action` section includes usage examples directly in config.yml
-- The `zone-management` section now explains how it works with and without WorldGuard
+- The `zone-management` section explains how it works with and without WorldGuard
 - All available `kick-action` values are documented inline
 
 ### Startup validation warnings

@@ -184,6 +184,12 @@ messages:
       pvp-prevented: "&7[AntiAFK+] &eAFK 구역: PVP가 비활성화되어 있습니다."
       damage-prevented: "&7[AntiAFK+] &eAFK 구역: 피해가 방지되었습니다."
 
+  # Bedrock 호환성
+  bedrock-detected: "&a[AntiAFK] &7Bedrock Edition이 감지되었습니다! 터치 조작에 맞게 UI가 조정되었습니다."
+  bedrock-tip-mobile: "&7💡 팁: 인벤토리 작업에는 길게 누르기를 사용하세요"
+  bedrock-tip-console: "&7💡 팁: 컨트롤러 내비게이션이 조정되었습니다"
+  bedrock-tip-desktop: "&7💡 팁: 키보드 단축키를 사용할 수 있습니다"
+
   # GUI - 게임 내 설정 메뉴에 표시되는 모든 텍스트
   gui:
     # 피드백 메시지 (채팅)

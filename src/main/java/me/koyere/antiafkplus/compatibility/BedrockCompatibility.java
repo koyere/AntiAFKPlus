@@ -1,17 +1,20 @@
 package me.koyere.antiafkplus.compatibility;
 
-import me.koyere.antiafkplus.AntiAFKPlus;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.inventory.ItemStack;
 
-import java.lang.reflect.Method;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+import me.koyere.antiafkplus.AntiAFKPlus;
 
 /**
  * Bedrock Edition compatibility layer for AntiAFKPlus.
@@ -400,27 +403,35 @@ public class BedrockCompatibility implements Listener {
      * Send a welcome message adapted for Bedrock players.
      */
     private void sendBedrockWelcomeMessage(Player player, BedrockPlayerInfo info) {
-        // Use localization manager if available
-        if (plugin.getModuleManager() != null) {
-            // This would use the LocalizationManager
-            player.sendMessage("§a[AntiAFK] §7Bedrock Edition detected! UI adapted for touch controls.");
-        } else {
-            player.sendMessage("§a[AntiAFK] §7Bedrock Edition detected! UI adapted for touch controls.");
-        }
+        String welcomeMsg = plugin.getConfigManager().getMessage(
+                "bedrock-detected", "&a[AntiAFK] &7Bedrock Edition detected! UI adapted for touch controls.");
+        player.sendMessage(welcomeMsg);
         
         // Send additional tips based on device type
         BedrockDetectionResult result = info.getDetectionResult();
         if (result.getDeviceType() != null) {
+            String tipKey;
+            String tipDefault;
             switch (result.getDeviceType().toLowerCase()) {
                 case "mobile":
-                    player.sendMessage("§7💡 Tip: Use longer taps for inventory actions");
+                    tipKey = "bedrock-tip-mobile";
+                    tipDefault = "&7💡 Tip: Use longer taps for inventory actions";
                     break;
                 case "console":
-                    player.sendMessage("§7💡 Tip: Controller navigation adapted");
+                    tipKey = "bedrock-tip-console";
+                    tipDefault = "&7💡 Tip: Controller navigation adapted";
                     break;
                 case "desktop":
-                    player.sendMessage("§7💡 Tip: Keyboard shortcuts available");
+                    tipKey = "bedrock-tip-desktop";
+                    tipDefault = "&7💡 Tip: Keyboard shortcuts available";
                     break;
+                default:
+                    tipKey = null;
+                    tipDefault = null;
+                    break;
+            }
+            if (tipKey != null) {
+                player.sendMessage(plugin.getConfigManager().getMessage(tipKey, tipDefault));
             }
         }
     }

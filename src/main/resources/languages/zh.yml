@@ -184,6 +184,12 @@ messages:
       pvp-prevented: "&7[AntiAFK+] &e挂机区域：此处PVP已禁用。"
       damage-prevented: "&7[AntiAFK+] &e挂机区域：伤害已阻止。"
 
+  # Bedrock 兼容性
+  bedrock-detected: "&a[AntiAFK] &7检测到基岩版！界面已适配触控操作。"
+  bedrock-tip-mobile: "&7💡 提示：使用长按进行背包操作"
+  bedrock-tip-console: "&7💡 提示：手柄导航已适配"
+  bedrock-tip-desktop: "&7💡 提示：键盘快捷键可用"
+
   # GUI - All text displayed in the in-game settings menus
   gui:
     # Feedback messages (chat)

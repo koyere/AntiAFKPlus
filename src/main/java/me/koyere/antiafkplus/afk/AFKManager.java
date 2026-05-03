@@ -442,15 +442,18 @@ public class AFKManager {
                         String message = warningEvent.getCustomMessage() != null ?
                                 warningEvent.getCustomMessage() :
                                 plugin.getConfigManager().getMessageKickWarning()
-                                        .replace("{seconds}", String.valueOf(secondsRemaining));
+                                        .replace("{seconds}", String.valueOf(warningTimeSeconds));
 
                         player.sendMessage(message);
 
                         // Send title if enabled
                         if (warningEvent.shouldSendTitle()) {
-                            player.sendTitle("§c⚠ AFK Warning",
-                                    "§e" + secondsRemaining + " seconds remaining",
-                                    10, 70, 20);
+                            String titleText = plugin.getConfigManager().getMessage(
+                                    "warning-title-standard", "&c⚠ AFK Warning");
+                            String subtitleText = plugin.getConfigManager().getMessage(
+                                    "warning-subtitle-standard", "&e{seconds} seconds remaining")
+                                    .replace("{seconds}", String.valueOf(warningTimeSeconds));
+                            player.sendTitle(titleText, subtitleText, 10, 70, 20);
                         }
 
                         AFKLogger.logAFKWarning(player, secondsRemaining);
@@ -891,7 +894,7 @@ public class AFKManager {
             return false;
         } else { // Not manually AFK (or not AFK at all), turn it on
             if (isAFK(player) && !manualAfkUsernames.contains(uuid)) { // Is AFK (auto) but not manually
-                player.sendMessage(plugin.getConfigManager().getMessageAlreadyAFK() + " (Switching to manual AFK mode).");
+                player.sendMessage(plugin.getConfigManager().getMessageAlreadyAFK());
             } else if (isAFK(player)) { // Already manually AFK (should have been caught by first if, but defensive)
                 player.sendMessage(plugin.getConfigManager().getMessageAlreadyAFK());
             }

@@ -184,6 +184,12 @@ messages:
       pvp-prevented: "&7[AntiAFK+] &eZona AFK: PVP está desativado aqui."
       damage-prevented: "&7[AntiAFK+] &eZona AFK: Dano prevenido."
 
+  # Compatibilidade Bedrock
+  bedrock-detected: "&a[AntiAFK] &7Edição Bedrock detectada! Interface adaptada para controles de toque."
+  bedrock-tip-mobile: "&7💡 Dica: Use toques mais longos para ações de inventário"
+  bedrock-tip-console: "&7💡 Dica: Navegação por controle adaptada"
+  bedrock-tip-desktop: "&7💡 Dica: Atalhos de teclado disponíveis"
+
   # GUI - All text displayed in the in-game settings menus
   gui:
     # Feedback messages (chat)
