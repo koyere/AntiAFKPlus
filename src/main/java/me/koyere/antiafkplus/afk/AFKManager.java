@@ -494,6 +494,17 @@ public class AFKManager {
         String detectionMethod = afkDetectionReasons.getOrDefault(player.getUniqueId(), "standard");
         int warningsSentCount = warningCounts.getOrDefault(player.getUniqueId(), 0);
 
+        // Check if player is in an exempt world (mark as AFK but skip action)
+        List<String> exemptWorlds = plugin.getConfig().getStringList("afk-action.exempt-worlds");
+        if (exemptWorlds != null && !exemptWorlds.isEmpty()) {
+            String currentWorld = player.getWorld().getName();
+            if (exemptWorlds.contains(currentWorld)) {
+                // Player is in exempt world: mark as AFK only, no teleport/kick
+                forceSetManualAFKState(player, true);
+                return;
+            }
+        }
+
         // Fire kick event
         PlayerAFKKickEvent kickEvent = new PlayerAFKKickEvent(
                 player,

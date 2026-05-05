@@ -156,6 +156,11 @@ max-voluntary-afk-time-seconds: 600
 afk-action:
   type: "KICK"
   teleport-location: ""
+  # Worlds where players will be marked as AFK (tab list, visual effects)
+  # but will NOT be teleported/kicked. Useful for spawn worlds where you
+  # want the AFK tag but don't want to move players.
+  exempt-worlds: []
+  # Example: exempt-worlds: ["world_spawn", "hub"]
 
 # ===============================================================================
 #  WARNINGS AND TIMEOUTS

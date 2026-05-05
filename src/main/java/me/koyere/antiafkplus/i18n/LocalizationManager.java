@@ -417,7 +417,7 @@ public class LocalizationManager {
         // Try to get message from requested language
         if (langData != null && langData.hasMessage(key)) {
             String message = langData.getMessage(key);
-            return ChatColor.translateAlternateColorCodes('&', message);
+            return colorize(message);
         }
         
         // Fallback to default language
@@ -425,12 +425,41 @@ public class LocalizationManager {
             LanguageData defaultLangData = languages.get(defaultLanguage);
             if (defaultLangData != null && defaultLangData.hasMessage(key)) {
                 String message = defaultLangData.getMessage(key);
-                return ChatColor.translateAlternateColorCodes('&', message);
+                return colorize(message);
             }
         }
         
         // Return key as fallback
         return "[" + key + "]";
+    }
+
+    /**
+     * Translates color codes in a message string.
+     * Supports both legacy '&' color codes and hex colors in formats:
+     * - &#RRGGBB (e.g., &#e5be01)
+     * - #RRGGBB (e.g., #e5be01)
+     * - {#RRGGBB} (e.g., {#e5be01})
+     */
+    @SuppressWarnings("deprecation")
+    private String colorize(String message) {
+        if (message == null) return "";
+        
+        // Process hex colors first (&#RRGGBB or {#RRGGBB} or #RRGGBB at start/after space)
+        java.util.regex.Pattern hexPattern = java.util.regex.Pattern.compile("[&{]?#([0-9a-fA-F]{6})}?");
+        java.util.regex.Matcher matcher = hexPattern.matcher(message);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            String hex = matcher.group(1);
+            StringBuilder replacement = new StringBuilder("§x");
+            for (char c : hex.toCharArray()) {
+                replacement.append('§').append(c);
+            }
+            matcher.appendReplacement(result, replacement.toString());
+        }
+        matcher.appendTail(result);
+        
+        // Then process legacy & color codes
+        return ChatColor.translateAlternateColorCodes('&', result.toString());
     }
     
     /**

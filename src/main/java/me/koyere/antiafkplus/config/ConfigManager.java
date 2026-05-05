@@ -473,7 +473,21 @@ public class ConfigManager {
 
     @SuppressWarnings("deprecation")
     private String colorize(String text) {
-        return ChatColor.translateAlternateColorCodes('&', text);
+        if (text == null) return "";
+        // Process hex colors (&#RRGGBB, {#RRGGBB}, #RRGGBB)
+        java.util.regex.Pattern hexPattern = java.util.regex.Pattern.compile("[&{]?#([0-9a-fA-F]{6})}?");
+        java.util.regex.Matcher matcher = hexPattern.matcher(text);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            String hex = matcher.group(1);
+            StringBuilder replacement = new StringBuilder("§x");
+            for (char c : hex.toCharArray()) {
+                replacement.append('§').append(c);
+            }
+            matcher.appendReplacement(result, replacement.toString());
+        }
+        matcher.appendTail(result);
+        return ChatColor.translateAlternateColorCodes('&', result.toString());
     }
 
     /**
@@ -489,7 +503,7 @@ public class ConfigManager {
                 return msg;
             }
         }
-        return ChatColor.translateAlternateColorCodes('&', defaultValue);
+        return colorize(defaultValue);
     }
 
     /**

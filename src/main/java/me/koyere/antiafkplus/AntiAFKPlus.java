@@ -255,6 +255,13 @@ public final class AntiAFKPlus extends JavaPlugin {
         try {
             // Initialize localization manager
             this.localizationManager = new LocalizationManager(this);
+
+            // Reload messages now that LocalizationManager is available
+            // (ConfigManager was created in Phase 1 before localization existed)
+            if (this.configManager != null) {
+                this.configManager.loadMessages();
+            }
+
             return true;
 
         } catch (Exception e) {

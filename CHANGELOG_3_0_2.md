@@ -5,7 +5,7 @@
 ## ✨ New Features
 
 ### Global AFK Action (`afk-action`)
-You can now configure what happens when a player goes AFK **directly in config.yml** — no zone management or WorldGuard needed.
+Configure what happens when a player goes AFK **directly in config.yml** — no zone management or WorldGuard needed.
 
 ```yaml
 afk-action:
@@ -13,82 +13,86 @@ afk-action:
   teleport-location: "world,250,76,30"
 ```
 
-**Available actions:**
-- `KICK` — Kick the player from the server (default)
-- `TELEPORT` — Teleport the player to specific coordinates
-- `MARK_AFK_ONLY` — Only mark as AFK, no kick or teleport
-- `NONE` — Disable AFK action entirely
+**Available actions:** `KICK`, `TELEPORT`, `MARK_AFK_ONLY`, `NONE`
 
-This is the simplest way to set up AFK teleportation. Just set the type and coordinates, done.
+### Exempt Worlds (`afk-action.exempt-worlds`)
+Worlds where players get marked as AFK (tab list prefix, visual effects) but are **not** teleported or kicked. Perfect for spawn worlds.
+
+```yaml
+afk-action:
+  type: "TELEPORT"
+  teleport-location: "world,250,76,30"
+  exempt-worlds:
+    - "world_spawn"
+```
+
+Players in `world_spawn` will show as AFK in tab but won't be teleported. Players in other worlds will be teleported normally.
+
+### Hex Color Support
+Language files and messages now support hex colors (1.16+):
+- `&#e5be01` format
+- `{#e5be01}` format
+- `#e5be01` format
+
+Example in your language file:
+```yaml
+kick-action-teleport: "&#e5be01[Server] &fYou have been teleported."
+```
 
 ---
 
 ## 🐛 Bug Fixes
 
-### Players kicked even with TELEPORT configured (Critical)
-If you used zone management with a custom zone name (e.g., `spawn_final`, `lobby`, `hub`), the plugin ignored it and kicked the player anyway. Only a zone named exactly `"spawn"` worked. **Now any zone name works correctly.**
+### Messages always in English on first startup (Critical)
+The `ConfigManager` loaded messages **before** the `LocalizationManager` was initialized, so all cached messages (kick warning, AFK state, teleport) defaulted to English. Even after restart, the cached values stayed in English. **Fixed:** Messages are now reloaded after the localization system is ready.
 
-### Zone management required WorldGuard even for simple setups
-`require-worldguard` defaulted to `true`, making zone management unusable without WorldGuard. **Now defaults to `false`.** If you need region-based zones, set it back to `true`.
+### Players kicked even with TELEPORT configured
+Custom zone names (e.g., `spawn_final`, `lobby`) were ignored — only `"spawn"` worked. **Now any zone name works.**
 
-### Warning times showed wrong numbers (29 instead of 30, 7 instead of 10)
-If you configured warnings at 30, 10, and 5 seconds, the actual message could show 27, 9, or 3 instead. **Now warnings display the exact configured time** (30, 10, 5) regardless of the check interval.
+### Zone management required WorldGuard for simple setups
+`require-worldguard` defaulted to `true`. **Now defaults to `false`.**
+
+### Warning times showed wrong numbers (29 instead of 30)
+Warnings now display the **exact configured time** (30, 10, 5) instead of the calculated remainder that varied with the check interval.
 
 ### Warning titles on screen always in English
-The big title that appears on screen during AFK warnings (`"⚠ AFK Warning"`, `"X seconds remaining"`) was hardcoded in English and ignored the language files. **Now reads from your language file** using the `warning-title-standard` and `warning-subtitle-standard` keys.
+The on-screen title (`"⚠ AFK Warning"`) was hardcoded. **Now reads from your language file** (`warning-title-standard`, `warning-subtitle-standard`).
 
 ### Teleport message always in English
-The teleport message (`"Teleported due to AFK timeout"`) was hardcoded in English. **Now reads from your language file** using the `kick-action-teleport` key.
+Hardcoded. **Now reads `kick-action-teleport` from your language file.**
 
 ### Pattern detection warnings in English
-The warning message when suspicious activity is detected was hardcoded. **Now reads from your language file** using the `suspicious-activity` and `pattern-violation-kicked` keys.
+Hardcoded. **Now reads `suspicious-activity` and `pattern-violation-kicked` from your language file.**
 
 ### Bedrock welcome messages in English
-The Bedrock Edition detection messages were hardcoded. **Now reads from your language file** using the new `bedrock-detected`, `bedrock-tip-mobile`, `bedrock-tip-console`, and `bedrock-tip-desktop` keys.
+Hardcoded. **Now reads from language file** (`bedrock-detected`, `bedrock-tip-mobile`, `bedrock-tip-console`, `bedrock-tip-desktop`).
 
-### Language files not fully translated
-All 10 language files (en, es, fr, de, pt, ru, zh, ja, ko, it) had many messages still in English. **Every single message is now fully translated** in all languages.
+### Language files incomplete
+All 10 languages now fully translated. No English leftovers.
 
 ---
 
 ## 📋 Improvements
 
-### Better config documentation
-- The `afk-action` section includes usage examples directly in config.yml
-- The `zone-management` section explains how it works with and without WorldGuard
-- All available `kick-action` values are documented inline
-
-### Startup validation warnings
-The plugin now warns you in the console at startup if:
-- `afk-action.type` has an unrecognized value
-- `afk-action.type` is `TELEPORT` but `teleport-location` is empty
-- A zone has `kick-action: TELEPORT` but no `teleport-location`
-
-### Action priority chain
-When a player exceeds the AFK time limit, the action is resolved in this order:
-
-| Priority | Source | When it applies |
-|----------|--------|-----------------|
-| 1 | Zone Management | `zone-management.enabled: true` and player is in a configured zone |
-| 2 | Global AFK Action | `afk-action.type` is set to something other than KICK |
-| 3 | Server Transfer | `server-transfer.enabled: true` with a valid `target-server` |
-| 4 | Default | KICK |
+- Config documentation with inline examples for `afk-action` and `zone-management`
+- Startup validation warns about misconfigured teleport locations
+- Action priority: Zone Management > Global `afk-action` > Server Transfer > KICK
 
 ---
 
 ## 🔧 How to Update
 
-1. Replace the plugin JAR with the new version
-2. **Delete the `plugins/AntiAFKPlus/languages/` folder** so the new translated files are extracted
+1. Replace the plugin JAR
+2. **Delete `plugins/AntiAFKPlus/languages/`** so new translated files are extracted
 3. Restart the server
-4. If you want the new global teleport feature, add this to your `config.yml`:
+4. Add to your `config.yml`:
 
 ```yaml
 afk-action:
   type: "TELEPORT"
   teleport-location: "world,250,76,30"
+  exempt-worlds:
+    - "world_spawn"
 ```
 
-> **Note:** If you previously customized your language files, back them up before deleting the folder. You can re-apply your changes after the new files are extracted.
-
-> **Tip:** If you were using `zone-management` only for a simple teleport, you can now disable it and use `afk-action` instead — much simpler.
+> **Note:** Back up your language files if you customized them. Re-apply changes after the new files are extracted.
