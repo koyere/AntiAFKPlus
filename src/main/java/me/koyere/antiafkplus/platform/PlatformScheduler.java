@@ -451,6 +451,13 @@ public class PlatformScheduler {
         if (original == null) {
             return () -> {};
         }
+        // Cortocircuito en plataformas sin soporte (Spigot/legacy):
+        // PAUSE_SUPPORTED es static final boolean, así que el JIT lo trata
+        // como constante y elimina la rama en compilación. No se crea ni
+        // siquiera el lambda wrapper en esas plataformas.
+        if (!ServerStateUtil.PAUSE_SUPPORTED) {
+            return original;
+        }
         return () -> {
             if (ServerStateUtil.isServerPaused()) {
                 return;
