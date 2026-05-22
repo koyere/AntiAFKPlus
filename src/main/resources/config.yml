@@ -118,8 +118,11 @@ default-afk-time: 300
 # How often (seconds) the plugin checks for AFK players
 afk-check-interval-seconds: 5
 
-# Maximum seconds a player can stay in voluntary AFK mode (/afk)
-max-voluntary-afk-time-seconds: 600
+# Maximum seconds a player can remain in AFK state before being forced active.
+# Applies to both voluntary (/afk) and plugin-marked (MARK_AFK_ONLY) AFK states.
+# Set to 0 to disable (players stay AFK indefinitely until they move).
+# Legacy key "max-voluntary-afk-time-seconds" is still supported.
+max-afk-duration-seconds: 600
 
 # ===============================================================================
 #  AFK ACTION (Global)

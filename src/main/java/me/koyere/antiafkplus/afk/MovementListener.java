@@ -96,6 +96,33 @@ public class MovementListener implements Listener {
 
         if (player.hasPermission("antiafkplus.bypass")) return;
 
+        // v3.0.3 FIX: Passive vehicle movement bypass prevention
+        // When a player is riding an entity (horse, donkey, camel, boat, etc.),
+        // the entity's movement (especially bobbing in water) fires PlayerMoveEvent
+        // for the rider. This passive movement must NOT count as legitimate player
+        // activity, as it would immediately unmark AFK players who were correctly
+        // detected by the PatternDetector.
+        //
+        // We still record location data for pattern detection so the PatternDetector
+        // can continue monitoring the player's position while mounted.
+        if (player.isInsideVehicle()) {
+            // Always feed location data to PatternDetector for continued monitoring
+            updatePlayerLocationData(player, event);
+
+            // Only count explicit head rotation as activity while mounted,
+            // since that requires actual player input (mouse movement)
+            if (detectHeadRotation(player, event)) {
+                AFKManager manager = AntiAFKPlus.getInstance() != null ? AntiAFKPlus.getInstance().getAfkManager() : null;
+                if (manager != null) {
+                    manager.onPlayerActivity(player, ActivityType.HEAD_ROTATION);
+                    lastHeadRotationTime.put(player.getUniqueId(), System.currentTimeMillis());
+                    updateLastMovementTimestamp(player);
+                    updateLastKeystrokeTime(player);
+                }
+            }
+            return;
+        }
+
         // Enhanced movement detection
         boolean significantMovement = detectSignificantMovement(event);
         boolean headRotation = detectHeadRotation(player, event);

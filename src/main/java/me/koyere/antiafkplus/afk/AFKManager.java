@@ -827,7 +827,8 @@ public class AFKManager {
         String afkBroadcastMessage = plugin.getConfigManager().getMessagePlayerNowAFK()
                 .replace("{player}", player.getName());
 
-        if(plugin.getConfigManager().shouldBroadcastAFKStateChanges()){
+        if(plugin.getConfigManager().shouldBroadcastAFKStateChanges()
+                && afkBroadcastMessage != null && !afkBroadcastMessage.trim().isEmpty()){
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 onlinePlayer.sendMessage(afkBroadcastMessage);
             }
@@ -858,7 +859,8 @@ public class AFKManager {
         String notAfkBroadcastMessage = plugin.getConfigManager().getMessagePlayerNoLongerAFK()
                 .replace("{player}", player.getName());
 
-        if(plugin.getConfigManager().shouldBroadcastAFKStateChanges()){
+        if(plugin.getConfigManager().shouldBroadcastAFKStateChanges()
+                && notAfkBroadcastMessage != null && !notAfkBroadcastMessage.trim().isEmpty()){
             for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
                 onlinePlayer.sendMessage(notAfkBroadcastMessage);
             }

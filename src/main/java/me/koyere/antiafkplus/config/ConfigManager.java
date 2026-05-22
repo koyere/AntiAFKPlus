@@ -142,7 +142,8 @@ public class ConfigManager {
             plugin.getLogger().warning("Config 'afk-check-interval-seconds' must be > 0. Defaulting to 5 seconds.");
             this.afkCheckIntervalSeconds = 5;
         }
-        this.maxVoluntaryAfkTimeSeconds = config.getInt("max-voluntary-afk-time-seconds", 600);
+        this.maxVoluntaryAfkTimeSeconds = config.getInt("max-afk-duration-seconds",
+                config.getInt("max-voluntary-afk-time-seconds", 600));
 
         // Feature toggles
         this.debugEnabled = config.getBoolean("debug", false);
@@ -943,6 +944,10 @@ public class ConfigManager {
         loadMessages();
         validateConfiguration();
         plugin.rebuildTimeWindowService();
+        // Reload language files so changes in lang YAMLs take effect without restart
+        if (plugin.getLocalizationManager() != null) {
+            plugin.getLocalizationManager().reload();
+        }
         // Reload module states from updated config
         if (plugin.getModuleManager() != null) {
             plugin.getModuleManager().reloadModuleStates();
