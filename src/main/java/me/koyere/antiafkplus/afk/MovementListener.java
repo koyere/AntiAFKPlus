@@ -5,10 +5,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerFishEvent;
@@ -39,6 +42,11 @@ public class MovementListener implements Listener {
     private final Map<UUID, Long> lastKeystrokeTime = new HashMap<>();
     private final Map<UUID, Boolean> lastMovementWasAutomatic = new HashMap<>();
 
+    // v3.0.5: State for "Use Item / Place Block" toggle-mode bypass detection.
+    // Keeps the last interact context per player so we can detect identical
+    // right-clicks repeated tick-after-tick while the player stays still.
+    private final Map<UUID, InteractContext> lastInteractContext = new HashMap<>();
+
     // Configuration thresholds for micro-movement detection (loaded from config)
     private double microMovementThreshold = 0.1;
     private double headRotationThreshold = 5.0;
@@ -49,6 +57,13 @@ public class MovementListener implements Listener {
     // v2.4 NEW: Keystroke timeout detection constants
     private static final long DEFAULT_KEYSTROKE_TIMEOUT_MS = 180000; // 3 minutes without keystrokes
     private static final double AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD = 0.15; // Water current movement speed
+
+    // v3.0.5: Threshold used by isPassiveLiquidMovement.
+    // A real water-current push in Minecraft is ~0.014 blocks/tick. Manual swimming
+    // with W held (no sprint) is ~0.10–0.13 blocks/tick. We pick 0.08 so that any
+    // legitimate manual swim crosses it (no false positive) while still catching
+    // small currents and step-block bobbing inside compact AFK pools.
+    private static final double PASSIVE_LIQUID_VELOCITY_THRESHOLD = 0.08;
 
     // Constructor does not need AFKManager if it gets it via AntiAFKPlus.getInstance()
     public MovementListener() {
@@ -120,6 +135,26 @@ public class MovementListener implements Listener {
                     updateLastKeystrokeTime(player);
                 }
             }
+            return;
+        }
+
+        // v3.0.4 FIX: Classic AFK water-pool bypass prevention
+        // A player standing in a small water pool gets pushed by the current.
+        // If the pool has step blocks underwater, deltaY can exceed
+        // microMovementThreshold and detectSignificantMovement() would return true,
+        // causing onPlayerActivity(MOVEMENT) to immediately unmark a player who was
+        // correctly forced AFK by the PatternDetector (confined_space / keystroke_timeout).
+        //
+        // We treat liquid movement as passive when ALL of these hold:
+        //   - the player is in water/lava
+        //   - no head rotation in this tick (no mouse input)
+        //   - not sprinting and not sneaking (no held key)
+        //   - horizontal velocity below the manual-swim threshold
+        //
+        // PatternDetector keeps receiving position updates so it can still analyze
+        // the player's movement and confirm AFK patterns.
+        if (isPassiveLiquidMovement(player, event)) {
+            updatePlayerLocationData(player, event);
             return;
         }
 
@@ -209,6 +244,27 @@ public class MovementListener implements Listener {
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         if (player.hasPermission("antiafkplus.bypass")) return;
+
+        // v3.0.5 FIX: "Use Item / Place Block" toggle-mode bypass prevention.
+        // Minecraft's accessibility option lets the right-click action be toggled
+        // on, which makes the client send a right-click on the same block every
+        // tick while the player stays still. Each one fires PlayerInteractEvent,
+        // which previously was always treated as activity and reset the AFK
+        // timer indefinitely. We ignore an interact when ALL of these hold
+        // compared to the previous interact:
+        //   - same action (RIGHT_CLICK_BLOCK)
+        //   - same block coordinates
+        //   - same clicked face
+        //   - same item in main hand
+        //   - the player has not moved or rotated since the previous interact
+        //
+        // The first interact in a sequence still counts as activity (legitimate
+        // human action). Any movement or camera rotation breaks the sequence
+        // and the next interact counts again.
+        if (isPassiveRepeatedInteract(player, event)) {
+            return;
+        }
+
         if (AntiAFKPlus.getInstance() != null && AntiAFKPlus.getInstance().getAfkManager() != null) {
             getAfkManager().onPlayerActivity(player, ActivityType.INTERACTION);
         }
@@ -355,9 +411,158 @@ public class MovementListener implements Listener {
 
         return false;
     }
-    
-    // v2.4 NEW: Manual keystroke detection method
-    
+
+    /**
+     * v3.0.5: Detects right-click interactions that are mechanical repetitions
+     * of the previous one — characteristic fingerprint of Minecraft's
+     * "Use Item / Place Block: toggle" accessibility option used as an AFK
+     * bypass (e.g. holding right-click on a lever forever without input).
+     *
+     * Returns {@code true} only when, compared to the previous interact:
+     *   - same action (must be RIGHT_CLICK_BLOCK; air clicks and left clicks
+     *     are never considered passive)
+     *   - same block coordinates and same clicked face
+     *   - same item type held in the main hand
+     *   - the player has not moved nor rotated since the previous interact
+     *
+     * The first interact of a sequence is always counted as activity. Any
+     * movement, sneak, sprint or camera rotation breaks the sequence and the
+     * next interact counts as activity again. This guarantees zero false
+     * positives for normal play (clicking different blocks, looking around,
+     * walking while clicking, etc.) while neutralizing the toggle bypass.
+     *
+     * Public so other listeners (e.g. {@code AntiAFKActivityDetector}) can
+     * apply the same filter and stay in sync.
+     */
+    public boolean isPassiveRepeatedInteract(Player player, PlayerInteractEvent event) {
+        // Only right-click on a real block can be turned into a toggle loop.
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            updateInteractContext(player, event);
+            return false;
+        }
+
+        Block clicked = event.getClickedBlock();
+        if (clicked == null) {
+            updateInteractContext(player, event);
+            return false;
+        }
+
+        UUID uuid = player.getUniqueId();
+        InteractContext previous = lastInteractContext.get(uuid);
+
+        // Build the current context from the event + player state.
+        InteractContext current = new InteractContext(
+                clicked.getWorld().getUID(),
+                clicked.getX(),
+                clicked.getY(),
+                clicked.getZ(),
+                event.getBlockFace(),
+                player.getInventory().getItemInMainHand().getType().name(),
+                player.getLocation().getX(),
+                player.getLocation().getY(),
+                player.getLocation().getZ(),
+                player.getLocation().getYaw(),
+                player.getLocation().getPitch()
+        );
+
+        // No previous interact recorded → this is the first one, count it.
+        if (previous == null) {
+            lastInteractContext.put(uuid, current);
+            return false;
+        }
+
+        // Different block, face, item, world or action target → real activity.
+        if (!previous.matchesTarget(current)) {
+            lastInteractContext.put(uuid, current);
+            return false;
+        }
+
+        // Player moved or rotated since previous interact → real activity.
+        if (!previous.matchesPlayerStillness(current)) {
+            lastInteractContext.put(uuid, current);
+            return false;
+        }
+
+        // Identical interact, identical position, identical orientation:
+        // toggle-mode repetition. Refresh the stored context (so the comparison
+        // window keeps moving) but do NOT count as activity.
+        lastInteractContext.put(uuid, current);
+        return true;
+    }
+
+    private void updateInteractContext(Player player, PlayerInteractEvent event) {
+        Block clicked = event.getClickedBlock();
+        if (clicked == null) {
+            // Air interacts and the like still update the marker so that any
+            // subsequent block click is treated as the start of a new sequence.
+            lastInteractContext.remove(player.getUniqueId());
+            return;
+        }
+        lastInteractContext.put(player.getUniqueId(), new InteractContext(
+                clicked.getWorld().getUID(),
+                clicked.getX(),
+                clicked.getY(),
+                clicked.getZ(),
+                event.getBlockFace(),
+                player.getInventory().getItemInMainHand().getType().name(),
+                player.getLocation().getX(),
+                player.getLocation().getY(),
+                player.getLocation().getZ(),
+                player.getLocation().getYaw(),
+                player.getLocation().getPitch()
+        ));
+    }
+
+    /**
+     * v3.0.4: Detects movement that is the result of being pushed by liquid
+     * (water/lava current) without any actual player input. Used to fix the
+     * classic AFK water-pool bypass where the current moves the player just
+     * enough to fire {@link PlayerMoveEvent} and reset the AFK state right
+     * after the {@link PatternDetector} flagged the player.
+     *
+     * Treated as passive when ALL of these hold:
+     *  - the player's body or eyes are inside a liquid block
+     *  - no head rotation is happening in this tick (no mouse input)
+     *  - the player is not sprinting and not sneaking (no held movement key)
+     *  - the player is not flying nor gliding
+     *  - horizontal velocity is below the threshold typical of manual swim/walk input
+     */
+    private boolean isPassiveLiquidMovement(Player player, PlayerMoveEvent event) {
+        if (event.getTo() == null || event.getFrom() == null) {
+            return false;
+        }
+
+        // 1. Must be in a liquid (water current is the only common natural pusher)
+        boolean inLiquid = player.getLocation().getBlock().isLiquid()
+                || player.getEyeLocation().getBlock().isLiquid();
+        if (!inLiquid) {
+            return false;
+        }
+
+        // 2. Any head movement implies real player input → not passive
+        if (detectHeadRotation(player, event)) {
+            return false;
+        }
+
+        // 3. Held movement keys imply real player input
+        if (player.isSprinting() || player.isSneaking() || player.isFlying() || player.isGliding()) {
+            return false;
+        }
+
+        // 4. Horizontal speed above the passive threshold implies the player is
+        // actively swimming. Manual swim with W held is ~0.10–0.13 b/t, while a
+        // natural water current is ~0.014 b/t, so 0.08 leaves a safe margin in
+        // both directions.
+        double dx = event.getTo().getX() - event.getFrom().getX();
+        double dz = event.getTo().getZ() - event.getFrom().getZ();
+        double horizontalVelocity = Math.sqrt(dx * dx + dz * dz);
+        if (horizontalVelocity > PASSIVE_LIQUID_VELOCITY_THRESHOLD) {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * Determines if a player's movement appears to be from manual keystroke input
      * rather than automatic movement (like water currents in large AFK pools).
@@ -579,6 +784,9 @@ public class MovementListener implements Listener {
         // v2.4 NEW: Clear keystroke tracking data
         lastKeystrokeTime.remove(uuid);
         lastMovementWasAutomatic.remove(uuid);
+
+        // v3.0.5: Clear interact-context tracking
+        lastInteractContext.remove(uuid);
     }
 
     private void updateLastMovementTimestamp(Player player) {
@@ -681,6 +889,68 @@ public class MovementListener implements Listener {
             this.yaw = yaw;
             this.pitch = pitch;
             this.timestamp = timestamp;
+        }
+    }
+
+    /**
+     * v3.0.5: Snapshot of an interact event used to detect mechanical
+     * repetitions of the toggle "Use Item / Place Block" accessibility option.
+     * Captures the click target plus the player's exact position and
+     * orientation at the moment of the click.
+     */
+    private static final class InteractContext {
+        // Tolerance for comparing player coordinates: anything below this is
+        // treated as "no movement". 0.001 blocks is well below the smallest
+        // measurable Minecraft player movement.
+        private static final double POSITION_EPSILON = 0.001;
+        // Tolerance for yaw/pitch comparison: 0.5° is below human-perceivable
+        // mouse adjustment but well above floating-point noise.
+        private static final float ROTATION_EPSILON = 0.5f;
+
+        private final java.util.UUID worldId;
+        private final int blockX;
+        private final int blockY;
+        private final int blockZ;
+        private final BlockFace face;
+        private final String mainHandItem;
+        private final double playerX;
+        private final double playerY;
+        private final double playerZ;
+        private final float playerYaw;
+        private final float playerPitch;
+
+        InteractContext(java.util.UUID worldId, int blockX, int blockY, int blockZ,
+                        BlockFace face, String mainHandItem,
+                        double playerX, double playerY, double playerZ,
+                        float playerYaw, float playerPitch) {
+            this.worldId = worldId;
+            this.blockX = blockX;
+            this.blockY = blockY;
+            this.blockZ = blockZ;
+            this.face = face;
+            this.mainHandItem = mainHandItem;
+            this.playerX = playerX;
+            this.playerY = playerY;
+            this.playerZ = playerZ;
+            this.playerYaw = playerYaw;
+            this.playerPitch = playerPitch;
+        }
+
+        boolean matchesTarget(InteractContext other) {
+            return java.util.Objects.equals(this.worldId, other.worldId)
+                    && this.blockX == other.blockX
+                    && this.blockY == other.blockY
+                    && this.blockZ == other.blockZ
+                    && this.face == other.face
+                    && java.util.Objects.equals(this.mainHandItem, other.mainHandItem);
+        }
+
+        boolean matchesPlayerStillness(InteractContext other) {
+            return Math.abs(this.playerX - other.playerX) < POSITION_EPSILON
+                    && Math.abs(this.playerY - other.playerY) < POSITION_EPSILON
+                    && Math.abs(this.playerZ - other.playerZ) < POSITION_EPSILON
+                    && Math.abs(this.playerYaw - other.playerYaw) < ROTATION_EPSILON
+                    && Math.abs(this.playerPitch - other.playerPitch) < ROTATION_EPSILON;
         }
     }
 }

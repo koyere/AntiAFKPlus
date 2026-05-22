@@ -174,6 +174,14 @@ public class AntiAFKActivityDetector implements Listener {
             return;
         }
 
+        // v3.0.5: Don't let the "Use Item: toggle" bypass un-AFK a player who
+        // is already AFK. We delegate to the same filter MovementListener uses
+        // so both listeners stay perfectly aligned.
+        MovementListener mv = plugin.getMovementListener();
+        if (mv != null && mv.isPassiveRepeatedInteract(player, event)) {
+            return;
+        }
+
         // Filter for significant interactions (right-click with items, block interactions)
         if (event.getAction().name().contains("RIGHT_CLICK") || event.getAction().name().contains("LEFT_CLICK")) {
             long currentTime = System.currentTimeMillis();
