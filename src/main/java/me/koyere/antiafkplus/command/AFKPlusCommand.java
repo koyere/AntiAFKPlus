@@ -155,6 +155,45 @@ public class AFKPlusCommand implements CommandExecutor, TabCompleter { // Implem
             return true;
         }
 
+        // Subcommand: /afkplus analytics [export]
+        if (args.length >= 1 && args[0].equalsIgnoreCase("analytics")) {
+            if (!sender.hasPermission("antiafkplus.stats")) {
+                sender.sendMessage(this.configManager.getMessage("no-permission", "&cNo permission."));
+                return true;
+            }
+
+            me.koyere.antiafkplus.analytics.AnalyticsManager am = plugin.getAnalyticsManager();
+            if (am == null) {
+                sender.sendMessage(this.configManager.getMessage(
+                        "analytics.no-data",
+                        "&7[AntiAFK+] Analytics system is not enabled. Set analytics.enabled: true in config.yml."));
+                return true;
+            }
+
+            // /afkplus analytics export — forces an immediate file export
+            if (args.length >= 2 && args[1].equalsIgnoreCase("export")) {
+                String filename = am.exportNow();
+                if (filename != null) {
+                    sender.sendMessage(this.configManager.getMessage(
+                            "analytics.export-success",
+                            "&a[AntiAFK+] Data exported to: &f{file}")
+                            .replace("{file}", filename));
+                } else {
+                    sender.sendMessage(this.configManager.getMessage(
+                            "analytics.export-failed",
+                            "&c[AntiAFK+] Export failed. Check console for details."));
+                }
+                return true;
+            }
+
+            // /afkplus analytics — show in-memory summary
+            // buildAdminSummary() returns lines already colorized via getMessage()
+            for (String line : am.buildAdminSummary()) {
+                sender.sendMessage(line);
+            }
+            return true;
+        }
+
         // If no arguments or unknown subcommand, show plugin version or help.
         // Using a generic message for now.
         String mainCommandResponse = this.configManager.getMessage("plugin-info",
@@ -176,11 +215,16 @@ public class AFKPlusCommand implements CommandExecutor, TabCompleter { // Implem
                 if ("event".startsWith(input)) completions.add("event");
             }
             if (sender.hasPermission("antiafkplus.stats")) {
-                if ("status".startsWith(input)) completions.add("status");
+                if ("status".startsWith(input))      completions.add("status");
                 if ("performance".startsWith(input)) completions.add("performance");
+                if ("analytics".startsWith(input))   completions.add("analytics");
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("event")) {
             if ("credits".startsWith(args[1].toLowerCase())) completions.add("credits");
+        } else if (args.length == 2 && args[0].equalsIgnoreCase("analytics")) {
+            if (sender.hasPermission("antiafkplus.stats")) {
+                if ("export".startsWith(args[1].toLowerCase())) completions.add("export");
+            }
         }
         return completions.stream().sorted().collect(Collectors.toList());
     }

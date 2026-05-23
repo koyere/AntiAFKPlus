@@ -1,9 +1,9 @@
 package me.koyere.antiafkplus.afk;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -27,25 +27,25 @@ import me.koyere.antiafkplus.api.data.ActivityType;
 
 public class MovementListener implements Listener {
 
-    private final Map<UUID, Long> lastMovementTime = new HashMap<>();
+    // All maps use ConcurrentHashMap so the async PatternDetector can read
+    // timestamp values concurrently with main-thread writes without data races.
+    private final Map<UUID, Long> lastMovementTime = new ConcurrentHashMap<>();
 
     // Enhanced detection data structures
-    private final Map<UUID, PlayerLocationData> lastLocationData = new HashMap<>();
-    private final Map<UUID, Long> lastHeadRotationTime = new HashMap<>();
-    private final Map<UUID, Long> lastJumpTime = new HashMap<>();
-    private final Map<UUID, Integer> jumpCounter = new HashMap<>();
-    private final Map<UUID, Long> lastSwimStateChange = new HashMap<>();
-    private final Map<UUID, Long> lastFlyStateChange = new HashMap<>();
-    private final Map<UUID, Long> lastCommandTime = new HashMap<>();
-    
+    private final Map<UUID, PlayerLocationData> lastLocationData = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastHeadRotationTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastJumpTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Integer> jumpCounter = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastSwimStateChange = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastFlyStateChange = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastCommandTime = new ConcurrentHashMap<>();
+
     // v2.4 NEW: Keystroke detection for large AFK pools
-    private final Map<UUID, Long> lastKeystrokeTime = new HashMap<>();
-    private final Map<UUID, Boolean> lastMovementWasAutomatic = new HashMap<>();
+    private final Map<UUID, Long> lastKeystrokeTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> lastMovementWasAutomatic = new ConcurrentHashMap<>();
 
     // v3.0.5: State for "Use Item / Place Block" toggle-mode bypass detection.
-    // Keeps the last interact context per player so we can detect identical
-    // right-clicks repeated tick-after-tick while the player stays still.
-    private final Map<UUID, InteractContext> lastInteractContext = new HashMap<>();
+    private final Map<UUID, InteractContext> lastInteractContext = new ConcurrentHashMap<>();
 
     // Configuration thresholds for micro-movement detection (loaded from config)
     private double microMovementThreshold = 0.1;
@@ -165,6 +165,10 @@ public class MovementListener implements Listener {
             if (headRotation) {
                 manager.onPlayerActivity(player, ActivityType.HEAD_ROTATION);
                 lastHeadRotationTime.put(player.getUniqueId(), now);
+                // Head rotation always requires mouse input — update keystroke timer here
+                // so that hasKeystrokeTimeout() correctly reflects real manual presence.
+                // This mirrors the vehicle code path (lines 122-131) for consistency.
+                updateLastKeystrokeTime(player);
                 recorded = true;
             }
             if (jumpActivity) {
@@ -511,82 +515,62 @@ public class MovementListener implements Listener {
         if (event.getTo() == null || event.getFrom() == null) {
             return false;
         }
-        
+
         UUID uuid = player.getUniqueId();
-        
-        // Calculate movement vector and velocity
+
+        // Calculate horizontal displacement and velocity
         double deltaX = event.getTo().getX() - event.getFrom().getX();
         double deltaZ = event.getTo().getZ() - event.getFrom().getZ();
         double horizontalVelocity = Math.sqrt(deltaX * deltaX + deltaZ * deltaZ);
-        
-        // Check if player is in water (automatic movement is more likely)
-        boolean inWater = player.getLocation().getBlock().isLiquid() || 
-                         player.getEyeLocation().getBlock().isLiquid();
-        
-        // Get previous movement data for pattern analysis
+
+        // isInWater() uses the server's water-collision flag — more reliable than block checks.
+        boolean inWater = player.isInWater();
+
+        // Get previous movement data for direction-change analysis
         PlayerLocationData locationData = lastLocationData.get(uuid);
         if (locationData == null || locationData.locationHistory.isEmpty()) {
-            // No previous data, assume manual for now
-            lastMovementWasAutomatic.put(uuid, false);
-            return true;
+            return !inWater; // No history: trust land movement, distrust water movement
         }
-        
-        // Analyze movement characteristics
+
         boolean appearsManual = false;
-        
-        // 1. Velocity-based detection
-        if (inWater) {
-            // In water: manual movement typically has higher velocity or direction changes
-            if (horizontalVelocity > AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD) {
-                appearsManual = true; // Fast movement in water suggests swimming
-            }
-        } else {
-            // On land: any significant movement is likely manual
-            if (horizontalVelocity > microMovementThreshold) {
-                appearsManual = true;
-            }
+
+        // 1. Velocity-based detection (land only).
+        //    Water currents routinely exceed any reasonable velocity threshold, so velocity
+        //    alone is NOT a reliable indicator of deliberate key presses when in water.
+        if (!inWater && horizontalVelocity > microMovementThreshold) {
+            appearsManual = true;
         }
-        
-        // 2. Direction change analysis (manual movement has more direction changes)
+
+        // 2. Direction-change analysis.
+        //    Manual players change direction unpredictably; water currents are smoother.
+        //    We require a higher threshold in water (pools redirect players at corners,
+        //    generating spurious direction changes that must not be mistaken for manual input).
         if (locationData.locationHistory.size() >= 3) {
+            int histSize = locationData.locationHistory.size();
             List<LocationSnapshot> recent = locationData.locationHistory.subList(
-                    Math.max(0, locationData.locationHistory.size() - 3),
-                    locationData.locationHistory.size()
-            );
-            
+                    Math.max(0, histSize - 3), histSize);
             double directionChanges = calculateDirectionChanges(recent);
-            if (directionChanges > 0.5) { // Threshold for direction variability
+            double threshold = inWater ? 0.8 : 0.5;
+            if (directionChanges > threshold) {
                 appearsManual = true;
             }
         }
-        
-        // 3. Check for head rotation (strong indicator of manual control)
+
+        // 3. Head rotation is always a strong manual signal and is handled separately
+        //    in the onPlayerMove block above (it also calls updateLastKeystrokeTime).
+        //    We re-check here only to set appearsManual so the caller's logic stays correct.
         if (detectHeadRotation(player, event)) {
             appearsManual = true;
         }
-        
-        // 4. Context-based adjustments
-        Boolean wasAutomatic = lastMovementWasAutomatic.get(uuid);
-        if (wasAutomatic != null && wasAutomatic && !appearsManual) {
-            // If previous movement was automatic and current shows no manual signs,
-            // likely still automatic (water current)
-            appearsManual = false;
-        }
-        
-        // Store result for next analysis
-        lastMovementWasAutomatic.put(uuid, !appearsManual);
-        
-        // Debug logging if enabled
+
+        // Debug logging
         AntiAFKPlus plugin = AntiAFKPlus.getInstance();
-        if (plugin != null && plugin.getConfigManager().isDebugEnabled()) {
-            if (horizontalVelocity > 0.05) { // Only log if there's significant movement
-                plugin.getLogger().info(String.format(
-                    "[DEBUG_Keystroke] %s: velocity=%.3f, inWater=%s, manual=%s",
-                    player.getName(), horizontalVelocity, inWater, appearsManual
-                ));
-            }
+        if (plugin != null && plugin.getConfigManager().isDebugEnabled() && horizontalVelocity > 0.05) {
+            plugin.getLogger().info(String.format(
+                "[DEBUG_Keystroke] %s: vel=%.3f, inWater=%s, manual=%s",
+                player.getName(), horizontalVelocity, inWater, appearsManual));
         }
-        
+
         return appearsManual;
     }
     
@@ -668,8 +652,11 @@ public class MovementListener implements Listener {
         data.lastPitch = event.getTo().getPitch();
         data.lastUpdate = System.currentTimeMillis();
 
-        // Store historical data for pattern detection (used by PatternDetector in future phases)
-        if (data.locationHistory.size() >= 50) { // Keep last 50 positions
+        // Store historical data for pattern detection (used by PatternDetector).
+        // 300 entries ≈ 15 s at 20 TPS — enough to capture a full large-pool circuit
+        // before PatternDetector's 30-second analysis window fires.
+        boolean inWater = player.isInWater();
+        if (data.locationHistory.size() >= 300) {
             data.locationHistory.remove(0);
         }
         data.locationHistory.add(new LocationSnapshot(
@@ -678,7 +665,8 @@ public class MovementListener implements Listener {
                 event.getTo().getZ(),
                 event.getTo().getYaw(),
                 event.getTo().getPitch(),
-                System.currentTimeMillis()
+                System.currentTimeMillis(),
+                inWater
         ));
     }
 
@@ -726,7 +714,10 @@ public class MovementListener implements Listener {
     }
 
     public long getLastMovementTimestamp(Player player) {
-        return lastMovementTime.getOrDefault(player.getUniqueId(), System.currentTimeMillis());
+        // 0L = "never moved": AFKManager will compute timeSinceActivity = now - 0 = very large,
+        // treating the player as immediately AFK. initializePlayerData() on join sets a real
+        // timestamp, so this default only triggers if data was cleared mid-session.
+        return lastMovementTime.getOrDefault(player.getUniqueId(), 0L);
     }
 
     // Enhanced getters for advanced detection data (used by other systems)
@@ -770,7 +761,10 @@ public class MovementListener implements Listener {
     public long getKeystrokeTimeoutMs() {
         AntiAFKPlus plugin = AntiAFKPlus.getInstance();
         if (plugin != null && plugin.getConfigManager() != null) {
-            return plugin.getConfig().getLong("pattern-detection-settings.keystroke-timeout-ms", DEFAULT_KEYSTROKE_TIMEOUT_MS);
+            // Delegate to ConfigManager which reads the canonical key:
+            // modules.pattern-detection.keystroke-timeout-seconds (current config)
+            // with legacy fallback to keystroke-timeout-ms.
+            return plugin.getConfigManager().getKeystrokeTimeoutMs();
         }
         return DEFAULT_KEYSTROKE_TIMEOUT_MS;
     }
@@ -806,21 +800,25 @@ public class MovementListener implements Listener {
         public boolean wasSwimming = false;
         public boolean wasFlying = false;
         public long lastUpdate;
-        public java.util.List<LocationSnapshot> locationHistory = new java.util.ArrayList<>();
+        // CopyOnWriteArrayList: main-thread writes + async PatternDetector reads are safe without external locks.
+        public java.util.List<LocationSnapshot> locationHistory = new java.util.concurrent.CopyOnWriteArrayList<>();
     }
 
     public static class LocationSnapshot {
         public final double x, y, z;
         public final float yaw, pitch;
         public final long timestamp;
+        /** True if the player was in water when this snapshot was recorded. */
+        public final boolean inWater;
 
-        public LocationSnapshot(double x, double y, double z, float yaw, float pitch, long timestamp) {
+        public LocationSnapshot(double x, double y, double z, float yaw, float pitch, long timestamp, boolean inWater) {
             this.x = x;
             this.y = y;
             this.z = z;
             this.yaw = yaw;
             this.pitch = pitch;
             this.timestamp = timestamp;
+            this.inWater = inWater;
         }
     }
 

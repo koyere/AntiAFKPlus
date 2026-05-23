@@ -313,14 +313,25 @@ public class PerformanceOptimizer {
         for (Map.Entry<String, Integer> entry : adaptiveIntervals_map.entrySet()) {
             String component = entry.getKey();
             int currentInterval = entry.getValue();
-            
-            // Calculate new interval (higher when performance is poor)
+
             int baseInterval = getBaseInterval(component);
             int newInterval = (int) (baseInterval * (2.0 - performanceFactor));
-            
+
             // Apply gradual changes to avoid oscillation
-            int adjustedInterval = (currentInterval + newInterval) / 2;
-            adaptiveIntervals_map.put(component, Math.max(20, adjustedInterval)); // Minimum 1 second
+            int adjustedInterval = Math.max(20, (currentInterval + newInterval) / 2);
+            adaptiveIntervals_map.put(component, adjustedInterval);
+
+            // Propagate afk-check interval change to AFKManager on the main thread.
+            // Only when the shift exceeds 10% to avoid restarting the task every cycle.
+            if ("afk-check".equals(component) && Math.abs(adjustedInterval - currentInterval) > currentInterval * 0.1) {
+                final int newTicks = adjustedInterval;
+                scheduler.runTask(() -> {
+                    var afkManager = plugin.getAfkManager();
+                    if (afkManager != null) {
+                        afkManager.notifyAdaptiveIntervalChanged(newTicks);
+                    }
+                });
+            }
         }
     }
     

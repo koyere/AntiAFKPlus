@@ -3,7 +3,7 @@ language:
   code: "zh"
   name: "中文"
   author: "AntiAFKPlus Team"
-  version: "3.0.0"
+  version: "3.1"
 
 messages:
   # 通用
@@ -336,6 +336,19 @@ messages:
     lang-header: "&6语言选择"
     lang-header-lore: "&8选择服务器语言"
     lang-code: "&7代码：&f{code}"
+
+  # Analytics
+  analytics:
+    summary-header: "&6=== AntiAFK+ 数据统计摘要 ==="
+    total-players: "&7追踪的独立玩家数: &e{count}"
+    total-sessions: "&7AFK 会话总数: &e{count}"
+    total-afk-time: "&7总 AFK 时间: &e{time}"
+    most-common-reason: "&7最常见的 AFK 原因: &e{reason}"
+    pattern-detections: "&7模式检测次数（内存）: &e{count}"
+    report-saved: "&a[AntiAFK+] 分析报告已保存: &f{file}"
+    no-data: "&7[AntiAFK+] 分析系统未启用。请在 config.yml 中设置 analytics.enabled: true。"
+    export-success: "&a[AntiAFK+] 数据已导出至: &f{file}"
+    export-failed: "&c[AntiAFK+] 导出失败，请查看控制台日志。"
 
 formatting:
   date-format: "yyyy/MM/dd"

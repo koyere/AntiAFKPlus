@@ -19,6 +19,7 @@ import org.bukkit.entity.Player;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
 import me.koyere.antiafkplus.api.AntiAFKPlusAPIImpl;
+import me.koyere.antiafkplus.compatibility.BedrockCompatibility;
 import me.koyere.antiafkplus.api.data.ActivityType;
 import me.koyere.antiafkplus.events.PlayerAFKKickEvent;
 import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
@@ -72,6 +73,8 @@ public class AFKManager {
     private final Set<UUID> patternEnforcedAfk = new HashSet<>();
 
     private PlatformScheduler.ScheduledTask afkCheckTask;
+    private Runnable afkCheckBody;
+    private int currentAdaptiveIntervalTicks = 0;
 
     public AFKManager(AntiAFKPlus plugin, MovementListener movementListener) {
         this.plugin = plugin;
@@ -80,6 +83,11 @@ public class AFKManager {
             this.patternDetector = new PatternDetector(plugin, movementListener, this);
         }
         startAFKCheckTask();
+    }
+
+    private String adaptMsg(Player player, String message) {
+        BedrockCompatibility bc = plugin.getBedrockCompatibility();
+        return bc != null ? bc.getAdaptedMessage(player, message) : message;
     }
 
     private void startAFKCheckTask() {
@@ -93,7 +101,7 @@ public class AFKManager {
             return;
         }
 
-        Runnable taskBody = () -> {
+        this.afkCheckBody = () -> {
                 TimeWindowService.WindowEvaluation windowEvaluation = null;
                 if (plugin.getTimeWindowService() != null) {
                     windowEvaluation = plugin.getTimeWindowService().evaluate();
@@ -163,7 +171,7 @@ public class AFKManager {
                                         PlayerAFKStateChangeEvent.AFKReason.TIME_LIMIT_EXCEEDED,
                                         "voluntary_time_limit", false);
 
-                                player.sendMessage(plugin.getConfigManager().getMessageVoluntaryAFKLimit());
+                                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageVoluntaryAFKLimit()));
                                 forceSetManualAFKState(player, false);
                             }
                         }
@@ -253,8 +261,18 @@ public class AFKManager {
                 }
             };
 
+        // Use adaptive interval from PerformanceOptimizer when enabled
+        if (plugin.getConfig().getBoolean("performance.adaptive-intervals", false)
+                && plugin.getPerformanceOptimizer() != null) {
+            int adaptive = plugin.getPerformanceOptimizer().getAdaptiveInterval("afk-check");
+            if (adaptive > 0) {
+                intervalTicks = adaptive;
+            }
+        }
+        currentAdaptiveIntervalTicks = intervalTicks;
+
         this.afkCheckTask = plugin.getPlatformScheduler()
-                .runTaskTimer(taskBody, intervalTicks, intervalTicks);
+                .runTaskTimer(afkCheckBody, intervalTicks, intervalTicks);
         // AFK check task started silently
     }
 
@@ -266,6 +284,10 @@ public class AFKManager {
     }
 
     public void handleConfigReload() {
+        // Restart the AFK check task so a changed afk-check-interval-seconds takes effect
+        // immediately without requiring a full server/plugin restart.
+        startAFKCheckTask();
+
         boolean enable = shouldEnablePatternDetection();
         if (!enable && this.patternDetector != null) {
             this.patternDetector.shutdown();
@@ -280,6 +302,22 @@ public class AFKManager {
         } else if (enable && this.patternDetector != null) {
             this.patternDetector.reloadFromConfig();
         }
+    }
+
+    /**
+     * Called by PerformanceOptimizer when the adaptive "afk-check" interval shifts
+     * materially. Restarts the task only when the change exceeds 1 second (20 ticks)
+     * to prevent churn on every optimizer cycle.
+     */
+    public void notifyAdaptiveIntervalChanged(int ticks) {
+        if (!plugin.getConfig().getBoolean("performance.adaptive-intervals", false)) return;
+        if (ticks <= 0 || afkCheckBody == null) return;
+        if (Math.abs(ticks - currentAdaptiveIntervalTicks) < 20) return;
+        currentAdaptiveIntervalTicks = ticks;
+        if (this.afkCheckTask != null && !this.afkCheckTask.isCancelled()) {
+            this.afkCheckTask.cancel();
+        }
+        this.afkCheckTask = plugin.getPlatformScheduler().runTaskTimer(afkCheckBody, ticks, ticks);
     }
 
     private boolean performEnhancedAFKCheck(Player player) {
@@ -374,7 +412,7 @@ public class AFKManager {
             return;
         }
         String formatted = message.replace("{time}", evaluation.nextChangeDisplay());
-        player.sendMessage(formatted);
+        player.sendMessage(adaptMsg(player, formatted));
         windowMessageCooldown.put(player.getUniqueId(), now);
     }
 
@@ -460,7 +498,7 @@ public class AFKManager {
                                 plugin.getConfigManager().getMessageKickWarning()
                                         .replace("{seconds}", String.valueOf(warningTimeSeconds));
 
-                        player.sendMessage(message);
+                        player.sendMessage(adaptMsg(player, message));
 
                         // Send title if enabled
                         if (warningEvent.shouldSendTitle()) {
@@ -598,8 +636,18 @@ public class AFKManager {
             }
             case "KICK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.KICK);
             case "MARK_AFK_ONLY", "MARK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
-            case "GAMEMODE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
-            case "COMMAND" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
+            case "GAMEMODE" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
+                String gm = plugin.getConfig().getString(
+                        "zone-management.zones." + zoneName + ".gamemode", "SPECTATOR");
+                kickEvent.setCustomActionData(gm);
+            }
+            case "COMMAND" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
+                String cmd = plugin.getConfig().getString(
+                        "zone-management.zones." + zoneName + ".command", "");
+                kickEvent.setCustomActionData(cmd);
+            }
             case "NONE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.NONE);
             default -> {
                 AFKLogger.logActivity("Unknown zone kick-action '" + action + "' for zone '" + zoneName + "', defaulting to KICK");
@@ -626,6 +674,16 @@ public class AFKManager {
             case "MARK_AFK_ONLY", "MARK" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.MARK_AFK_ONLY);
             case "NONE" -> kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.NONE);
             case "KICK" -> { /* Already default, no change needed */ }
+            case "GAMEMODE" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.GAMEMODE);
+                String gm = plugin.getConfig().getString("afk-action.gamemode", "SPECTATOR");
+                kickEvent.setCustomActionData(gm);
+            }
+            case "COMMAND" -> {
+                kickEvent.setCustomAction(PlayerAFKKickEvent.KickAction.COMMAND);
+                String cmd = plugin.getConfig().getString("afk-action.command", "");
+                kickEvent.setCustomActionData(cmd);
+            }
             default -> AFKLogger.logActivity("Unknown global afk-action type: '" + actionType + "', defaulting to KICK");
         }
     }
@@ -660,10 +718,30 @@ public class AFKManager {
                 }
                 break;
             case GAMEMODE:
-                // Could implement gamemode change
+                if (player.isOnline()) {
+                    String gmName = kickEvent.getCustomActionData();
+                    if (gmName != null && !gmName.isEmpty()) {
+                        try {
+                            org.bukkit.GameMode gm = org.bukkit.GameMode.valueOf(gmName.toUpperCase());
+                            player.setGameMode(gm);
+                            AFKLogger.logActivity(player.getName() + " gamemode set to " + gm + " (AFK)");
+                        } catch (IllegalArgumentException e) {
+                            plugin.getLogger().warning(
+                                    "Invalid gamemode '" + gmName + "' in zone AFK action for " + player.getName());
+                        }
+                    }
+                }
                 break;
             case COMMAND:
-                // Could execute custom command
+                if (player.isOnline()) {
+                    String rawCmd = kickEvent.getCustomActionData();
+                    if (rawCmd != null && !rawCmd.isEmpty()) {
+                        String cmd = rawCmd.replace("{player}", player.getName())
+                                          .replace("{uuid}", player.getUniqueId().toString());
+                        plugin.getServer().dispatchCommand(plugin.getServer().getConsoleSender(), cmd);
+                        AFKLogger.logActivity(player.getName() + " AFK command executed: " + cmd);
+                    }
+                }
                 break;
             case NONE:
                 // Do nothing
@@ -713,14 +791,14 @@ public class AFKManager {
         boolean hasSteps = steps != null && !steps.isEmpty();
         if (pipelineEnabled && hasSteps && plugin.getActionPipelineService() != null) {
             String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-            player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+            player.sendMessage(adaptMsg(player, msg.replace("{server}", target == null ? "" : target)));
             plugin.getActionPipelineService().startPipelineFromConfig(player, doTransfer);
         } else {
             boolean countdownEnabled = plugin.getConfig().getBoolean("server-transfer.countdown.enabled", false);
             int cdSeconds = Math.max(0, plugin.getConfig().getInt("server-transfer.countdown.seconds", 10));
             if (countdownEnabled && cdSeconds > 0 && plugin.getCountdownSequenceService() != null) {
                 String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-                player.sendMessage(msg.replace("{server}", target == null ? "" : target));
+                player.sendMessage(adaptMsg(player, msg.replace("{server}", target == null ? "" : target)));
                 plugin.getCountdownSequenceService().startServerTransferCountdown(player, doTransfer);
             } else {
                 plugin.getPlatformScheduler().runTaskForEntity(player, doTransfer);
@@ -748,7 +826,7 @@ public class AFKManager {
         if (locationString == null || locationString.trim().isEmpty()) {
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage(teleportMessage);
+            player.sendMessage(adaptMsg(player, teleportMessage));
             AFKLogger.logActivity(player.getName() + " teleported to world spawn (AFK)");
             return;
         }
@@ -788,7 +866,7 @@ public class AFKManager {
             }
 
             player.teleport(teleportLocation);
-            player.sendMessage(teleportMessage);
+            player.sendMessage(adaptMsg(player, teleportMessage));
             AFKLogger.logActivity(player.getName() + " teleported to " + worldName + " (" + x + "," + y + "," + z + ") due to AFK");
 
         } catch (NumberFormatException e) {
@@ -796,7 +874,7 @@ public class AFKManager {
             // Fallback to spawn
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage(teleportMessage);
+            player.sendMessage(adaptMsg(player, teleportMessage));
         } catch (Exception e) {
             AFKLogger.logActivity("Error teleporting player " + player.getName() + ": " + e.getMessage());
         }
@@ -923,9 +1001,9 @@ public class AFKManager {
             return false;
         } else { // Not manually AFK (or not AFK at all), turn it on
             if (isAFK(player) && !manualAfkUsernames.contains(uuid)) { // Is AFK (auto) but not manually
-                player.sendMessage(plugin.getConfigManager().getMessageAlreadyAFK());
+                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageAlreadyAFK()));
             } else if (isAFK(player)) { // Already manually AFK (should have been caught by first if, but defensive)
-                player.sendMessage(plugin.getConfigManager().getMessageAlreadyAFK());
+                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageAlreadyAFK()));
             }
             forceSetManualAFKState(player, true);
             return true;

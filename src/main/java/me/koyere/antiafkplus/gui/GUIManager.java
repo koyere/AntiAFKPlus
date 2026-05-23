@@ -79,7 +79,7 @@ public class GUIManager implements Listener {
      * Opens the main settings menu for a player.
      */
     public void openMainMenu(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, mainMenuTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), mainMenuTitle());
 
         // Slot 4: Plugin info head
         ItemStack head = new ItemStack(Material.PLAYER_HEAD);
@@ -157,7 +157,7 @@ public class GUIManager implements Listener {
      * Opens the detection settings submenu.
      */
     public void openDetectionSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, detectionTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), detectionTitle());
         ConfigManager cfg = plugin.getConfigManager();
 
         // Slot 4: Title
@@ -226,7 +226,7 @@ public class GUIManager implements Listener {
      * Opens the module toggles submenu.
      */
     public void openModuleSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, moduleTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), moduleTitle());
 
         // Slot 4: Title
         inv.setItem(4, createItem(Material.REDSTONE_TORCH, msg("gui.mod-header"), msg("gui.mod-header-lore")));
@@ -256,7 +256,7 @@ public class GUIManager implements Listener {
      * Opens the general settings submenu.
      */
     public void openGeneralSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, generalTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), generalTitle());
         var cfg = plugin.getConfig();
 
         inv.setItem(4, createItem(Material.COMPARATOR, msg("gui.gen-header"), msg("gui.gen-header-lore")));
@@ -305,7 +305,7 @@ public class GUIManager implements Listener {
      * Opens the zone settings submenu.
      */
     public void openZoneSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, zoneTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), zoneTitle());
         var cfg = plugin.getConfig();
 
         inv.setItem(4, createItem(Material.GRASS_BLOCK, msg("gui.zone-header"), msg("gui.zone-header-lore")));
@@ -348,7 +348,7 @@ public class GUIManager implements Listener {
      * Opens the reward settings submenu.
      */
     public void openRewardSettings(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, rewardTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), rewardTitle());
         var cfg = plugin.getConfig();
 
         inv.setItem(4, createItem(Material.DIAMOND, msg("gui.reward-header"), msg("gui.reward-header-lore")));
@@ -394,7 +394,7 @@ public class GUIManager implements Listener {
      * Opens the language selector submenu.
      */
     public void openLanguageSelector(Player player) {
-        Inventory inv = Bukkit.createInventory(null, 54, languageTitle());
+        Inventory inv = Bukkit.createInventory(null, inventorySize(player), languageTitle());
         String currentLang = plugin.getConfig().getString("internationalization.default-language", "en");
 
         inv.setItem(4, createItem(Material.WRITABLE_BOOK, msg("gui.lang-header"),
@@ -807,7 +807,7 @@ public class GUIManager implements Listener {
             }
             case "balanced" -> {
                 plugin.getConfig().set("modules.pattern-detection.max-pattern-violations", 8);
-                plugin.getConfig().set("modules.pattern-detection.repetitive-movement-threshold", 0.95);
+                plugin.getConfig().set("modules.pattern-detection.repetitive-movement-threshold", 0.82);
                 plugin.getConfig().set("modules.pattern-detection.min-samples-for-pattern", 40);
                 plugin.getConfig().set("modules.pattern-detection.activity-grace-period-seconds", 60);
             }
@@ -917,6 +917,13 @@ public class GUIManager implements Listener {
     }
 
     // ======================== Utilities ========================
+
+    private int inventorySize(Player player) {
+        me.koyere.antiafkplus.compatibility.BedrockCompatibility bc = plugin.getBedrockCompatibility();
+        if (bc == null) return 54;
+        // Floor at 54: the current GUI layout uses slots up to row 5 (slot 49)
+        return Math.max(54, bc.getAdaptedMenuSize(player, 54));
+    }
 
     private String color(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);

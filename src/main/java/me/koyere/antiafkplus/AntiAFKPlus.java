@@ -48,8 +48,8 @@ import me.koyere.antiafkplus.visual.VisualEffectsManager;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "3.0.0";
-    private static final String API_VERSION = "3.0.0";
+    private static final String PLUGIN_VERSION = "3.1";
+    private static final String API_VERSION = "3.1";
 
     // Core components
     private static AntiAFKPlus instance;
@@ -74,6 +74,8 @@ public final class AntiAFKPlus extends JavaPlugin {
     private TimeWindowService timeWindowService;
     private GUIManager guiManager;
     private VisualEffectsManager visualEffectsManager;
+    private me.koyere.antiafkplus.reward.RewardManager rewardManager;
+    private me.koyere.antiafkplus.analytics.AnalyticsManager analyticsManager;
 
     // Command Handlers
     private AFKCommand afkCommandHandler;
@@ -154,6 +156,16 @@ public final class AntiAFKPlus extends JavaPlugin {
             if (localizationManager != null) {
                 getLogger().info("§6Shutting down localization system...");
                 // localizationManager.shutdown(); // Method may not exist yet
+            }
+
+            // Shutdown reward system
+            if (rewardManager != null) {
+                rewardManager.shutdown();
+            }
+
+            // Shutdown analytics system
+            if (analyticsManager != null) {
+                analyticsManager.shutdown();
             }
 
             // Shutdown credit system
@@ -428,6 +440,18 @@ public final class AntiAFKPlus extends JavaPlugin {
             getServer().getPluginManager().registerEvents(this.playerProtectionListener, this);
             getLogger().info("§aPlayer Protection System initialized");
         }
+
+        // Initialize Reward System if enabled
+        if (getConfig().getBoolean("reward-system.enabled", false)) {
+            this.rewardManager = new me.koyere.antiafkplus.reward.RewardManager(this);
+            getLogger().info("§aReward System initialized");
+        }
+
+        // Initialize Analytics System if enabled
+        if (getConfig().getBoolean("analytics.enabled", false)) {
+            this.analyticsManager = new me.koyere.antiafkplus.analytics.AnalyticsManager(this);
+            getLogger().info("§aAnalytics System initialized");
+        }
     }
 
     /**
@@ -488,7 +512,9 @@ public final class AntiAFKPlus extends JavaPlugin {
         this.afkPlusCommandHandler = null;
         this.autoClickListenerInstance = null;
         this.antiAFKActivityDetectorInstance = null;
-        this.creditManager = null;
+        this.creditManager    = null;
+        this.rewardManager    = null;
+        this.analyticsManager = null;
     }
 
     // ============= VERSION MIGRATION SYSTEM =============
@@ -705,8 +731,14 @@ public final class AntiAFKPlus extends JavaPlugin {
     /** Vault economy integration (may be null). */
     public me.koyere.antiafkplus.integrations.VaultIntegration getVaultIntegration() { return vaultIntegration; }
 
+    /** Reward system manager (may be null if disabled). */
+    public me.koyere.antiafkplus.reward.RewardManager getRewardManager() { return rewardManager; }
+
     /** DiscordSRV integration (may be null). */
     public me.koyere.antiafkplus.integrations.DiscordSRVIntegration getDiscordSRVIntegration() { return discordSRVIntegration; }
+
+    /** Analytics manager (may be null if analytics.enabled is false). */
+    public me.koyere.antiafkplus.analytics.AnalyticsManager getAnalyticsManager() { return analyticsManager; }
 
     // ============= UTILITY METHODS =============
 

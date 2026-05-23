@@ -1,5 +1,5 @@
 # ===============================================================================
-#                        AntiAFKPlus v3.0.2 Premium
+#                        AntiAFKPlus v3.1 Premium
 #                           Configuration File
 # ===============================================================================
 #
@@ -9,7 +9,7 @@
 # ===============================================================================
 
 # Configuration version (DO NOT MODIFY)
-version: "3.0.2"
+version: "3.1"
 
 # ===============================================================================
 #  MODULE SYSTEM
@@ -36,7 +36,7 @@ modules:
     min-samples-for-pattern: 40        # samples before analysis (20 - 60)
     confined-space-threshold: 12.0     # blocks (5.0 - 20.0)
     pattern-analysis-interval-seconds: 30  # how often to analyze (20 - 60)
-    repetitive-movement-threshold: 0.95    # similarity required (0.8 - 0.98)
+    repetitive-movement-threshold: 0.82    # similarity required (0.8 - 0.98)
     max-pattern-violations: 8          # violations before action (3 - 15)
 
     # Large pool & keystroke timeout
@@ -136,6 +136,8 @@ max-afk-duration-seconds: 600
 #   TELEPORT         - Teleport the player to a specific location
 #   MARK_AFK_ONLY    - Only mark the player as AFK, no kick or teleport
 #   NONE             - Do nothing (disable AFK action entirely)
+#   GAMEMODE         - Change the player's gamemode (requires "gamemode" field)
+#   COMMAND          - Execute a console command (requires "command" field)
 #
 # Examples:
 #   # Kick players (default behavior):
@@ -152,6 +154,16 @@ max-afk-duration-seconds: 600
 #     type: "TELEPORT"
 #     teleport-location: "world,250,76,30,90.0,0.0"
 #
+#   # Switch AFK players to spectator mode:
+#   afk-action:
+#     type: "GAMEMODE"
+#     gamemode: "SPECTATOR"   # SURVIVAL, CREATIVE, ADVENTURE, SPECTATOR
+#
+#   # Run a console command when a player goes AFK:
+#   afk-action:
+#     type: "COMMAND"
+#     command: "say {player} is now AFK"   # {player} = name, {uuid} = UUID
+#
 #   # Just mark as AFK without kicking or teleporting:
 #   afk-action:
 #     type: "MARK_AFK_ONLY"
@@ -159,6 +171,8 @@ max-afk-duration-seconds: 600
 afk-action:
   type: "KICK"
   teleport-location: ""
+  gamemode: "SPECTATOR"
+  command: ""
   # Worlds where players will be marked as AFK (tab list, visual effects)
   # but will NOT be teleported/kicked. Useful for spawn worlds where you
   # want the AFK tag but don't want to move players.
@@ -186,11 +200,11 @@ permission-times:
 #  WORLD CONTROL
 # ===============================================================================
 
-# Worlds where AFK system is active (empty = all worlds)
-enabled-worlds:
-  - "world"
-  - "world_nether"
-  - "world_the_end"
+# Worlds where AFK system is active (empty list = all worlds).
+# Previously defaulted to the three vanilla world names, which silently disabled
+# detection on servers with custom world names. Now empty = safe default for everyone.
+# Add world names here only if you want to RESTRICT detection to specific worlds.
+enabled-worlds: []
 
 # Worlds where AFK system is disabled (takes precedence over enabled-worlds)
 disabled-worlds: []
@@ -405,18 +419,41 @@ player-protection:
 # teleport-location format: "world,x,y,z" or "world,x,y,z,yaw,pitch"
 
 zone-management:
+  # NOTE: While this is false, ALL zones configured below are completely ignored.
+  # Set to true only when you have defined at least one zone with the desired behavior.
+  # Defaults to false so the example "spawn" zone does not activate on a clean install.
   enabled: false
   require-worldguard: false
   default-afk-allowed: true
   default-timeout-seconds: 300
   allow-region-inheritance: true
 
+  # Available kick-action values per zone:
+  #   KICK             - Kick the player
+  #   TELEPORT         - Teleport to teleport-location ("world,x,y,z" or "world,x,y,z,yaw,pitch")
+  #   TRANSFER_SERVER  - Send to transfer-server (requires server-transfer plugin support)
+  #   MARK_AFK_ONLY    - Mark as AFK only, no kick or teleport
+  #   NONE             - Do nothing
+  #   GAMEMODE         - Change gamemode; set "gamemode: SPECTATOR" (SURVIVAL/CREATIVE/ADVENTURE/SPECTATOR)
+  #   COMMAND          - Run console command; set "command: say {player} is AFK" ({player}, {uuid} placeholders)
   zones:
     spawn:
       afk-allowed: false
       timeout-seconds: 60
       kick-action: "TELEPORT"
       teleport-location: "world,0,100,0"
+    # Example: switch AFK players to spectator in the arena zone
+    # arena:
+    #   afk-allowed: false
+    #   timeout-seconds: 120
+    #   kick-action: "GAMEMODE"
+    #   gamemode: "SPECTATOR"
+    # Example: run a custom command in the market zone
+    # market:
+    #   afk-allowed: true
+    #   timeout-seconds: 600
+    #   kick-action: "COMMAND"
+    #   command: "say {player} is AFK in the market"
     afk-pool:
       afk-allowed: true
       timeout-seconds: 3600

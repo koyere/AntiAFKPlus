@@ -3,7 +3,7 @@ language:
   code: "ja"
   name: "日本語"
   author: "AntiAFKPlus Team"
-  version: "3.0.0"
+  version: "3.1"
 
 messages:
   # 一般
@@ -336,6 +336,19 @@ messages:
     lang-header: "&6言語選択"
     lang-header-lore: "&8サーバー言語を選択"
     lang-code: "&7コード：&f{code}"
+
+  # Analytics
+  analytics:
+    summary-header: "&6=== AntiAFK+ アナリティクス概要 ==="
+    total-players: "&7追跡されたユニークプレイヤー数: &e{count}"
+    total-sessions: "&7AFK セッション合計: &e{count}"
+    total-afk-time: "&7AFK 合計時間: &e{time}"
+    most-common-reason: "&7最も多い AFK 理由: &e{reason}"
+    pattern-detections: "&7パターン検出数（メモリ）: &e{count}"
+    report-saved: "&a[AntiAFK+] 分析レポートを保存しました: &f{file}"
+    no-data: "&7[AntiAFK+] 分析システムは無効です。config.yml で analytics.enabled: true を設定してください。"
+    export-success: "&a[AntiAFK+] データをエクスポートしました: &f{file}"
+    export-failed: "&c[AntiAFK+] エクスポートに失敗しました。コンソールを確認してください。"
 
 formatting:
   date-format: "yyyy/MM/dd"

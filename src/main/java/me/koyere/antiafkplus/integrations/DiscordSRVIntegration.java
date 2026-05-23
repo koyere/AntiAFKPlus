@@ -10,6 +10,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 
 import me.koyere.antiafkplus.AntiAFKPlus;
+import me.koyere.antiafkplus.events.PlayerAFKPatternDetectedEvent;
 import me.koyere.antiafkplus.events.PlayerAFKStateChangeEvent;
 
 /**
@@ -70,6 +71,19 @@ public class DiscordSRVIntegration implements Listener {
             message = "**" + player.getName() + "** is no longer AFK.";
         }
 
+        sendToDiscord(message);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPatternDetected(PlayerAFKPatternDetectedEvent event) {
+        if (!available || !plugin.getConfig().getBoolean("integrations.discordsrv.send-pattern-alerts", false)) {
+            return;
+        }
+        Player player = event.getPlayer();
+        String message = String.format("**[AntiAFK]** Suspicious pattern detected for **%s**: %s (confidence: %.0f%%)",
+                player.getName(),
+                event.getPatternType().name().toLowerCase().replace("_", " "),
+                event.getConfidence() * 100);
         sendToDiscord(message);
     }
 

@@ -4,6 +4,7 @@ package me.koyere.antiafkplus.afk;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -33,10 +34,12 @@ public class AntiAFKActivityDetector implements Listener {
     private final ConfigManager configManager;
 
     // Enhanced activity tracking maps
-    private final Map<UUID, Long> lastBlockBreakTime = new HashMap<>();
-    private final Map<UUID, Long> lastFishingActivityTime = new HashMap<>();
-    private final Map<UUID, Long> lastInteractionTime = new HashMap<>();
-    private final Map<UUID, ActivityPattern> playerActivityPatterns = new HashMap<>();
+    // ConcurrentHashMap required: event handlers write from the main thread while the
+    // cleanup and pattern-analysis tasks read/iterate from an async thread.
+    private final Map<UUID, Long> lastBlockBreakTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastFishingActivityTime = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastInteractionTime = new ConcurrentHashMap<>();
+    private final Map<UUID, ActivityPattern> playerActivityPatterns = new ConcurrentHashMap<>();
 
     // Pattern detection thresholds
     private static final long SUSPICIOUS_ACTIVITY_WINDOW = 60000; // 1 minute

@@ -3,7 +3,7 @@ language:
   code: "de"
   name: "Deutsch"
   author: "AntiAFKPlus Team"
-  version: "3.0.0"
+  version: "3.1"
 
 messages:
   # Allgemein
@@ -336,6 +336,19 @@ messages:
     lang-header: "&6Sprachauswahl"
     lang-header-lore: "&8Serversprache auswählen"
     lang-code: "&7Code: &f{code}"
+
+  # Analytics
+  analytics:
+    summary-header: "&6=== AntiAFK+ Statistik-Zusammenfassung ==="
+    total-players: "&7Eindeutige Spieler erfasst: &e{count}"
+    total-sessions: "&7Gesamt AFK-Sitzungen: &e{count}"
+    total-afk-time: "&7Gesamte AFK-Zeit: &e{time}"
+    most-common-reason: "&7Häufigster AFK-Grund: &e{reason}"
+    pattern-detections: "&7Muster-Erkennungen (Speicher): &e{count}"
+    report-saved: "&a[AntiAFK+] Analytik-Bericht gespeichert: &f{file}"
+    no-data: "&7[AntiAFK+] Das Analysesystem ist deaktiviert. Setze analytics.enabled: true in config.yml."
+    export-success: "&a[AntiAFK+] Daten exportiert nach: &f{file}"
+    export-failed: "&c[AntiAFK+] Export fehlgeschlagen. Bitte Konsole prüfen."
 
 formatting:
   date-format: "dd.MM.yyyy"

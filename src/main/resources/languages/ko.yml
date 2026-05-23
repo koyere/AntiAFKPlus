@@ -3,7 +3,7 @@ language:
   code: "ko"
   name: "한국어"
   author: "AntiAFKPlus Team"
-  version: "3.0.0"
+  version: "3.1"
 
 messages:
   # 일반
@@ -336,6 +336,19 @@ messages:
     lang-header: "&6언어 선택"
     lang-header-lore: "&8서버 언어를 선택하세요"
     lang-code: "&7코드: &f{code}"
+
+  # Analytics
+  analytics:
+    summary-header: "&6=== AntiAFK+ 분석 요약 ==="
+    total-players: "&7추적된 고유 플레이어 수: &e{count}"
+    total-sessions: "&7총 AFK 세션: &e{count}"
+    total-afk-time: "&7총 AFK 시간: &e{time}"
+    most-common-reason: "&7가장 흔한 AFK 이유: &e{reason}"
+    pattern-detections: "&7패턴 탐지 수 (메모리): &e{count}"
+    report-saved: "&a[AntiAFK+] 분석 보고서가 저장되었습니다: &f{file}"
+    no-data: "&7[AntiAFK+] 분석 시스템이 비활성화되어 있습니다. config.yml에서 analytics.enabled: true를 설정하세요."
+    export-success: "&a[AntiAFK+] 데이터가 내보내졌습니다: &f{file}"
+    export-failed: "&c[AntiAFK+] 내보내기 실패. 콘솔을 확인하세요."
 
 formatting:
   date-format: "yyyy/MM/dd"

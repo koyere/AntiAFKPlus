@@ -32,6 +32,23 @@ import me.koyere.antiafkplus.utils.AFKLogger;
  */
 public class PatternDetector {
 
+    /**
+     * Immutable snapshot of a player's state captured on the main thread before
+     * async analysis begins. Carries all Bukkit API values needed by the analyzer
+     * so the async phase never needs to call Bukkit directly.
+     */
+    private record PlayerAnalysisSnapshot(
+            Player player,              // opaque scheduling handle — only passed to runTaskForEntity, never read
+            UUID uuid,
+            String playerName,
+            boolean inWater,
+            long lastKeystrokeTime,     // pre-fetched on main thread
+            long keystrokeTimeoutMs,    // pre-fetched on main thread
+            long lastCommandTime,       // pre-fetched on main thread
+            long lastHeadRotationTime,  // pre-fetched on main thread
+            long lastJumpTime,          // pre-fetched on main thread
+            MovementListener.PlayerLocationData locationData) {}
+
     private final AntiAFKPlus plugin;
     private final MovementListener movementListener;
     private final AFKManager afkManager;
@@ -155,58 +172,77 @@ public class PatternDetector {
         if (!isPatternDetectionGloballyEnabled()) {
             return;
         }
-        for (Player player : plugin.getServer().getOnlinePlayers()) {
-            if (player.hasPermission("antiafkplus.bypass"))
-                continue;
+        // Step 1 — collect player snapshots on the main thread.
+        // All Bukkit API calls (getOnlinePlayers, hasPermission, getWorld, isInWater)
+        // must happen here; the async analysis phase below uses only the snapshot.
+        plugin.getPlatformScheduler().runTask(() -> {
+            if (!isPatternDetectionGloballyEnabled()) return;
 
-            // PROFESSIONAL FIX: Verify if player is in disabled world (same logic as
-            // AFKManager)
             List<String> disabledWorlds = plugin.getConfigManager().getDisabledWorlds();
             List<String> enabledWorlds = plugin.getConfigManager().getEnabledWorlds();
-            String currentWorldName = player.getWorld().getName();
 
-            // Skip analysis if player is in disabled world
-            if (disabledWorlds.contains(currentWorldName)) {
-                continue;
+            List<PlayerAnalysisSnapshot> snapshots = new ArrayList<>();
+            for (Player player : plugin.getServer().getOnlinePlayers()) {
+                if (player.hasPermission("antiafkplus.bypass")) continue;
+
+                String worldName = player.getWorld().getName();
+                if (disabledWorlds.contains(worldName)) continue;
+                if (!enabledWorlds.isEmpty() && !enabledWorlds.contains(worldName)) continue;
+
+                MovementListener.PlayerLocationData locationData = movementListener.getPlayerLocationData(player);
+                if (locationData == null || locationData.locationHistory.size() < minSamplesForPattern) continue;
+
+                snapshots.add(new PlayerAnalysisSnapshot(
+                        player,
+                        player.getUniqueId(),
+                        player.getName(),
+                        player.isInWater(),
+                        movementListener.getLastKeystrokeTime(player),
+                        movementListener.getKeystrokeTimeoutMs(),
+                        movementListener.getLastCommandTime(player),
+                        movementListener.getLastHeadRotationTime(player),
+                        movementListener.getLastJumpTime(player),
+                        locationData));
             }
 
-            // Skip if enabled-worlds is configured and player is not in one
-            if (!enabledWorlds.isEmpty() && !enabledWorlds.contains(currentWorldName)) {
-                continue;
-            }
+            if (snapshots.isEmpty()) return;
 
-            MovementListener.PlayerLocationData locationData = movementListener.getPlayerLocationData(player);
-            if (locationData == null || locationData.locationHistory.size() < minSamplesForPattern) {
-                continue;
-            }
-
-            analyzePlayerPattern(player, locationData);
-        }
+            // Step 2 — run CPU-bound analysis async. The snapshot carries every value
+            // the analyzer needs; no Bukkit API calls happen inside this phase.
+            // handleSuspiciousPattern schedules player-affecting actions back to the
+            // main/entity thread via runTaskForEntity.
+            plugin.getPlatformScheduler().runTaskAsync(() -> {
+                for (PlayerAnalysisSnapshot snap : snapshots) {
+                    analyzePlayerPattern(snap);
+                }
+            });
+        });
     }
 
-    private void analyzePlayerPattern(Player player, MovementListener.PlayerLocationData locationData) {
-        UUID uuid = player.getUniqueId();
+    private void analyzePlayerPattern(PlayerAnalysisSnapshot snap) {
+        // Extract snapshot values — no Bukkit API calls below this point.
+        UUID uuid = snap.uuid();
+        MovementListener.PlayerLocationData locationData = snap.locationData();
+
         PatternData patternData = playerPatterns.computeIfAbsent(uuid, k -> new PatternData());
 
-        List<MovementListener.LocationSnapshot> history = locationData.locationHistory;
+        // Take a consistent snapshot of the CopyOnWriteArrayList before analysis.
+        List<MovementListener.LocationSnapshot> history = new java.util.ArrayList<>(locationData.locationHistory);
         if (history.size() < minSamplesForPattern)
             return;
 
-        // FIX: Prevent re-analyzing the same movement history if player hasn't moved
-        // This fixes the issue where standing still triggers repetitive movement
-        // violations
-        // because the cached history is analyzed repeatedly.
+        // Skip if movement history hasn't changed since the last analysis cycle.
         if (locationData.lastUpdate <= patternData.lastAnalysis) {
             return;
         }
 
-        // v2.9.4 NEW: Skip pattern detection if player has recent active gameplay
-        if (shouldSkipDueToRecentActivity(player)) {
+        // v2.9.4: Skip if the player has recent active gameplay (grace period).
+        // shouldSkipDueToRecentActivity reads only ConcurrentHashMap timestamps — safe from async.
+        if (shouldSkipDueToRecentActivity(snap)) {
             if (plugin.getConfigManager().isDebugEnabled()) {
-                plugin.getLogger().info("[PatternDetector] Skipping " + player.getName() +
+                plugin.getLogger().info("[PatternDetector] Skipping " + snap.playerName() +
                         " - recent activity grace period active");
             }
-            // Decay violations during grace period
             patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 2));
             patternData.lastAnalysis = System.currentTimeMillis();
             return;
@@ -217,67 +253,72 @@ public class PatternDetector {
                 Math.max(0, history.size() - minSamplesForPattern),
                 history.size());
 
-        // v2.9.4 NEW: Check for linear movement (running straight) - NOT an AFK pattern
+        // v2.9.4: Skip linear movement (running straight) — not an AFK pattern.
+        // Exception: linear movement in water = water current; analysis must continue.
         if (linearMovementExclusionEnabled && isLinearMovement(recentHistory)) {
-            if (plugin.getConfigManager().isDebugEnabled()) {
-                plugin.getLogger().info("[PatternDetector] Skipping " + player.getName() +
-                        " - linear movement detected (running straight)");
+            boolean inWaterContext = isPlayerMostlyInWater(recentHistory, snap.inWater());
+            if (!inWaterContext) {
+                if (plugin.getConfigManager().isDebugEnabled()) {
+                    plugin.getLogger().info("[PatternDetector] Skipping " + snap.playerName() +
+                            " - linear movement on land detected (running straight)");
+                }
+                patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 1));
+                patternData.lastAnalysis = System.currentTimeMillis();
+                return;
             }
-            // Decay violations for linear movement
-            patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 1));
-            patternData.lastAnalysis = System.currentTimeMillis();
-            return;
+            if (plugin.getConfigManager().isDebugEnabled()) {
+                plugin.getLogger().info("[PatternDetector] " + snap.playerName() +
+                        " - linear movement but mostly in water, continuing analysis (possible AFK pool current)");
+            }
         }
 
         boolean suspiciousPattern = false;
         String detectionReason = "";
 
-        // Check for water circle pattern
         if (detectWaterCirclePattern(recentHistory)) {
             suspiciousPattern = true;
             detectionReason = "water_circle";
             patternData.waterCircleDetections++;
         }
 
-        // Check for confined space movement
         if (detectConfinedSpacePattern(recentHistory)) {
             suspiciousPattern = true;
             detectionReason = "confined_space";
             patternData.confinedSpaceDetections++;
         }
 
-        // Check for repetitive movement patterns
         if (detectRepetitivePattern(recentHistory)) {
             suspiciousPattern = true;
             detectionReason = "repetitive_movement";
             patternData.repetitivePatternDetections++;
         }
 
-        // Check for pendulum/back-and-forth movement
         if (detectPendulumPattern(recentHistory)) {
             suspiciousPattern = true;
             detectionReason = "pendulum_movement";
             patternData.pendulumDetections++;
         }
 
-        // v2.4 NEW: Check for large AFK pool patterns
-        if (detectLargeAFKPool(player, recentHistory)) {
+        // v2.4: Large pool check uses full history so bounding-box covers the full circuit.
+        if (detectLargeAFKPool(snap, history)) {
             suspiciousPattern = true;
             detectionReason = "large_afk_pool";
             patternData.largePoolDetections++;
         }
 
-        // v2.4 NEW: Check for keystroke timeout (no manual input)
-        if (detectKeystrokeTimeout(player)) {
-            suspiciousPattern = true;
-            detectionReason = "keystroke_timeout";
-            patternData.keystrokeTimeouts++;
+        // v2.4: Keystroke timeout — computed from snapshot values, no Bukkit API needed.
+        if (keystrokeTimeoutDetectionEnabled) {
+            long timeSinceKeystroke = System.currentTimeMillis() - snap.lastKeystrokeTime();
+            if (snap.lastKeystrokeTime() > 0 && timeSinceKeystroke > snap.keystrokeTimeoutMs()) {
+                suspiciousPattern = true;
+                detectionReason = "keystroke_timeout";
+                patternData.keystrokeTimeouts++;
+            }
         }
 
         if (suspiciousPattern) {
-            handleSuspiciousPattern(player, detectionReason, patternData);
+            handleSuspiciousPattern(snap.uuid(), snap.playerName(), snap.player(), detectionReason, patternData);
         } else {
-            // Reduce violation count if no suspicious activity (thread-safe decrement)
             patternViolations.computeIfPresent(uuid, (k, v) -> Math.max(0, v - 1));
         }
 
@@ -295,37 +336,24 @@ public class PatternDetector {
      * @param player The player to check
      * @return true if recent activity warrants skipping pattern detection
      */
-    private boolean shouldSkipDueToRecentActivity(Player player) {
+    private boolean shouldSkipDueToRecentActivity(PlayerAnalysisSnapshot snap) {
         if (activityGracePeriodMs <= 0) {
-            return false; // Feature disabled
+            return false;
         }
-
         long now = System.currentTimeMillis();
-
-        // Check command activity (strong indicator of active play)
-        long lastCommand = movementListener.getLastCommandTime(player);
-        if (lastCommand > 0 && (now - lastCommand) < activityGracePeriodMs) {
+        // All timestamps pre-fetched on main thread — no Bukkit or MovementListener calls here.
+        if (snap.lastCommandTime() > 0 && (now - snap.lastCommandTime()) < activityGracePeriodMs) {
             return true;
         }
-
-        // Check head rotation (indicates looking around - active play)
-        long lastHeadRotation = movementListener.getLastHeadRotationTime(player);
-        if (lastHeadRotation > 0 && (now - lastHeadRotation) < (activityGracePeriodMs / 2)) {
+        if (snap.lastHeadRotationTime() > 0 && (now - snap.lastHeadRotationTime()) < (activityGracePeriodMs / 2)) {
             return true;
         }
-
-        // Check jump activity (indicates active movement control)
-        long lastJump = movementListener.getLastJumpTime(player);
-        if (lastJump > 0 && (now - lastJump) < (activityGracePeriodMs / 3)) {
+        if (snap.lastJumpTime() > 0 && (now - snap.lastJumpTime()) < (activityGracePeriodMs / 3)) {
             return true;
         }
-
-        // Check keystroke activity (v2.4+ - indicates manual input)
-        long lastKeystroke = movementListener.getLastKeystrokeTime(player);
-        if (lastKeystroke > 0 && (now - lastKeystroke) < (activityGracePeriodMs / 2)) {
+        if (snap.lastKeystrokeTime() > 0 && (now - snap.lastKeystrokeTime()) < (activityGracePeriodMs / 2)) {
             return true;
         }
-
         return false;
     }
 
@@ -587,7 +615,7 @@ public class PatternDetector {
      * @param history Recent movement history
      * @return true if large AFK pool pattern detected
      */
-    private boolean detectLargeAFKPool(Player player, List<MovementListener.LocationSnapshot> history) {
+    private boolean detectLargeAFKPool(PlayerAnalysisSnapshot snap, List<MovementListener.LocationSnapshot> history) {
         if (!largePoolDetectionEnabled) {
             return false;
         }
@@ -615,45 +643,48 @@ public class PatternDetector {
         if (!isLargePoolSize)
             return false;
 
-        // Check if player has been in water for most of the tracking period
-        boolean mostlyInWater = isPlayerMostlyInWater(player, safeCopy);
+        // Check historical water presence (Fix #2: use recorded inWater flags, not a snapshot).
+        // Rectangular pools fail an automatic-movement check at corners, so we do NOT require
+        // detectAutomaticMovementPattern() anymore. The three conditions below are sufficient
+        // and robust: large area + mostly in water + no manual keystrokes for timeout period.
+        boolean mostlyInWater = isPlayerMostlyInWater(safeCopy, snap.inWater());
         if (!mostlyInWater)
             return false;
 
-        // Check for automatic movement patterns (consistent velocity, minimal direction
-        // changes)
-        boolean hasAutomaticMovement = detectAutomaticMovementPattern(safeCopy);
-        if (!hasAutomaticMovement)
-            return false;
+        boolean hasKeystrokeTimeout = snap.lastKeystrokeTime() > 0 &&
+                (System.currentTimeMillis() - snap.lastKeystrokeTime()) > snap.keystrokeTimeoutMs();
 
-        // Final check: has player exceeded keystroke timeout?
-        boolean hasKeystrokeTimeout = movementListener.hasKeystrokeTimeout(player);
-
-        // Debug logging
+        // Debug logging (includes auto-movement for informational purposes only)
         if (plugin.getConfigManager().isDebugEnabled()) {
+            boolean autoMove = detectAutomaticMovementPattern(safeCopy);
             plugin.getLogger().info(String.format(
-                    "[DEBUG_LargePool] %s: area=%.1fx%.1f (%.1f), inWater=%s, autoMove=%s, keystrokeTimeout=%s",
-                    player.getName(), areaX, areaZ, totalArea, mostlyInWater, hasAutomaticMovement,
-                    hasKeystrokeTimeout));
+                    "[DEBUG_LargePool] %s: area=%.1fx%.1f (%.1f), inWater=%s, keystrokeTimeout=%s, autoMove(info)=%s",
+                    snap.playerName(), areaX, areaZ, totalArea, mostlyInWater, hasKeystrokeTimeout, autoMove));
         }
 
-        return hasKeystrokeTimeout; // Only trigger if keystroke timeout is also present
+        return hasKeystrokeTimeout;
     }
 
     /**
-     * Checks if player has been mostly in water during the tracking period.
-     * This helps identify AFK pool setups vs regular gameplay.
-     * 
-     * @param player  The player to check
-     * @param history Movement history to analyze
-     * @return true if player has been in water for >70% of tracked time
+     * Checks if the player was mostly in water during the recorded movement history.
+     * Uses the {@code inWater} flag stored in each {@link MovementListener.LocationSnapshot}
+     * (recorded at the time of the PlayerMoveEvent on the main thread) rather than the
+     * player's current block state, which is unreliable when the analysis runs async and
+     * the player may momentarily be at the pool edge.
+     *
+     * @param player  The player to check (used as fallback when history is empty)
+     * @param history Already-snapshotted movement history (stable list, safe to iterate)
+     * @return true if ≥ 60 % of recorded positions were in water
      */
-    private boolean isPlayerMostlyInWater(Player player, List<MovementListener.LocationSnapshot> history) {
-        // For simplicity, check current state and assume consistency
-        // A more sophisticated implementation could track water state over time
-        return player.getLocation().getBlock().isLiquid() ||
-                player.getEyeLocation().getBlock().isLiquid() ||
-                player.isSwimming();
+    private boolean isPlayerMostlyInWater(List<MovementListener.LocationSnapshot> history,
+                                           boolean inWaterSnapshot) {
+        if (history == null || history.isEmpty()) {
+            // No history yet: use the snapshot captured on the main thread.
+            // This avoids calling player.isInWater() from the async analysis thread.
+            return inWaterSnapshot;
+        }
+        long inWaterCount = history.stream().filter(s -> s.inWater).count();
+        return (double) inWaterCount / history.size() >= 0.60;
     }
 
     /**
@@ -692,7 +723,7 @@ public class PatternDetector {
 
                 // Calculate direction changes (automatic movement has fewer changes)
                 if (i > 1) {
-                    MovementListener.LocationSnapshot prevPrev = history.get(i - 2);
+                    MovementListener.LocationSnapshot prevPrev = safeCopy.get(i - 2); // Fix #3: use safeCopy, not the parameter `history`
                     double prevAngle = Math.atan2(prev.z - prevPrev.z, prev.x - prevPrev.x);
                     double currAngle = Math.atan2(deltaZ, deltaX);
 
@@ -718,21 +749,6 @@ public class PatternDetector {
         boolean lowDirectionChanges = avgDirectionChange < 0.3;
 
         return lowVelocityVariance && lowDirectionChanges;
-    }
-
-    /**
-     * Detects when a player hasn't provided manual keystroke input for too long.
-     * This is the core detection method for large AFK pools where players
-     * move due to water currents without any manual input.
-     * 
-     * @param player The player to check
-     * @return true if player has exceeded keystroke timeout threshold
-     */
-    private boolean detectKeystrokeTimeout(Player player) {
-        if (!keystrokeTimeoutDetectionEnabled) {
-            return false;
-        }
-        return movementListener.hasKeystrokeTimeout(player);
     }
 
     private double calculatePatternSimilarity(List<MovementListener.LocationSnapshot> pattern1,
@@ -764,9 +780,10 @@ public class PatternDetector {
                 Math.pow(pos2.z - pos1.z, 2));
     }
 
-    private void handleSuspiciousPattern(Player player, String detectionReason, PatternData patternData) {
-        UUID uuid = player.getUniqueId();
-        final String playerName = player.getName(); // Cache name (final for lambda capture)
+    private void handleSuspiciousPattern(UUID uuid, String playerName, Player player,
+                                          String detectionReason, PatternData patternData) {
+        // uuid and playerName come from the snapshot (pre-fetched on main thread).
+        // player is an opaque handle used only to schedule the action on the entity thread below.
 
         // Thread-safe increment of violations (can be called from async thread)
         final int violations = patternViolations.compute(uuid, (k, v) -> (v == null ? 0 : v) + 1);

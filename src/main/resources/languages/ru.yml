@@ -3,7 +3,7 @@ language:
   code: "ru"
   name: "Русский"
   author: "AntiAFKPlus Team"
-  version: "3.0.0"
+  version: "3.1"
 
 messages:
   # Общее
@@ -336,6 +336,19 @@ messages:
     lang-header: "&6Выбор Языка"
     lang-header-lore: "&8Выберите язык сервера"
     lang-code: "&7Код: &f{code}"
+
+  # Analytics
+  analytics:
+    summary-header: "&6=== Сводка аналитики AntiAFK+ ==="
+    total-players: "&7Уникальных игроков отслежено: &e{count}"
+    total-sessions: "&7Всего AFK-сессий: &e{count}"
+    total-afk-time: "&7Общее время AFK: &e{time}"
+    most-common-reason: "&7Наиболее частая причина AFK: &e{reason}"
+    pattern-detections: "&7Обнаружений паттернов (память): &e{count}"
+    report-saved: "&a[AntiAFK+] Отчёт аналитики сохранён: &f{file}"
+    no-data: "&7[AntiAFK+] Система аналитики отключена. Установите analytics.enabled: true в config.yml."
+    export-success: "&a[AntiAFK+] Данные экспортированы в: &f{file}"
+    export-failed: "&c[AntiAFK+] Ошибка экспорта. Проверьте консоль для деталей."
 
 formatting:
   date-format: "dd.MM.yyyy"

@@ -351,7 +351,8 @@ public class CreditManager {
         // Selección de storage: SQL si habilitado y driver presente; si no, archivo
         Map<UUID, CreditData> loaded;
         try {
-            if (plugin.getConfig().getBoolean("credit-system.database.enabled", false)) {
+            if (plugin.getConfig().getBoolean("database.enabled", false) ||
+                plugin.getConfig().getBoolean("credit-system.database.enabled", false)) {
                 String type = plugin.getConfig().getString("database.type", "SQLite");
                 String prefix = plugin.getConfig().getString("credit-system.database.table-prefix", "afkplus_");
                 if ("MySQL".equalsIgnoreCase(type)) {
