@@ -57,6 +57,20 @@ public class AFKManager {
     // Professional fix: Prevent repeated kick/teleport actions
     private final Set<UUID> playersAlreadyActioned = new HashSet<>(); // Players who already received final AFK action
 
+    /**
+     * v3.0.5: Players whose AFK state was enforced by the PatternDetector
+     * (e.g. confined_space, keystroke_timeout). For these players a normal
+     * {@link #onPlayerActivity(Player, ActivityType)} call coming from a weak
+     * source (a single PlayerMoveEvent, a passive interact, a jump) is NOT
+     * enough to leave AFK. Only strong human signals (chat, command,
+     * inventory click, fishing, an explicit camera rotation, sprint, sneak)
+     * can lift the lock. This prevents the classic AFK-pool / hold-spacebar
+     * bypasses: those scenarios produce {@link PlayerMoveEvent}s without any
+     * actual player input, which used to immediately reset the AFK state set
+     * by the PatternDetector.
+     */
+    private final Set<UUID> patternEnforcedAfk = new HashSet<>();
+
     private PlatformScheduler.ScheduledTask afkCheckTask;
 
     public AFKManager(AntiAFKPlus plugin, MovementListener movementListener) {
@@ -114,6 +128,7 @@ public class AFKManager {
                             warningCounts.remove(uuid);
                             afkDetectionTimes.remove(uuid);
                             afkDetectionReasons.remove(uuid);
+                            patternEnforcedAfk.remove(uuid); // v3.0.5
                         }
                         continue;
                     }
@@ -129,6 +144,7 @@ public class AFKManager {
                             warningCounts.remove(uuid);
                             afkDetectionTimes.remove(uuid);
                             afkDetectionReasons.remove(uuid);
+                            patternEnforcedAfk.remove(uuid); // v3.0.5
                         }
                         continue;
                     }
@@ -951,6 +967,11 @@ public class AFKManager {
             // Professional fix: Clear actioned state when manually unmarked
             playersAlreadyActioned.remove(uuid);
 
+            // v3.0.5: an explicit unmark (admin command, /afk toggle, API call)
+            // is always considered an authoritative decision and clears the
+            // pattern lock too.
+            patternEnforcedAfk.remove(uuid);
+
             if (wasManuallyAfk) {
                 AFKLogger.logAFKExit(player, apiReason, -1);
             } else if (wasGenerallyAfk) {
@@ -1001,6 +1022,10 @@ public class AFKManager {
         UUID uuid = player.getUniqueId();
         PlayerAFKStateChangeEvent.AFKReason finalReason = reason != null ? reason : PlayerAFKStateChangeEvent.AFKReason.API_CALL;
         String method = detectionMethod != null ? detectionMethod : "api_call";
+
+        // v3.0.5: an explicit "make active" call (admin command, API,
+        // duration-expired etc.) is authoritative and clears the pattern lock.
+        patternEnforcedAfk.remove(uuid);
 
         if (manualAfkUsernames.contains(uuid)) {
             forceSetManualAFKState(player, false);
@@ -1055,19 +1080,68 @@ public class AFKManager {
 
         UUID uuid = player.getUniqueId();
         boolean wasManuallyAfk = manualAfkUsernames.contains(uuid);
+        ActivityType type = activityType != null ? activityType : ActivityType.UNKNOWN;
+
+        // v3.0.5: If the player was forced AFK by the PatternDetector, only a
+        // strong input signal can release them. A bare PlayerMoveEvent or a
+        // passive interact is not enough — those are exactly the signals that
+        // AFK pools, hold-spacebar setups and similar bypasses produce
+        // without real player presence. Strong signals come from inputs that
+        // a script or a stuck key cannot reasonably fake on their own:
+        // chat messages, executed commands, inventory clicks, fishing rod
+        // success, sprint/sneak toggles and explicit camera rotation.
+        if (patternEnforcedAfk.contains(uuid) && !isStrongActivity(type)) {
+            return;
+        }
 
         if (wasManuallyAfk) {
             forceSetManualAFKState(player, false);
         }
 
+        // Strong activity also lifts the pattern lock so future movement
+        // is treated normally.
+        patternEnforcedAfk.remove(uuid);
+
         // Professional fix: Clear actioned state when player shows activity
         playersAlreadyActioned.remove(uuid);
 
         // Update activity tracking
-        recordPlayerActivity(player, activityType, System.currentTimeMillis());
+        recordPlayerActivity(player, type, System.currentTimeMillis());
 
         if (plugin.getAPI() instanceof AntiAFKPlusAPIImpl apiImpl) {
-            apiImpl.handleInternalActivity(player, activityType != null ? activityType : ActivityType.UNKNOWN);
+            apiImpl.handleInternalActivity(player, type);
+        }
+    }
+
+    /**
+     * v3.0.5: Returns whether an activity type is a strong human-input signal,
+     * i.e. one that cannot reasonably be reproduced by passive sources like
+     * water current, slime bouncing, piston push or a held key. These are
+     * the signals allowed to lift the pattern-enforced AFK lock.
+     *
+     * Notes on what is intentionally NOT strong:
+     *  - MOVEMENT: triggered by water push, falling, pistons, etc.
+     *  - JUMP: spacebar can be held (Quazar's report explicitly mentions this).
+     *  - INTERACTION: covered by the toggle "Use Item" bypass, can repeat.
+     *  - BLOCK_BREAK: an auto-clicker can hold left click.
+     *  - CUSTOM: used by the keystroke detector itself.
+     *
+     * HEAD_ROTATION is strong because the existing rotation threshold (5°)
+     * is already well above any passive source — only mouse input can reach it.
+     */
+    private boolean isStrongActivity(ActivityType type) {
+        if (type == null) {
+            return false;
+        }
+        switch (type) {
+            case CHAT:
+            case COMMAND:
+            case INVENTORY:
+            case FISHING:
+            case HEAD_ROTATION:
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -1092,6 +1166,9 @@ public class AFKManager {
         
         // Professional fix: Clear actioned state when player data is cleared
         playersAlreadyActioned.remove(uuid);
+
+        // v3.0.5: clear the pattern-enforced AFK lock
+        patternEnforcedAfk.remove(uuid);
 
         // Clear pattern detector data
         if (patternDetector != null) {
@@ -1135,6 +1212,11 @@ public class AFKManager {
         if (player == null || !player.isOnline()) return;
 
         UUID uuid = player.getUniqueId();
+
+        // v3.0.5: Lock the AFK state behind the strong-input requirement so that
+        // passive movement (water push, hold-spacebar, piston, falling, etc.)
+        // cannot immediately revert it.
+        patternEnforcedAfk.add(uuid);
 
         // Mark as AFK first
         if (!afkPlayers.contains(uuid)) {

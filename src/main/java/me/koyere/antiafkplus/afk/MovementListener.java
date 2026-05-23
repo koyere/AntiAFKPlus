@@ -58,13 +58,6 @@ public class MovementListener implements Listener {
     private static final long DEFAULT_KEYSTROKE_TIMEOUT_MS = 180000; // 3 minutes without keystrokes
     private static final double AUTOMATIC_MOVEMENT_VELOCITY_THRESHOLD = 0.15; // Water current movement speed
 
-    // v3.0.5: Threshold used by isPassiveLiquidMovement.
-    // A real water-current push in Minecraft is ~0.014 blocks/tick. Manual swimming
-    // with W held (no sprint) is ~0.10–0.13 blocks/tick. We pick 0.08 so that any
-    // legitimate manual swim crosses it (no false positive) while still catching
-    // small currents and step-block bobbing inside compact AFK pools.
-    private static final double PASSIVE_LIQUID_VELOCITY_THRESHOLD = 0.08;
-
     // Constructor does not need AFKManager if it gets it via AntiAFKPlus.getInstance()
     public MovementListener() {
         loadConfigThresholds();
@@ -138,25 +131,14 @@ public class MovementListener implements Listener {
             return;
         }
 
-        // v3.0.4 FIX: Classic AFK water-pool bypass prevention
-        // A player standing in a small water pool gets pushed by the current.
-        // If the pool has step blocks underwater, deltaY can exceed
-        // microMovementThreshold and detectSignificantMovement() would return true,
-        // causing onPlayerActivity(MOVEMENT) to immediately unmark a player who was
-        // correctly forced AFK by the PatternDetector (confined_space / keystroke_timeout).
-        //
-        // We treat liquid movement as passive when ALL of these hold:
-        //   - the player is in water/lava
-        //   - no head rotation in this tick (no mouse input)
-        //   - not sprinting and not sneaking (no held key)
-        //   - horizontal velocity below the manual-swim threshold
-        //
-        // PatternDetector keeps receiving position updates so it can still analyze
-        // the player's movement and confirm AFK patterns.
-        if (isPassiveLiquidMovement(player, event)) {
-            updatePlayerLocationData(player, event);
-            return;
-        }
+        // v3.0.5 NOTE: passive movement filtering is now handled centrally in
+        // AFKManager.onPlayerActivity via the patternEnforcedAfk lock. We no
+        // longer try to guess which PlayerMoveEvent is "passive" here, because
+        // the actual fix is to require strong human input (chat, command,
+        // inventory click, fishing, head rotation) before lifting an AFK state
+        // that was triggered by the PatternDetector. The vehicle guard above
+        // is preserved because it also affects the location-data feed used by
+        // the PatternDetector itself.
 
         // Enhanced movement detection
         boolean significantMovement = detectSignificantMovement(event);
@@ -511,56 +493,6 @@ public class MovementListener implements Listener {
                 player.getLocation().getYaw(),
                 player.getLocation().getPitch()
         ));
-    }
-
-    /**
-     * v3.0.4: Detects movement that is the result of being pushed by liquid
-     * (water/lava current) without any actual player input. Used to fix the
-     * classic AFK water-pool bypass where the current moves the player just
-     * enough to fire {@link PlayerMoveEvent} and reset the AFK state right
-     * after the {@link PatternDetector} flagged the player.
-     *
-     * Treated as passive when ALL of these hold:
-     *  - the player's body or eyes are inside a liquid block
-     *  - no head rotation is happening in this tick (no mouse input)
-     *  - the player is not sprinting and not sneaking (no held movement key)
-     *  - the player is not flying nor gliding
-     *  - horizontal velocity is below the threshold typical of manual swim/walk input
-     */
-    private boolean isPassiveLiquidMovement(Player player, PlayerMoveEvent event) {
-        if (event.getTo() == null || event.getFrom() == null) {
-            return false;
-        }
-
-        // 1. Must be in a liquid (water current is the only common natural pusher)
-        boolean inLiquid = player.getLocation().getBlock().isLiquid()
-                || player.getEyeLocation().getBlock().isLiquid();
-        if (!inLiquid) {
-            return false;
-        }
-
-        // 2. Any head movement implies real player input → not passive
-        if (detectHeadRotation(player, event)) {
-            return false;
-        }
-
-        // 3. Held movement keys imply real player input
-        if (player.isSprinting() || player.isSneaking() || player.isFlying() || player.isGliding()) {
-            return false;
-        }
-
-        // 4. Horizontal speed above the passive threshold implies the player is
-        // actively swimming. Manual swim with W held is ~0.10–0.13 b/t, while a
-        // natural water current is ~0.014 b/t, so 0.08 leaves a safe margin in
-        // both directions.
-        double dx = event.getTo().getX() - event.getFrom().getX();
-        double dz = event.getTo().getZ() - event.getFrom().getZ();
-        double horizontalVelocity = Math.sqrt(dx * dx + dz * dz);
-        if (horizontalVelocity > PASSIVE_LIQUID_VELOCITY_THRESHOLD) {
-            return false;
-        }
-
-        return true;
     }
 
     /**
