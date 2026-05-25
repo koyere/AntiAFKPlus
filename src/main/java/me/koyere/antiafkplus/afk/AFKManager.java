@@ -138,6 +138,9 @@ public class AFKManager {
                             afkDetectionReasons.remove(uuid);
                             patternEnforcedAfk.remove(uuid); // v3.0.5
                         }
+                        // Clear pending warnings even for players not yet marked AFK — prevents
+                        // stale warningsSent entries from suppressing warnings on world return.
+                        warningsSent.remove(uuid);
                         continue;
                     }
 
@@ -154,6 +157,9 @@ public class AFKManager {
                             afkDetectionReasons.remove(uuid);
                             patternEnforcedAfk.remove(uuid); // v3.0.5
                         }
+                        // Clear pending warnings even for players not yet marked AFK — prevents
+                        // stale warningsSent entries from suppressing warnings on world return.
+                        warningsSent.remove(uuid);
                         continue;
                     }
 
@@ -496,7 +502,7 @@ public class AFKManager {
                         String message = warningEvent.getCustomMessage() != null ?
                                 warningEvent.getCustomMessage() :
                                 plugin.getConfigManager().getMessageKickWarning()
-                                        .replace("{seconds}", String.valueOf(warningTimeSeconds));
+                                        .replace("{seconds}", String.valueOf(secondsRemaining));
 
                         player.sendMessage(adaptMsg(player, message));
 
@@ -506,7 +512,7 @@ public class AFKManager {
                                     "warning-title-standard", "&c⚠ AFK Warning");
                             String subtitleText = plugin.getConfigManager().getMessage(
                                     "warning-subtitle-standard", "&e{seconds} seconds remaining")
-                                    .replace("{seconds}", String.valueOf(warningTimeSeconds));
+                                    .replace("{seconds}", String.valueOf(secondsRemaining));
                             player.sendTitle(titleText, subtitleText, 10, 70, 20);
                         }
 
@@ -1174,6 +1180,22 @@ public class AFKManager {
 
         if (wasManuallyAfk) {
             forceSetManualAFKState(player, false);
+        } else if (afkPlayers.contains(uuid)) {
+            // Auto-detected AFK: unmark immediately so the "no longer AFK"
+            // broadcast fires at the moment of activity instead of waiting for
+            // the next check cycle (up to afk-check-interval-seconds later).
+            // Without this, the broadcast only arrives after the next timer tick —
+            // and if the kick fires in that same tick, it never arrives at all.
+            long afkDuration = System.currentTimeMillis() - afkDetectionTimes.getOrDefault(uuid, System.currentTimeMillis());
+            String detectionMethod = afkDetectionReasons.getOrDefault(uuid, "auto_detection");
+            fireAFKStateChangeEvent(player, PlayerAFKStateChangeEvent.AFKState.AFK_AUTO,
+                    PlayerAFKStateChangeEvent.AFKState.ACTIVE,
+                    determineActivityReason(player), detectionMethod, false);
+            AFKLogger.logAFKExit(player, "auto (activity detected)", afkDuration / 1000L);
+            unmarkAsAFKInternal(player);
+            afkDetectionTimes.remove(uuid);
+            afkDetectionReasons.remove(uuid);
+            warningCounts.remove(uuid);
         }
 
         // Strong activity also lifts the pattern lock so future movement

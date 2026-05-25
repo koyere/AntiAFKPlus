@@ -457,14 +457,15 @@ public class GUIManager implements Listener {
 
         int slot = event.getRawSlot();
 
+        boolean isShiftClick = event.isShiftClick();
         switch (guiType) {
             case MAIN_MENU -> handleMainMenuClick(player, slot);
             case DETECTION_SETTINGS -> handleDetectionClick(player, slot);
             case MODULE_SETTINGS -> handleModuleClick(player, slot);
             case CREDIT_SETTINGS -> { /* Reserved for future use */ }
-            case GENERAL_SETTINGS -> handleGeneralClick(player, slot);
-            case ZONE_SETTINGS -> handleZoneClick(player, slot);
-            case REWARD_SETTINGS -> handleRewardClick(player, slot);
+            case GENERAL_SETTINGS -> handleGeneralClick(player, slot, isShiftClick);
+            case ZONE_SETTINGS -> handleZoneClick(player, slot, isShiftClick);
+            case REWARD_SETTINGS -> handleRewardClick(player, slot, isShiftClick);
             case LANGUAGE_SELECTOR -> handleLanguageClick(player, slot);
         }
     }
@@ -557,13 +558,13 @@ public class GUIManager implements Listener {
         }
     }
 
-    private void handleGeneralClick(Player player, int slot) {
+    private void handleGeneralClick(Player player, int slot, boolean isShiftClick) {
         var cfg = plugin.getConfig();
         switch (slot) {
             case 19 -> {
-                // AFK Time: +30s click, -30s sneak+click
+                // AFK Time: +30s click, -30s shift+click
                 int current = cfg.getInt("default-afk-time", 300);
-                int newVal = player.isSneaking() ? Math.max(30, current - 30) : current + 30;
+                int newVal = isShiftClick ? Math.max(30, current - 30) : current + 30;
                 cfg.set("default-afk-time", newVal);
                 plugin.saveConfig();
                 plugin.getConfigManager().reloadConfiguration();
@@ -571,7 +572,7 @@ public class GUIManager implements Listener {
             }
             case 21 -> {
                 int current = cfg.getInt("afk-check-interval-seconds", 5);
-                int newVal = player.isSneaking() ? Math.max(1, current - 1) : Math.min(60, current + 1);
+                int newVal = isShiftClick ? Math.max(1, current - 1) : Math.min(60, current + 1);
                 cfg.set("afk-check-interval-seconds", newVal);
                 plugin.saveConfig();
                 plugin.getConfigManager().reloadConfiguration();
@@ -579,7 +580,7 @@ public class GUIManager implements Listener {
             }
             case 23 -> {
                 int current = cfg.getInt("max-voluntary-afk-time-seconds", 600);
-                int newVal = player.isSneaking() ? Math.max(60, current - 60) : current + 60;
+                int newVal = isShiftClick ? Math.max(60, current - 60) : current + 60;
                 cfg.set("max-voluntary-afk-time-seconds", newVal);
                 plugin.saveConfig();
                 plugin.getConfigManager().reloadConfiguration();
@@ -605,7 +606,7 @@ public class GUIManager implements Listener {
         }
     }
 
-    private void handleZoneClick(Player player, int slot) {
+    private void handleZoneClick(Player player, int slot, boolean isShiftClick) {
         var cfg = plugin.getConfig();
         switch (slot) {
             case 19 -> {
@@ -634,7 +635,7 @@ public class GUIManager implements Listener {
             }
             case 25 -> {
                 int current = cfg.getInt("zone-management.default-timeout-seconds", 300);
-                int newVal = player.isSneaking() ? Math.max(60, current - 60) : current + 60;
+                int newVal = isShiftClick ? Math.max(60, current - 60) : current + 60;
                 cfg.set("zone-management.default-timeout-seconds", newVal);
                 plugin.saveConfig();
                 plugin.getConfigManager().reloadConfiguration();
@@ -652,7 +653,7 @@ public class GUIManager implements Listener {
         }
     }
 
-    private void handleRewardClick(Player player, int slot) {
+    private void handleRewardClick(Player player, int slot, boolean isShiftClick) {
         var cfg = plugin.getConfig();
         switch (slot) {
             case 19 -> {
@@ -673,14 +674,14 @@ public class GUIManager implements Listener {
             }
             case 23 -> {
                 int current = cfg.getInt("reward-system.max-daily-rewards", 144);
-                int newVal = player.isSneaking() ? Math.max(10, current - 10) : current + 10;
+                int newVal = isShiftClick ? Math.max(10, current - 10) : current + 10;
                 cfg.set("reward-system.max-daily-rewards", newVal);
                 plugin.saveConfig();
                 openRewardSettings(player);
             }
             case 25 -> {
                 int current = cfg.getInt("reward-system.require-active-time-minutes", 30);
-                int newVal = player.isSneaking() ? Math.max(5, current - 5) : current + 5;
+                int newVal = isShiftClick ? Math.max(5, current - 5) : current + 5;
                 cfg.set("reward-system.require-active-time-minutes", newVal);
                 plugin.saveConfig();
                 openRewardSettings(player);

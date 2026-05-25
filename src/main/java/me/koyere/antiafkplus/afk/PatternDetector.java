@@ -47,6 +47,7 @@ public class PatternDetector {
             long lastCommandTime,       // pre-fetched on main thread
             long lastHeadRotationTime,  // pre-fetched on main thread
             long lastJumpTime,          // pre-fetched on main thread
+            long lastAnyInteractTime,   // pre-fetched on main thread — set even for passive (filtered) events
             MovementListener.PlayerLocationData locationData) {}
 
     private final AntiAFKPlus plugin;
@@ -202,6 +203,7 @@ public class PatternDetector {
                         movementListener.getLastCommandTime(player),
                         movementListener.getLastHeadRotationTime(player),
                         movementListener.getLastJumpTime(player),
+                        movementListener.getLastAnyInteractTime(player),
                         locationData));
             }
 
@@ -231,8 +233,18 @@ public class PatternDetector {
         if (history.size() < minSamplesForPattern)
             return;
 
-        // Skip if movement history hasn't changed since the last analysis cycle.
-        if (locationData.lastUpdate <= patternData.lastAnalysis) {
+        // Lightweight activity gate: skip only when the player has done absolutely
+        // nothing since the last analysis cycle — no movement, no interact event,
+        // no command. The original gate used locationData.lastUpdate alone, which
+        // only advances on PlayerMoveEvent. A stationary AFK miner (cobble gen,
+        // bedrock, etc.) never moves, so that gate permanently suppressed detection
+        // after the first cycle. We now also fold in lastAnyInteractTime (recorded
+        // before the passive filter fires) so a cobble-gen miner whose client keeps
+        // sending LEFT_CLICK_BLOCK is never skipped, even though those clicks are
+        // all passive and do not update locationData.lastUpdate.
+        long lastActivity = Math.max(locationData.lastUpdate,
+                Math.max(snap.lastAnyInteractTime(), snap.lastCommandTime()));
+        if (lastActivity > 0 && lastActivity <= patternData.lastAnalysis) {
             return;
         }
 

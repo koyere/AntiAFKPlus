@@ -47,6 +47,18 @@ public class MovementListener implements Listener {
     // v3.0.5: State for "Use Item / Place Block" toggle-mode bypass detection.
     private final Map<UUID, InteractContext> lastInteractContext = new ConcurrentHashMap<>();
 
+    // v3.1: Timestamp of the last PlayerInteractEvent (recorded BEFORE the passive
+    // filter). Used by PatternDetector to distinguish a stationary AFK miner (whose
+    // client keeps firing LEFT_CLICK_BLOCK) from a player who is doing absolutely
+    // nothing, so the detector can skip the latter without skipping the former.
+    private final Map<UUID, Long> lastAnyInteractTime = new ConcurrentHashMap<>();
+
+    // v3.1: Player position captured at the time of the most recent door/trapdoor
+    // RIGHT_CLICK_BLOCK. When a door opens, subsequent auto-clicks may land on AIR
+    // (the cursor passes through the open door) or on a block behind the door — both
+    // should still be treated as passive when the player hasn't moved.
+    private final Map<UUID, InteractContext> lastDoorToggleContext = new ConcurrentHashMap<>();
+
     // Configuration thresholds for micro-movement detection (loaded from config)
     private double microMovementThreshold = 0.1;
     private double headRotationThreshold = 5.0;
@@ -159,6 +171,10 @@ public class MovementListener implements Listener {
         if (manager != null) {
             long now = System.currentTimeMillis();
             if (significantMovement) {
+                // Any real movement invalidates the door-toggle context so that
+                // subsequent clicks on blocks behind an open door are not suppressed
+                // (the player moved, so those clicks are genuine activity).
+                lastDoorToggleContext.remove(player.getUniqueId());
                 manager.onPlayerActivity(player, ActivityType.MOVEMENT);
                 recorded = true;
             }
@@ -226,10 +242,23 @@ public class MovementListener implements Listener {
         }
     }
 
+    // No ignoreCancelled here — intentional. We run at NORMAL priority without
+    // filtering cancelled events so that lastAnyInteractTime is updated regardless
+    // of whether another plugin (at any priority) cancels the event. What matters
+    // for AFK detection is that the client sent the click, not whether the action
+    // was ultimately allowed. Adding ignoreCancelled = true would break the
+    // PatternDetector gate for cobble generators on servers with anti-grief plugins
+    // that cancel block-break events.
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         if (player.hasPermission("antiafkplus.bypass")) return;
+
+        // Record that any interact happened — BEFORE the passive filter and before
+        // checking cancellation status — so PatternDetector can distinguish a
+        // stationary AFK miner (whose client keeps firing LEFT_CLICK_BLOCK) from
+        // a player who is doing absolutely nothing.
+        lastAnyInteractTime.put(player.getUniqueId(), System.currentTimeMillis());
 
         // v3.0.5 FIX: "Use Item / Place Block" toggle-mode bypass prevention.
         // Minecraft's accessibility option lets the right-click action be toggled
@@ -399,50 +428,100 @@ public class MovementListener implements Listener {
     }
 
     /**
-     * v3.0.5: Detects right-click interactions that are mechanical repetitions
-     * of the previous one — characteristic fingerprint of Minecraft's
-     * "Use Item / Place Block: toggle" accessibility option used as an AFK
-     * bypass (e.g. holding right-click on a lever forever without input).
+     * Detects interact events that are mechanical repetitions of the previous
+     * one — the characteristic fingerprint of Minecraft's accessibility toggle
+     * options used as AFK bypasses:
      *
-     * Returns {@code true} only when, compared to the previous interact:
-     *   - same action (must be RIGHT_CLICK_BLOCK; air clicks and left clicks
-     *     are never considered passive)
-     *   - same block coordinates and same clicked face
-     *   - same item type held in the main hand
-     *   - the player has not moved nor rotated since the previous interact
+     * <ul>
+     *   <li><b>"Use Item / Place Block" toggle (RIGHT_CLICK_BLOCK)</b> —
+     *       e.g. holding right-click on a lever forever without real input.</li>
+     *   <li><b>"Attack / Destroy" toggle (LEFT_CLICK_BLOCK)</b> —
+     *       e.g. standing still in a cobble generator: each regenerated block
+     *       causes the client to restart the dig sequence, firing
+     *       {@code LEFT_CLICK_BLOCK} in a tight loop that continuously resets
+     *       the AFK timer even though no human input occurred.</li>
+     * </ul>
      *
-     * The first interact of a sequence is always counted as activity. Any
-     * movement, sneak, sprint or camera rotation breaks the sequence and the
-     * next interact counts as activity again. This guarantees zero false
-     * positives for normal play (clicking different blocks, looking around,
-     * walking while clicking, etc.) while neutralizing the toggle bypass.
+     * Returns {@code true} only when, compared to the previous interact of the
+     * <em>same action type</em>:
+     * <ul>
+     *   <li>same block coordinates and clicked face</li>
+     *   <li>same item type held in the main hand</li>
+     *   <li>the player has not moved nor rotated since the previous interact</li>
+     * </ul>
      *
-     * Public so other listeners (e.g. {@code AntiAFKActivityDetector}) can
-     * apply the same filter and stay in sync.
+     * The first interact of each sequence is always counted as activity. Any
+     * movement, camera rotation, tool swap, different block, or action-type
+     * change breaks the sequence and the next interact counts as activity again.
+     * Right-click and left-click sequences are tracked independently so
+     * alternating between the two on the same block never produces false positives.
+     *
+     * <p>Public so {@link AntiAFKActivityDetector} can delegate here and remain
+     * in sync with {@code MovementListener}.
      */
     public boolean isPassiveRepeatedInteract(Player player, PlayerInteractEvent event) {
-        // Only right-click on a real block can be turned into a toggle loop.
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
-            updateInteractContext(player, event);
+        Action action = event.getAction();
+        UUID uuid = player.getUniqueId();
+
+        // Non-block actions (air clicks, entity clicks) cannot form a toggle loop
+        // themselves, with one important exception: when a door or trapdoor opens,
+        // the client's next auto-click passes THROUGH the now-open door and lands
+        // on AIR. Without this check that air click would always reset the AFK
+        // timer even though the player is standing completely still.
+        //
+        // Cobble-generator fix: on non-block actions we intentionally do NOT clear
+        // lastInteractContext — see the original comment for the full rationale.
+        if (action != Action.RIGHT_CLICK_BLOCK && action != Action.LEFT_CLICK_BLOCK) {
+            if (action == Action.RIGHT_CLICK_AIR || action == Action.LEFT_CLICK_AIR) {
+                InteractContext doorCtx = lastDoorToggleContext.get(uuid);
+                if (doorCtx != null) {
+                    org.bukkit.Location loc = player.getLocation();
+                    if (doorCtx.matchesPlayerLocation(loc.getX(), loc.getY(), loc.getZ(),
+                            loc.getYaw(), loc.getPitch())) {
+                        return true; // Air click through open door while still → passive
+                    }
+                }
+            }
             return false;
         }
 
         Block clicked = event.getClickedBlock();
         if (clicked == null) {
-            updateInteractContext(player, event);
             return false;
         }
 
-        UUID uuid = player.getUniqueId();
-        InteractContext previous = lastInteractContext.get(uuid);
+        // Normalize door and trapdoor interactions so toggle-mode bypass is detected:
+        //
+        // • face:  a closed door presents one face; after it opens the door panel
+        //          rotates 90°, so the next click (if it still hits the door) reports
+        //          a different BlockFace. Use BlockFace.SELF as a sentinel meaning
+        //          "skip face comparison" so closed-face and open-face both map to the
+        //          same context — the player hasn't moved, it's still the same door.
+        //
+        // • blockY: two-tall doors fire RIGHT_CLICK_BLOCK on top half (Y+1) or bottom
+        //           half (Y) depending on the player's eye angle at the moment of the
+        //           click. Normalize the top half to the bottom half so both map to the
+        //           same canonical Y.
+        String typeName = clicked.getType().name();
+        boolean isDoor = typeName.endsWith("_DOOR") || typeName.endsWith("_TRAPDOOR");
+        BlockFace storedFace = isDoor ? BlockFace.SELF : event.getBlockFace();
+        int storedY = clicked.getY();
+        if (isDoor && typeName.endsWith("_DOOR")) {
+            try {
+                if (clicked.getBlockData() instanceof org.bukkit.block.data.Bisected bisected
+                        && bisected.getHalf() == org.bukkit.block.data.Bisected.Half.TOP) {
+                    storedY = clicked.getY() - 1;
+                }
+            } catch (Exception ignored) { }
+        }
 
-        // Build the current context from the event + player state.
         InteractContext current = new InteractContext(
+                action.name(),
                 clicked.getWorld().getUID(),
                 clicked.getX(),
-                clicked.getY(),
+                storedY,
                 clicked.getZ(),
-                event.getBlockFace(),
+                storedFace,
                 player.getInventory().getItemInMainHand().getType().name(),
                 player.getLocation().getX(),
                 player.getLocation().getY(),
@@ -451,27 +530,54 @@ public class MovementListener implements Listener {
                 player.getLocation().getPitch()
         );
 
-        // No previous interact recorded → this is the first one, count it.
+        // Track door toggles so the air-click check above and the through-door
+        // block-click check below have a reference player position to compare against.
+        if (isDoor) {
+            lastDoorToggleContext.put(uuid, current);
+        }
+
+        InteractContext previous = lastInteractContext.get(uuid);
+
         if (previous == null) {
             lastInteractContext.put(uuid, current);
             return false;
         }
 
-        // Different block, face, item, world or action target → real activity.
         if (!previous.matchesTarget(current)) {
+            // Click landed on a different block, face, or item. Before calling this
+            // real activity, check whether it is a "through-door" click: the player
+            // recently toggled a door and the auto-click now hits the block behind
+            // the open door while the player has not moved at all.
+            //
+            // Distance guard: only suppress blocks within 2 Chebyshev units of the
+            // door. Blocks farther away are independent — a lever, chest, or any
+            // other functional block that the player deliberately walked to and
+            // interacted with — and must NOT be suppressed even if the player's
+            // feet happen to be at the same position as during the door toggle.
+            InteractContext doorCtx = lastDoorToggleContext.get(uuid);
+            if (doorCtx != null) {
+                org.bukkit.Location loc = player.getLocation();
+                if (doorCtx.matchesPlayerLocation(loc.getX(), loc.getY(), loc.getZ(),
+                        loc.getYaw(), loc.getPitch())) {
+                    int chebyshev = Math.max(Math.max(
+                            Math.abs(current.blockX - doorCtx.blockX),
+                            Math.abs(current.blockY - doorCtx.blockY)),
+                            Math.abs(current.blockZ - doorCtx.blockZ));
+                    if (chebyshev <= 2) {
+                        lastInteractContext.put(uuid, current);
+                        return true; // Block within door reach, player still → passive
+                    }
+                }
+            }
             lastInteractContext.put(uuid, current);
             return false;
         }
 
-        // Player moved or rotated since previous interact → real activity.
         if (!previous.matchesPlayerStillness(current)) {
             lastInteractContext.put(uuid, current);
             return false;
         }
 
-        // Identical interact, identical position, identical orientation:
-        // toggle-mode repetition. Refresh the stored context (so the comparison
-        // window keeps moving) but do NOT count as activity.
         lastInteractContext.put(uuid, current);
         return true;
     }
@@ -485,6 +591,7 @@ public class MovementListener implements Listener {
             return;
         }
         lastInteractContext.put(player.getUniqueId(), new InteractContext(
+                event.getAction().name(),
                 clicked.getWorld().getUID(),
                 clicked.getX(),
                 clicked.getY(),
@@ -707,6 +814,8 @@ public class MovementListener implements Listener {
 
         // v3.0.5: Clear interact-context tracking
         lastInteractContext.remove(uuid);
+        lastAnyInteractTime.remove(uuid);
+        lastDoorToggleContext.remove(uuid);
     }
 
     private void updateLastMovementTimestamp(Player player) {
@@ -776,6 +885,10 @@ public class MovementListener implements Listener {
      * @param player The player to check
      * @return true if player hasn't provided manual input for too long
      */
+    public long getLastAnyInteractTime(Player player) {
+        return lastAnyInteractTime.getOrDefault(player.getUniqueId(), 0L);
+    }
+
     public boolean hasKeystrokeTimeout(Player player) {
         long lastKeystroke = getLastKeystrokeTime(player);
         if (lastKeystroke == 0L) {
@@ -823,10 +936,19 @@ public class MovementListener implements Listener {
     }
 
     /**
-     * v3.0.5: Snapshot of an interact event used to detect mechanical
-     * repetitions of the toggle "Use Item / Place Block" accessibility option.
-     * Captures the click target plus the player's exact position and
-     * orientation at the moment of the click.
+     * Snapshot of an interact event used to detect mechanical repetitions of
+     * Minecraft's accessibility toggle options:
+     * <ul>
+     *   <li>"Use Item / Place Block" toggle → RIGHT_CLICK_BLOCK</li>
+     *   <li>"Attack / Destroy" toggle      → LEFT_CLICK_BLOCK (cobble generators, etc.)</li>
+     * </ul>
+     * Captures the action type, click target and the player's exact position
+     * and orientation at the moment of the click.
+     *
+     * <p>The {@code action} field is included in {@link #matchesTarget} so
+     * right-click and left-click sequences are always tracked independently,
+     * preventing false positives when a player alternates between the two on
+     * the same block.
      */
     private static final class InteractContext {
         // Tolerance for comparing player coordinates: anything below this is
@@ -837,6 +959,9 @@ public class MovementListener implements Listener {
         // mouse adjustment but well above floating-point noise.
         private static final float ROTATION_EPSILON = 0.5f;
 
+        /** "RIGHT_CLICK_BLOCK" or "LEFT_CLICK_BLOCK" — kept as String to avoid
+         *  holding a reference to the Bukkit Action enum across reloads. */
+        private final String action;
         private final java.util.UUID worldId;
         private final int blockX;
         private final int blockY;
@@ -849,10 +974,12 @@ public class MovementListener implements Listener {
         private final float playerYaw;
         private final float playerPitch;
 
-        InteractContext(java.util.UUID worldId, int blockX, int blockY, int blockZ,
+        InteractContext(String action,
+                        java.util.UUID worldId, int blockX, int blockY, int blockZ,
                         BlockFace face, String mainHandItem,
                         double playerX, double playerY, double playerZ,
                         float playerYaw, float playerPitch) {
+            this.action = action;
             this.worldId = worldId;
             this.blockX = blockX;
             this.blockY = blockY;
@@ -866,12 +993,31 @@ public class MovementListener implements Listener {
             this.playerPitch = playerPitch;
         }
 
+        /**
+         * Returns true when both contexts describe the same action type, the
+         * same block (world + coordinates + face) and the same item held.
+         * Action type is compared first to keep right-click and left-click
+         * sequences fully isolated from each other.
+         *
+         * {@link BlockFace#SELF} is stored exclusively for door/trapdoor blocks
+         * (see {@code isPassiveRepeatedInteract}). The SELF check is placed
+         * AFTER the blockX/Y/Z equality checks on purpose: Java short-circuits
+         * the {@code &&} chain, so face relaxation is never reached when the
+         * two contexts already differ in coordinates. SELF therefore cannot
+         * "bleed" into non-door blocks — it only skips the face comparison when
+         * both contexts already point at the exact same block position, which
+         * is always the same door.
+         */
         boolean matchesTarget(InteractContext other) {
-            return java.util.Objects.equals(this.worldId, other.worldId)
+            return java.util.Objects.equals(this.action,  other.action)
+                    && java.util.Objects.equals(this.worldId, other.worldId)
                     && this.blockX == other.blockX
                     && this.blockY == other.blockY
                     && this.blockZ == other.blockZ
-                    && this.face == other.face
+                    // SELF = "any face" sentinel, door/trapdoor-only. Safe because the
+                    // coordinate checks above already short-circuit for different blocks.
+                    && (this.face == BlockFace.SELF || other.face == BlockFace.SELF
+                        || this.face == other.face)
                     && java.util.Objects.equals(this.mainHandItem, other.mainHandItem);
         }
 
@@ -881,6 +1027,17 @@ public class MovementListener implements Listener {
                     && Math.abs(this.playerZ - other.playerZ) < POSITION_EPSILON
                     && Math.abs(this.playerYaw - other.playerYaw) < ROTATION_EPSILON
                     && Math.abs(this.playerPitch - other.playerPitch) < ROTATION_EPSILON;
+        }
+
+        /** Checks whether the given raw player position/rotation is at the same spot
+         *  as the position captured in this context. Used by the door-toggle suppression
+         *  logic which doesn't have a second InteractContext to compare against. */
+        boolean matchesPlayerLocation(double x, double y, double z, float yaw, float pitch) {
+            return Math.abs(this.playerX - x) < POSITION_EPSILON
+                    && Math.abs(this.playerY - y) < POSITION_EPSILON
+                    && Math.abs(this.playerZ - z) < POSITION_EPSILON
+                    && Math.abs(this.playerYaw - yaw) < ROTATION_EPSILON
+                    && Math.abs(this.playerPitch - pitch) < ROTATION_EPSILON;
         }
     }
 }
