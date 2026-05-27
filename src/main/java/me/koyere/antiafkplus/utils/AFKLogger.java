@@ -85,19 +85,12 @@ public class AFKLogger {
             // Example: only log if debug is enabled in config, or always log as INFO
             // Assuming a method like isDebugEnabled() exists in your ConfigManager
             // For simplicity, let's assume it logs if debug is on or if no such config exists (logs as INFO)
-            boolean debugEnabled = false; // Default to false
-            if (pluginInstance.getConfigManager() != null) { // Ensure ConfigManager is also available
-                // debugEnabled = pluginInstance.getConfigManager().isDebugEnabled(); // Hypothetical method
+            boolean debugEnabled = false;
+            if (pluginInstance.getConfigManager() != null) {
+                debugEnabled = pluginInstance.getConfigManager().isDebugEnabled();
             }
 
-            if (debugEnabled) { // If you implement a debug mode check
-                pluginInstance.getLogger().info("[Activity_DEBUG] " + message);
-            } else {
-                // If not for debug, or if debug isn't a feature for this specific log,
-                // you might log it as a standard INFO or not at all, depending on the message's nature.
-                // For now, let's log it as info if not specifically a debug message.
-                // pluginInstance.getLogger().info("[Activity] " + message);
-                // For the logActivity("player data cleared") example, it's fine as INFO.
+            if (debugEnabled) {
                 pluginInstance.getLogger().info("[Activity] " + message);
             }
 

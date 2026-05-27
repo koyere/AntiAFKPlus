@@ -865,7 +865,7 @@ public class PatternDetector {
             if (plugin.getConfigManager().shouldNotifyPlayerOnPatternDetection()) {
                 String message = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
                         : "§c[AntiAFK] Suspicious movement pattern detected: " + detectionReason;
-                player.sendMessage(message);
+                if (!message.trim().isEmpty()) player.sendMessage(message);
             }
 
             // Process suggested action from event
@@ -881,7 +881,7 @@ public class PatternDetector {
                     String violationMessage = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
                             : "§c[AntiAFK] Maximum pattern violations reached (" + violations + "/"
                                     + maxPatternViolations + ")";
-                    player.sendMessage(violationMessage);
+                    if (!violationMessage.trim().isEmpty()) player.sendMessage(violationMessage);
                 }
 
                 // PROFESSIONAL FIX: Execute configured AFK action (kick/teleport) instead of
@@ -894,7 +894,7 @@ public class PatternDetector {
                 if (plugin.getConfigManager().shouldNotifyPlayerOnAction()) {
                     String actionMessage = patternEvent.getCustomMessage() != null ? patternEvent.getCustomMessage()
                             : "§c[AntiAFK] Suspicious movement pattern detected. AFK action executed.";
-                    player.sendMessage(actionMessage);
+                    if (!actionMessage.trim().isEmpty()) player.sendMessage(actionMessage);
                 }
 
                 // Log the action
@@ -982,9 +982,11 @@ public class PatternDetector {
                 return false;
             case NO_ACTION:
                 return true;
-            case WARN_PLAYER:
-                player.sendMessage(event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage);
+            case WARN_PLAYER: {
+                String warnMsg = event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage;
+                if (!warnMsg.trim().isEmpty()) player.sendMessage(warnMsg);
                 return true;
+            }
             case FORCE_AFK:
                 afkManager.forceSetAutoAFKState(player, true, "pattern_" + event.getPatternType().name().toLowerCase());
                 return true;
@@ -996,9 +998,11 @@ public class PatternDetector {
             case TELEPORT_AWAY:
                 afkManager.executeAFKAction(player, "pattern_" + event.getPatternType().name().toLowerCase());
                 return true;
-            case FREEZE_PLAYER:
-                player.sendMessage(event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage);
+            case FREEZE_PLAYER: {
+                String freezeMsg = event.getCustomMessage() != null ? event.getCustomMessage() : defaultMessage;
+                if (!freezeMsg.trim().isEmpty()) player.sendMessage(freezeMsg);
                 return true;
+            }
             case CUSTOM_COMMAND:
                 if (event.getCustomMessage() != null && !event.getCustomMessage().isEmpty()) {
                     String command = event.getCustomMessage().replace("{player}", player.getName());

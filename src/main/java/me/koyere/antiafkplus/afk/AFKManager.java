@@ -90,6 +90,12 @@ public class AFKManager {
         return bc != null ? bc.getAdaptedMessage(player, message) : message;
     }
 
+    private void sendSafe(Player player, String message) {
+        if (message != null && !message.trim().isEmpty()) {
+            player.sendMessage(adaptMsg(player, message));
+        }
+    }
+
     private void startAFKCheckTask() {
         if (this.afkCheckTask != null && !this.afkCheckTask.isCancelled()) {
             this.afkCheckTask.cancel();
@@ -177,7 +183,7 @@ public class AFKManager {
                                         PlayerAFKStateChangeEvent.AFKReason.TIME_LIMIT_EXCEEDED,
                                         "voluntary_time_limit", false);
 
-                                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageVoluntaryAFKLimit()));
+                                sendSafe(player, plugin.getConfigManager().getMessageVoluntaryAFKLimit());
                                 forceSetManualAFKState(player, false);
                             }
                         }
@@ -504,7 +510,7 @@ public class AFKManager {
                                 plugin.getConfigManager().getMessageKickWarning()
                                         .replace("{seconds}", String.valueOf(secondsRemaining));
 
-                        player.sendMessage(adaptMsg(player, message));
+                        sendSafe(player, message);
 
                         // Send title if enabled
                         if (warningEvent.shouldSendTitle()) {
@@ -797,14 +803,14 @@ public class AFKManager {
         boolean hasSteps = steps != null && !steps.isEmpty();
         if (pipelineEnabled && hasSteps && plugin.getActionPipelineService() != null) {
             String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-            player.sendMessage(adaptMsg(player, msg.replace("{server}", target == null ? "" : target)));
+            sendSafe(player, msg.replace("{server}", target == null ? "" : target));
             plugin.getActionPipelineService().startPipelineFromConfig(player, doTransfer);
         } else {
             boolean countdownEnabled = plugin.getConfig().getBoolean("server-transfer.countdown.enabled", false);
             int cdSeconds = Math.max(0, plugin.getConfig().getInt("server-transfer.countdown.seconds", 10));
             if (countdownEnabled && cdSeconds > 0 && plugin.getCountdownSequenceService() != null) {
                 String msg = plugin.getConfigManager().getMessage("server-transfer.transferring", "&aTransferring...");
-                player.sendMessage(adaptMsg(player, msg.replace("{server}", target == null ? "" : target)));
+                sendSafe(player, msg.replace("{server}", target == null ? "" : target));
                 plugin.getCountdownSequenceService().startServerTransferCountdown(player, doTransfer);
             } else {
                 plugin.getPlatformScheduler().runTaskForEntity(player, doTransfer);
@@ -832,7 +838,7 @@ public class AFKManager {
         if (locationString == null || locationString.trim().isEmpty()) {
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage(adaptMsg(player, teleportMessage));
+            sendSafe(player, teleportMessage);
             AFKLogger.logActivity(player.getName() + " teleported to world spawn (AFK)");
             return;
         }
@@ -872,7 +878,7 @@ public class AFKManager {
             }
 
             player.teleport(teleportLocation);
-            player.sendMessage(adaptMsg(player, teleportMessage));
+            sendSafe(player, teleportMessage);
             AFKLogger.logActivity(player.getName() + " teleported to " + worldName + " (" + x + "," + y + "," + z + ") due to AFK");
 
         } catch (NumberFormatException e) {
@@ -880,7 +886,7 @@ public class AFKManager {
             // Fallback to spawn
             Location spawnLocation = player.getWorld().getSpawnLocation();
             player.teleport(spawnLocation);
-            player.sendMessage(adaptMsg(player, teleportMessage));
+            sendSafe(player, teleportMessage);
         } catch (Exception e) {
             AFKLogger.logActivity("Error teleporting player " + player.getName() + ": " + e.getMessage());
         }
@@ -1007,9 +1013,9 @@ public class AFKManager {
             return false;
         } else { // Not manually AFK (or not AFK at all), turn it on
             if (isAFK(player) && !manualAfkUsernames.contains(uuid)) { // Is AFK (auto) but not manually
-                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageAlreadyAFK()));
+                sendSafe(player, plugin.getConfigManager().getMessageAlreadyAFK());
             } else if (isAFK(player)) { // Already manually AFK (should have been caught by first if, but defensive)
-                player.sendMessage(adaptMsg(player, plugin.getConfigManager().getMessageAlreadyAFK()));
+                sendSafe(player, plugin.getConfigManager().getMessageAlreadyAFK());
             }
             forceSetManualAFKState(player, true);
             return true;

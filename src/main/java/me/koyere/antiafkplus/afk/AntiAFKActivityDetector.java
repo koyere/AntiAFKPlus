@@ -311,14 +311,14 @@ public class AntiAFKActivityDetector implements Listener {
         switch (event.getSuggestedAction()) {
             case FORCE_AFK:
                 afkManager.forceSetManualAFKState(player, true);
-                if (event.getCustomMessage() != null) {
+                if (event.getCustomMessage() != null && !event.getCustomMessage().trim().isEmpty()) {
                     player.sendMessage(event.getCustomMessage());
                 }
                 break;
             case WARN_PLAYER:
                 String warnMsg = plugin.getConfigManager().getMessage(
                         "suspicious-activity", "&e[AntiAFK] Suspicious activity detected. Please move normally.");
-                player.sendMessage(warnMsg);
+                if (warnMsg != null && !warnMsg.trim().isEmpty()) player.sendMessage(warnMsg);
                 break;
             case KICK_PLAYER:
                 String kickMessage = event.getCustomMessage() != null ?

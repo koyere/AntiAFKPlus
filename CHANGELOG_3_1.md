@@ -4,6 +4,18 @@
 
 ## 🐛 Bug Fixes
 
+### Console spam from activity logs — High
+All `[Activity]` log lines (autoclick hits, pattern violations, teleport events, etc.) were always written to the console regardless of the `debug` setting in `config.yml`. The `isDebugEnabled()` call inside `AFKLogger.logActivity()` was commented out, so `debugEnabled` was always `false` and every message fell through to an unconditional `logger.info()`.
+- Fix: the `isDebugEnabled()` check is now active. With `debug: false` (the default), `logActivity()` is completely silent.
+- With `debug: true`, messages appear in the console prefixed with `[Activity]` as before.
+- Core messages (`[AFK] Player is now AFK`, `[AFK] Player returned from AFK`, `[AFK] Player was kicked`) are **not** gated by debug mode and always appear.
+
+### Blank chat lines when language message is set to `""` — Medium
+If any message key in a language YAML was intentionally silenced by setting it to an empty string `""`, the plugin sent `player.sendMessage("")` which produced a blank line in chat. Affected sections: AFK State, Pattern Detection, Jump Detection, Autoclicker Detection, Warning Titles, Kick Actions, Server Transfer.
+- Fix: all `player.sendMessage()` calls for configurable messages now check that the string is non-null and non-blank before sending. A message set to `""` in the language file will be silently skipped.
+
+
+
 ### AFK pool bypass via water current — Critical
 Players inside a 1×1 AFK water pool were being un-marked immediately after detection, looping forever without punishment.
 - Passive water-current movement is now ignored; only real input (swimming, looking around, sprinting, jumping) counts as activity.
@@ -21,7 +33,7 @@ Root cause — two concurrent bugs:
 
 **Sub-bug B — air clicks through the open door.** After the door opens, the cursor passes through the empty doorway and fires `RIGHT_CLICK_AIR`. Air clicks were never checked by the passive filter, so every one reset the AFK timer.
 
-- Fix: when the player's position and orientation match the stored door-toggle context (no movement, no camera rotation), `RIGHT_CLICK_AIR` events are suppressed. The same stillness check also suppresses `RIGHT_CLICK_BLOCK` on the block behind the open door.
+- Fix: when the player's position and orientation match the stored door-toggle context (no movement, no camera rotation), `RIGHT_CLICK_AIR` events are suppressed. The same stillness check also suppresses `RIGHT_CLICK_BLOCK` on blocks near the open door (Chebyshev distance ≤ 2 blocks from the door). Blocks farther than 2 blocks are never suppressed — a lever, chest, or any other functional block at distance ≥ 3 will always be counted as real activity even if the player hasn't moved.
 - The door-toggle context is cleared automatically on any significant player movement, so the suppression window closes the moment the player walks.
 
 No config change needed. Normal door use (moving, looking around before clicking, switching items) is unaffected.

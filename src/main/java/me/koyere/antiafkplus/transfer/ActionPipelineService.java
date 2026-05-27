@@ -103,7 +103,9 @@ public class ActionPipelineService {
             }
             case MESSAGE: {
                 String msg = color(step.text);
-                plugin.getPlatformScheduler().runTaskForEntity(player, () -> player.sendMessage(msg));
+                if (msg != null && !msg.trim().isEmpty()) {
+                    plugin.getPlatformScheduler().runTaskForEntity(player, () -> player.sendMessage(msg));
+                }
                 setCurrentTask(uuid, plugin.getPlatformScheduler().runTaskLater(scheduleNext, 1));
                 break;
             }

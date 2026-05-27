@@ -98,7 +98,10 @@ public class AutoClickListener implements Listener {
             switch (this.autoclickAction) {
                 case "SET_AFK":
                     afkManager.forceSetManualAFKState(player, true);
-                    player.sendMessage(configManager.getMessageAutoclickSetAfk()); // Use new getter
+                    String setAfkMsg = configManager.getMessageAutoclickSetAfk();
+                    if (setAfkMsg != null && !setAfkMsg.trim().isEmpty()) {
+                        player.sendMessage(setAfkMsg);
+                    }
                     history.clear();
                     break;
                 case "KICK":
