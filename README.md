@@ -1,103 +1,126 @@
-# AntiAFKPlus v2.9.1
+# AntiAFKPlus v3.1
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
-✅ **Minecraft 1.16 – 1.21.10** | ✅ **Folia/Paper/Spigot/Bukkit/Purpur** | ✅ **Java & Bedrock Edition** | ✅ **Zero-lag Performance**
+✅ **Minecraft 1.16 – 1.21.6+** | ✅ **Folia/Paper/Spigot/Bukkit/Purpur** | ✅ **Java & Bedrock Edition** | ✅ **Zero-lag Performance**
 
 ---
 
-## 🚀 Enterprise Features
-
-### 🏗️ **Modular Architecture**
-- **Enable/disable modules** independently via configuration
-- **Core modules**: Detection, Events, API, Commands, Credit System
-- **Feature modules**: Pattern Detection, Autoclick Detection, Player Protection, AFK Zones, Rewards, Large Pool Detection
-- **Integration modules**: WorldGuard, PlaceholderAPI, Vault, DiscordSRV, Floodgate, bStats
-
-### 🌐 **Multi-Platform Support**
-- **Auto-detection** of Folia, Paper, Spigot, Bukkit, Purpur
-- **Automatic fallback** for maximum compatibility
-- **Bedrock Edition support** via Floodgate/Geyser integration
-
-### 🌍 **Complete Internationalization**
-- **20+ languages** supported out of the box
-- **Per-player language** detection and customization
-- **Fully translatable** messages and UI elements
-
-### ⚡ **Zero-Lag Performance**
-- **Adaptive intervals** based on server load
-- **Object pooling** and intelligent caching
-- **Player activity categorization** for optimization
-- **Real-time performance monitoring**
-
-### 🤖 **Advanced Detection**
-- **Pattern recognition** for bot detection (circular movements, confined spaces, large AFK pools)
-- **Behavioral analysis** with activity scoring and keystroke timeout detection
-- **Autoclick/macro detection** with configurable thresholds
-- **Multi-activity tracking** (movement, rotation, jumping, chat, commands, interactions)
-- **Large AFK pool detection** (20x10+ block water pools with current-based movement)
-- **Manual vs automatic movement** analysis with velocity variance tracking
-- **AFK time windows** (v2.9) to pause kicks during configurable hours
+> **Where to get the plugin:**
+> - **Compiled JAR (recommended):** [SpigotMC Premium](https://www.spigotmc.org/resources/antiafkplus-premium.134494/)
+> - **Source code (free):** [GitHub](https://github.com/koyere/AntiAFKPlus)
+>
+> ⚠️ Versions prior to 3.0 are no longer supported or maintained. Please update to v3.x.
 
 ---
 
-## 📦 Installation & Setup
+## What's New in v3.x
 
-1. **Download** the latest version
-2. **Place** `AntiAFKPlus.jar` in your `/plugins` folder
-3. **Restart** your server
-4. **Configure** modules in `config.yml`
-5. **Customize** messages in `messages.yml`
+### v3.1 — Bug Fix Release
 
----
+**Critical fixes:**
+- Water AFK pool bypass — water current movement no longer counts as activity; only real player input does.
+- Door spam-click bypass — repeatedly clicking a door no longer resets the AFK timer.
+- "Use Item: toggle" bypass — holding right-click on levers or buttons no longer prevents detection.
+- "Attack/Destroy: toggle" bypass on cobblestone generators — holding left-click on a cobble generator no longer prevents detection.
+- Large AFK pool detection was completely non-functional — now works correctly.
 
-## 🎛️ Commands & Permissions
+**Other fixes:**
+- Console `[Activity]` log spam — these messages are now gated behind `debug: true`.
+- Empty messages (`""`) no longer produce blank chat lines.
+- "No longer AFK" broadcast was missing or delayed — now fires immediately.
+- AFK warning countdown showed wrong number — now shows the actual seconds remaining.
+- AFK warnings not cleared after world change — now resets correctly.
+- GUI shift+click did not decrease values — fixed.
+- `GAMEMODE` and `COMMAND` afk-action types were silently ignored and fell through to `KICK` — both now work.
+- `database.enabled` was ignored by SQL storage — fixed.
+- DiscordSRV pattern alerts never fired — fixed.
+- `performance.adaptive-intervals` had no effect — fixed.
 
-### Core Commands
-| Command | Description | Permission |
-|---------|-------------|------------|
-| `/afk` | Toggle AFK mode manually | `antiafkplus.afk` |
-| `/afk list` | View all AFK players | `antiafkplus.list` |
-| `/afkplus reload` | Reload configuration | `antiafkplus.admin` |
-| `/afkplus status` | View plugin status | `antiafkplus.admin` |
-
-### Credit System Commands (v2.5)
-| Command | Description | Permission |
-|---------|-------------|------------|
-| `/afkback` | Return from AFK zone to original location | `antiafkplus.credit.return` |
-| `/afkreturn` | Alias for /afkback | `antiafkplus.credit.return` |
-| `/afkcredits` | Check AFK credit balance and info | `antiafkplus.credit.check` |
-| `/afkcredits history <player> [limit]` | Show recent credit transactions (SQL backend only) | `antiafkplus.credit.admin` |
-| `/afkcredits reload` | Reload credit system config | `antiafkplus.admin.reload` |
-
-### Core Permissions
-| Permission | Description |
-|------------|-------------|
-| `antiafkplus.bypass` | Bypass all AFK detection |
-| `antiafkplus.bypass.detection` | Bypass basic detection only |
-| `antiafkplus.bypass.patterns` | Bypass pattern detection |
-| `antiafkplus.window.bypass` | Ignore AFK windows and enforce the normal kick flow |
-| `antiafkplus.time.vip` | Custom AFK time limits |
-| `antiafkplus.admin` | Admin commands access |
-
-### Credit System Permissions (v2.5)
-| Permission | Description | Default |
-|------------|-------------|----------|
-| `antiafkplus.credit.earn` | Earn AFK credits through active play | `true` |
-| `antiafkplus.credit.use` | Use AFK credits to delay teleportation | `true` |
-| `antiafkplus.credit.return` | Use return commands from AFK zone | `true` |
-| `antiafkplus.credit.check` | Check credit balance | `true` |
-| `antiafkplus.credit.ratio.vip` | VIP credit earning ratio (4:1) | `false` |
-| `antiafkplus.credit.ratio.premium` | Premium credit ratio (3:1) | `false` |
-| `antiafkplus.credit.ratio.admin` | Admin credit ratio (2:1) | `op` |
-| `antiafkplus.credit.admin` | Full credit system administration | `op` |
+**New features in v3.1:**
+- Reward system is now fully functional.
+- Analytics system is now fully functional (`/afkplus analytics`, `/afkplus analytics export`).
+- Hologram support for DecentHolograms and FancyHolograms.
+- Bedrock/Geyser message and GUI adaptation now fully connected.
 
 ---
 
-## ⚙️ Configuration
+### v3.0.4 — Performance
 
-### Module System
-Enable/disable features in `config.yml`:
+- Reduced load on the server main thread. Internal scheduling checks now run once per tick instead of per task, and are skipped entirely on Spigot and forks that don't support Paper's pause API. Expect more stable TPS on busy servers.
+
+---
+
+### v3.0.3 — Bug Fixes
+
+- **Critical:** Players riding animals (horse, boat, camel, etc.) in water could bypass AFK detection indefinitely due to the animal's bobbing movement counting as activity. Fixed — only camera movement (real input) counts for mounted players.
+- Empty AFK state messages (`""`) sent blank lines to all players. Fixed.
+- `/afkplus reload` did not reload language files. Fixed — language changes now apply immediately.
+- Config key `max-voluntary-afk-time-seconds` renamed to `max-afk-duration-seconds` (old key still works).
+
+---
+
+### v3.0.2 — New Features & Fixes
+
+**New features:**
+- **Global AFK Action** — configure what happens when a player goes AFK directly in `config.yml`, without needing zone management or WorldGuard:
+  ```yaml
+  afk-action:
+    type: "TELEPORT"           # KICK | TELEPORT | MARK_AFK_ONLY | NONE
+    teleport-location: "world,250,76,30"
+    exempt-worlds:
+      - "world_spawn"          # AFK shown in tab, but no kick/teleport
+  ```
+- **Hex color support** in language files (`&#e5be01`, `{#e5be01}`, `#e5be01` formats).
+
+**Critical fixes:**
+- Messages always in English on first startup — fixed.
+- Players kicked even with `TELEPORT` configured — fixed. Any zone name now works (previously only `"spawn"` worked).
+- Zone management required WorldGuard even for simple setups — `require-worldguard` now defaults to `false`.
+- Warning times showed wrong numbers — fixed.
+- Warning titles, teleport message, pattern detection warnings, and Bedrock messages were all hardcoded in English — all now read from language files.
+
+---
+
+### v3.0 — Major Rewrite
+
+Complete rewrite from v2.x. Key additions:
+
+- **In-game GUI** (`/afkplus gui`) — configure everything without editing files. Includes Detection Settings, Module Toggles, Zone Settings, Reward Settings, Language Selector, and live performance stats.
+- **Detection Profiles** — one-click presets: Conservative (fewer false positives), Balanced (default), Aggressive (strict). Switch in the GUI or via config.
+- **Visual Effects** — particles above AFK players, `[AFK]` tab list prefix, `[AFK]` display name prefix. Each independently configurable.
+- **10 languages built-in** — EN, ES, FR, DE, PT, RU, ZH, JA, KO, IT. Switch instantly via GUI or config. Add your own by creating a `.yml` in `plugins/AntiAFKPlus/languages/`.
+- **Credit system additions** — credit transfer between players (`/afkcredits transfer <player> <min>`), leaderboard (`/afkcredits top`), and admin credit multiplier events (`/afkplus event credits <mult> <min>`).
+- **New integrations** — Vault economy and DiscordSRV (AFK notifications to Discord), both optional and reflection-based.
+- **Config reduced 44%** — from 1033 to 580 lines. Single toggle per feature, all time values in seconds.
+- **JAR size: ~400 KB** (down from 3.2 MB).
+- **New commands:** `/afkplus performance`, `/afk status [player]`, `/afkcredits transfer`, `/afkcredits top`.
+
+**Migration from v2.x:**
+
+| What changed | What to do |
+|---|---|
+| `messages.yml` no longer exists | Customize messages in `languages/en.yml` instead |
+| `enhanced-detection` section removed | Use `modules.pattern-detection.enabled` |
+| `autoclick-detection` root key removed | Now under `modules.autoclick-detection.enabled` |
+| Time keys renamed (`*-ms` → `*-seconds`) | Old `-ms` keys still work as fallback |
+
+The plugin auto-migrates your config on first startup. **Back up your `plugins/AntiAFKPlus/` folder before upgrading.**
+
+---
+
+## Features
+
+### Advanced Detection
+- Pattern recognition for bot detection (circular movements, confined spaces, large AFK pools)
+- Behavioral analysis with activity scoring and keystroke timeout detection
+- Autoclick/macro detection with configurable thresholds
+- Multi-activity tracking (movement, rotation, jumping, chat, commands, interactions)
+- Manual vs automatic movement analysis (velocity variance)
+- AFK time windows — pause kicks during configurable hours
+
+### Modular Architecture
+Enable/disable features independently in `config.yml`:
 ```yaml
 modules:
   core-detection:
@@ -112,7 +135,7 @@ modules:
     enabled: false
   reward-system:
     enabled: false
-  credit-system:           # NEW in v2.5
+  credit-system:
     enabled: false
   visual-effects:
     enabled: false
@@ -124,163 +147,205 @@ modules:
     enabled: true
 ```
 
-### Performance Optimization
+### Performance
+- Adaptive check intervals based on server TPS
+- Object pooling and intelligent caching
+- Real-time performance monitoring via `/afkplus performance`
+
+---
+
+## Commands & Permissions
+
+### Core Commands
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/afk` | Toggle AFK mode manually | `antiafkplus.afk` |
+| `/afk list` | View all AFK players | `antiafkplus.list` |
+| `/afk status [player]` | Check if a player is AFK | `antiafkplus.status.check` |
+| `/afkplus reload` | Reload config and language files | `antiafkplus.reload` |
+| `/afkplus gui` | Open the settings GUI | `antiafkplus.reload` |
+| `/afkplus status` | Plugin status overview | `antiafkplus.stats` |
+| `/afkplus performance` | Detailed performance metrics | `antiafkplus.stats` |
+| `/afkplus analytics` | Live analytics summary | `antiafkplus.stats` |
+| `/afkplus analytics export` | Force an immediate analytics export | `antiafkplus.stats` |
+| `/afkplus event credits <mult> <min>` | Start a credit multiplier event | `antiafkplus.reload` |
+
+### Credit System Commands
+| Command | Description | Permission |
+|---------|-------------|------------|
+| `/afkback` | Return from AFK zone to original location | `antiafkplus.credit.return` |
+| `/afkcredits` | Check AFK credit balance | `antiafkplus.credit.check` |
+| `/afkcredits transfer <player> <min>` | Send credits to another player | `antiafkplus.credit.transfer` |
+| `/afkcredits top [limit]` | Credit leaderboard | `antiafkplus.credit.check` |
+| `/afkcredits history <player> [limit]` | Credit transaction history (SQL only) | `antiafkplus.credit.admin` |
+| `/afkcredits give/take/set/reset <player>` | Admin: modify player credits | `antiafkplus.credit.admin` |
+
+### Permissions
+| Permission | Description |
+|------------|-------------|
+| `antiafkplus.bypass` | Bypass all AFK detection |
+| `antiafkplus.bypass.detection` | Bypass basic detection only |
+| `antiafkplus.bypass.patterns` | Bypass pattern detection |
+| `antiafkplus.window.bypass` | Ignore AFK time windows |
+| `antiafkplus.time.vip` | Custom AFK time limits |
+| `antiafkplus.admin` | Admin commands access |
+| `antiafkplus.credit.earn` | Earn AFK credits (default: true) |
+| `antiafkplus.credit.use` | Use credits to delay AFK action (default: true) |
+| `antiafkplus.credit.return` | Use `/afkback` (default: true) |
+| `antiafkplus.credit.check` | Check credit balance (default: true) |
+| `antiafkplus.credit.transfer` | Transfer credits to another player |
+| `antiafkplus.credit.ratio.vip` | VIP credit earning ratio (4:1) |
+| `antiafkplus.credit.ratio.premium` | Premium credit ratio (3:1) |
+| `antiafkplus.credit.ratio.admin` | Admin credit ratio (2:1) |
+| `antiafkplus.credit.admin` | Full credit system administration |
+
+---
+
+## Configuration
+
+### Global AFK Action
+What happens when a player goes AFK — no zone management or WorldGuard required:
 ```yaml
-performance:
-  auto-optimization: true
-  adaptive-intervals: true
-  max-tps-impact: 0.5
-  max-memory-mb: 50
+afk-action:
+  type: "TELEPORT"           # KICK | TELEPORT | MARK_AFK_ONLY | NONE | GAMEMODE | COMMAND
+  teleport-location: "world,250,76,30"
+  gamemode: "SPECTATOR"      # Used when type: GAMEMODE
+  command: "kick {player}"   # Used when type: COMMAND. Supports {player} and {uuid}
+  exempt-worlds:
+    - "world_spawn"          # AFK shown in tab here but not teleported/kicked
 ```
 
-### Internationalization
-```yaml
-internationalization:
-  default-language: "en"
-  auto-detect-language: true
-  fallback-to-default: true
-```
+Action priority: Zone Management > Global `afk-action` > Server Transfer > KICK
 
-### AFK Windows (v2.9)
-Allow specific time ranges where players are immune to AFK punishment. The scheduler uses the host timezone by default but can target any IANA ID (e.g., `America/New_York`).
+### AFK Time Windows
+Pause kicks during specific hours:
 ```yaml
 afk-windows:
   enabled: true
-  timezone: "SERVER"              # or explicit IANA ID
+  timezone: "SERVER"              # or any IANA ID (e.g. America/New_York)
   ranges:
     - "08:00-12:00"
     - "20:00-23:00"
   behavior-inside-window: "SKIP_ACTIONS"
-  behavior-outside-window: "DEFAULT"
-  extend-seconds: 900             # used when behavior is EXTEND_THRESHOLD
   bypass-permission: "antiafkplus.window.bypass"
 ```
-All user-facing texts (titles, chat, warnings) still flow through `messages.yml`, so you can translate the AFK window message per language.
 
-### Enhanced Pattern Detection (v2.4+)
+### Pattern Detection
 ```yaml
 pattern-detection-settings:
-  # Small confined spaces
   water-circle-radius: 3.0
-  repetitive-movement-threshold: 0.8
+  repetitive-movement-threshold: 0.82
   max-pattern-violations: 3
-  
-  # Large AFK pools (v2.4)
   large-pool-threshold: 25.0
   keystroke-timeout-ms: 180000     # 3 minutes
   automatic-movement-velocity-threshold: 0.15
 ```
 
-### AFK Credit System (v2.5)
+### Visual Effects
 ```yaml
-credit-system:
-  enabled: false
-  
-  # Credit earning ratios (active_minutes:afk_credit_minutes)
-  credit-ratios:
-    default: "5:1"          # 5min active = 1min AFK credit
-    vip: "4:1"             # Better ratio for VIP
-    premium: "3:1"         # Best ratio for premium
-  
-  # Credit limits
-  max-credits:
-    default: 120            # 2 hours max
-    vip: 180               # 3 hours for VIP
-  
-  # AFK zone configuration
-  afk-zone:
+visual-effects:
+  particles:
     enabled: true
-    world: "world"
-    location: "0,100,0"
-    
-  # Return command settings
-  return-command:
+    type: "CLOUD"
+    count: 5
+  tab-list:
     enabled: true
-    cooldown-seconds: 10
+    afk-prefix: "&7[AFK] "
+  name-tags:
+    enabled: false
+    afk-prefix: "&7[AFK] "
+  holograms:
+    enabled: false            # Requires DecentHolograms or FancyHolograms
+    lines:
+      - "&eAFK"
+      - "&7{time}"
+    height-offset: 2.5
+```
+
+### Analytics
+```yaml
+analytics:
+  enabled: true
+  export-format: "JSON"       # JSON or CSV
+  # Reports saved to: plugins/AntiAFKPlus/analytics/
+```
+
+### Performance
+```yaml
+performance:
+  auto-optimization: true
+  adaptive-intervals: true
+  max-tps-impact: 0.5
+```
+
+### Internationalization
+```yaml
+internationalization:
+  default-language: "en"     # en, es, fr, de, pt, ru, zh, ja, ko, it
 ```
 
 ---
 
-## 🔌 Integrations
+## Integrations
 
 ### PlaceholderAPI
-**Core Placeholders:**
-- `%antiafkplus_status%` - Player AFK status
-- `%antiafkplus_afktime%` - Time since last activity
-- `%antiafkplus_activity_score%` - Activity score (0-100)
-- `%antiafkplus_pattern_confidence%` - Pattern detection confidence
+| Placeholder | Returns |
+|---|---|
+| `%antiafkplus_status%` | `AFK`, `ACTIVE`, `MANUAL AFK` |
+| `%antiafkplus_afktime%` | Seconds since last activity |
+| `%antiafkplus_credits%` | Credit balance (minutes) |
+| `%antiafkplus_credits_hours%` | Credit balance (hours) |
+| `%antiafkplus_max_credits%` | Maximum credits allowed |
+| `%antiafkplus_credit_ratio%` | Earning ratio (e.g. `5:1`) |
+| `%antiafkplus_in_afk_zone%` | `true` / `false` |
+| `%antiafkplus_credits_expire_days%` | Days until credits expire |
+| `%antiafkplus_credits_rank%` | Leaderboard position |
 
-**Credit System Placeholders (v2.5):**
-- `%antiafkplus_credits%` - Current credit balance in minutes
-- `%antiafkplus_credits_hours%` - Credit balance in hours
-- `%antiafkplus_max_credits%` - Maximum credits allowed
-- `%antiafkplus_credit_ratio%` - Player's credit earning ratio
-- `%antiafkplus_in_afk_zone%` - Whether player is in AFK zone
-- `%antiafkplus_credits_expire_days%` - Days until credits expire (empty if not applicable)
-
-### WorldGuard
-- **Region-based AFK settings** with zone inheritance
-- **Custom timeouts** per region
-- **AFK restrictions** in specific areas
-- **Direct integration**: resolves zones from WorldGuard regions (reflection, no compile-time dependency)
-
-#### WorldGuard Setup (v2.5)
-- Enable integration: set `modules.worldguard-integration.enabled: true` or `integrations.worldguard.enabled: true`.
-- Define zones in `zone-management.zones` using keys matching WorldGuard region IDs (case-insensitive). Example:
+### WorldGuard — Zone-based AFK management
 ```yaml
 zone-management:
   enabled: true
+  require-worldguard: false
   zones:
-    afk:                       # WorldGuard region id: "afk"
+    spawn:
       kick-action: "TELEPORT"
       teleport-location: "world,0,100,0"
-    spawn:                     # WorldGuard region id: "spawn"
-      kick-action: "TELEPORT"
-      teleport-location: "world,10,100,10"
+    afk:
+      kick-action: "TRANSFER"
+      transfer-server: "lobby"
 ```
-- Optional explicit mapping per zone: `zone-management.zones.<name>.region: <regionId>`.
-- AFK teleport prefers `zones.afk.teleport-location`, then `zones.spawn.teleport-location`, else falls back to `credit-system.afk-zone`.
-- AFK zone protection (credit system):
-  - `credit-system.afk-zone.protection.prevent-damage`
-  - `credit-system.afk-zone.protection.prevent-pvp`
-  - `credit-system.afk-zone.protection.prevent-mob-spawning` (radius 10 around AFK zone location)
 
-### Bedrock Edition (Java & Bedrock Cross-Platform)
-- **Automatic detection** of Bedrock players via Floodgate/Geyser
-- **UI adaptations** for touch controls and mobile interfaces
-- **Menu optimizations** for mobile devices and controllers
-- **Cross-platform compatibility** with all Bedrock Edition clients
-- **Touch-friendly** command interfaces and feedback
+### DiscordSRV
+```yaml
+integrations:
+  discordsrv:
+    enabled: true
+    send-afk-notifications: true
+    send-pattern-alerts: true    # Sends alert when suspicious pattern detected
+```
+
+### Vault Economy
+```yaml
+integrations:
+  vault:
+    enabled: true
+```
+
+### Bedrock Edition (Geyser/Floodgate)
+Detected automatically. Enable with `bedrock-compatibility.enabled: true` (default).
 
 ---
 
-## 🔁 Server Transfer & Scripted Sequences (v2.6)
+## Server Transfer (Bungee/Velocity)
 
-AntiAFKPlus can transfer AFK players to another server (Bungee/Velocity via Plugin Messaging), with optional per‑second countdown and fully scripted pipelines.
-
-### Behavior & Order
-- Final AFK action order:
-  1) Credit System: If credits exist, cancel the final action and consume credits; no transfer runs.
-  2) Zone Management: If a zone defines `kick-action`, it takes priority (`TELEPORT`, `TRANSFER`, `KICK`, etc.).
-  3) Global Server Transfer: If enabled and a `target-server` is set, the plugin uses `TRANSFER_SERVER` by default.
-- If the player becomes active before completion, countdown/pipeline cancels automatically.
-
-### Global Configuration
+Transfer AFK players to another server via Plugin Messaging:
 ```yaml
 server-transfer:
-  enabled: true                 # Enable server transfer action
-  target-server: "lobby"        # Target server name (proxy)
+  enabled: true
+  target-server: "lobby"
   proxy-channel: "auto"         # auto | bungeecord | namespaced
+  fallback-action: "KICK"
 
-  # Fallback if transfer fails or no channel available
-  fallback-action: "KICK"       # KICK | TELEPORT | NONE
-  fallback-teleport-location: "world,0,100,0"  # Only for TELEPORT
-
-  # Retry policy
-  retry-attempts: 0
-  retry-delay-ticks: 10
-
-  # Countdown (per-second titles/subtitles/sounds)
   countdown:
     enabled: false
     seconds: 10
@@ -289,57 +354,88 @@ server-transfer:
     sound:
       enabled: true
       name: "ENTITY_EXPERIENCE_ORB_PICKUP"
-      volume: 1.0
-      pitch: 1.0
 
-  # Scripted pipeline (executes steps in order)
   pipeline:
     enabled: false
   actions:
     - "TITLE: &cYou are AFK"
-    - "SUBTITLE: &eMoving in {seconds}s"
-    - "SOUND: ENTITY_EXPERIENCE_ORB_PICKUP,1.0,1.0"
     - "WAIT: 1s"
-    - "MESSAGE: &7Transferring..."
     - "TRANSFER: lobby"
 ```
 
-Notes:
-- If `pipeline.enabled` and `actions` are set, the pipeline runs first.
-- Otherwise, if `countdown.enabled` is true, a per-second countdown runs.
-- Otherwise, the transfer executes immediately.
-- No new commands or permissions are required for v2.6.
+---
 
-### Zone-based Transfer (WorldGuard)
+## Credit System
+
+Players earn credits by being active. Credits can be spent to delay AFK punishments.
+
+### Configuration
 ```yaml
-zone-management:
+credit-system:
   enabled: true
-  zones:
-    spawn:
-      kick-action: "TRANSFER"     # Use server transfer
-      transfer-server: "lobby"    # Per-zone target (fallback to global target-server if empty)
+  credit-ratios:
+    default: "5:1"          # 5 min active = 1 min AFK credit
+    vip: "4:1"
+    premium: "3:1"
+    admin: "2:1"
+  max-credits:
+    default: 120            # minutes
+    vip: 180
+  afk-zone:
+    enabled: true
+    world: "world"
+    location: "0,100,0"
+  return-command:
+    enabled: true
+    cooldown-seconds: 10
+  credit-decay:
+    enabled: false
+    expire-after-days: 7
+  database:
+    enabled: false
+    save-interval-minutes: 5
+    table-prefix: "afkplus_"  # Change per server for multi-server setups
 ```
 
-### Messages
-Add or customize in `messages.yml`:
+### How it works
+1. Active players earn credits based on their ratio and maximum.
+2. When a player goes AFK and has credits, the final action is cancelled and 1 credit/minute is consumed.
+3. If they return from AFK before credits run out, consumption stops with no penalty.
+4. If credits reach 0, the player is sent to the AFK zone. Use `/afkback` to return.
+
+### Multi-server setup (shared database)
+Use different `table-prefix` values per server with the same MySQL database to keep credit economies independent:
 ```yaml
-messages:
-  server-transfer:
-    transferring: "&7[AntiAFK+] &aTransferring you to &f{server}&a..."
-    unavailable: "&7[AntiAFK+] &cServer transfer unavailable."
-    failed: "&7[AntiAFK+] &cCould not transfer you."
+# Skyblock server:
+credit-system:
+  database:
+    enabled: true
+    table-prefix: "skyblock_"
+
+# Survival server (same database):
+credit-system:
+  database:
+    enabled: true
+    table-prefix: "survival_"
 ```
 
-### Compatibility
-- BungeeCord and Velocity (with Bungee compatibility) via Plugin Messaging.
-- Folia-safe using platform scheduler; no BukkitScheduler in Folia context.
-- Fully backward compatible; disabled by default.
+### Database configuration
+```yaml
+database:
+  type: "MySQL"       # MySQL or SQLite
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "antiafkplus"
+    username: "root"
+    password: "password"
+```
 
-## 💻 Developer API (80+ Methods)
+---
 
-### 📦 Installation via Jitpack
+## Developer API
 
-Integrate AntiAFKPlus API into your plugin using Jitpack:
+### Installation via Jitpack
 
 **Maven:**
 ```xml
@@ -354,7 +450,7 @@ Integrate AntiAFKPlus API into your plugin using Jitpack:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>2.9</version>
+        <version>3.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -365,20 +461,8 @@ Integrate AntiAFKPlus API into your plugin using Jitpack:
 repositories {
     maven { url 'https://jitpack.io' }
 }
-
 dependencies {
-    compileOnly 'com.github.koyere:AntiAFKPlus:2.9'
-}
-```
-
-**Gradle (Kotlin DSL):**
-```kotlin
-repositories {
-    maven("https://jitpack.io")
-}
-
-dependencies {
-    compileOnly("com.github.koyere:AntiAFKPlus:2.9")
+    compileOnly 'com.github.koyere:AntiAFKPlus:3.1'
 }
 ```
 
@@ -386,662 +470,136 @@ dependencies {
 
 ### Basic Usage
 ```java
-// Get API instance
 AntiAFKPlusAPI api = AntiAFKPlusAPI.getInstance();
 
-// Check AFK status
+// AFK status
 boolean isAfk = api.isAFK(player);
 AFKStatus status = api.getAFKStatus(player);
-AFKReason reason = api.getAFKReason(player);
 
-// Activity tracking
+// Activity
 Duration timeSinceActivity = api.getTimeSinceLastActivity(player);
-PlayerActivityInfo activityInfo = api.getActivityInfo(player);
-ActivityStatistics stats = api.getActivityStatistics(player);
 
 // Pattern detection
-boolean hasSuspiciousPatterns = api.hasSuspiciousPatterns(player);
+boolean suspicious = api.hasSuspiciousPatterns(player);
 List<DetectedPattern> patterns = api.getDetectedPatterns(player);
-PatternAnalysis analysis = api.analyzeMovementPatterns(player);
 
-// Performance metrics
-PerformanceMetrics metrics = api.getPerformanceMetrics();
-PluginInfo info = api.getPluginInfo();
-```
-
-### Credit System API (v2.5)
-```java
-// Credit management
-long balance = api.getCreditBalance(player);
-boolean hasCredits = api.hasCredits(player, 30); // 30 minutes
-api.addCredits(player, 15); // Add 15 minutes
-api.consumeCredits(player, 10); // Consume 10 minutes
-
-// Credit information
-String ratio = api.getCreditRatio(player); // "5:1"
-long maxCredits = api.getMaxCredits(player);
-List<CreditTransaction> history = api.getCreditHistory(player);
-Instant expiration = api.getCreditExpiration(player);
-
-// AFK zone management
-boolean inZone = api.isInAFKZone(player);
-Location zoneLocation = api.getAFKZoneLocation(player);
-Location originalLoc = api.getOriginalLocation(player);
-boolean returned = api.returnFromAFKZone(player);
-```
-
-### Event Handling (Comprehensive Event System)
-```java
-// AFK state changes
+// State listener
 api.registerAFKStateListener(event -> {
-    Player player = event.getPlayer();
-    AFKStatus fromStatus = event.getFromStatus();
-    AFKStatus toStatus = event.getToStatus();
-    AFKReason reason = event.getReason();
-    // Handle state change
+    AFKStatus from = event.getFromStatus();
+    AFKStatus to = event.getToStatus();
 });
 
-// Pattern detection events
-api.registerPatternDetectionListener(event -> {
-    DetectedPattern pattern = event.getPattern();
-    if (pattern.getConfidence() > 0.8) {
-        // High confidence bot detection
-        player.sendMessage("Suspicious pattern detected!");
-    }
-});
-
-// AFK warnings and kicks
-api.registerAFKWarningListener(event -> {
-    // Player is about to be kicked
-    int timeLeft = event.getTimeUntilKick();
-});
-
+// Kick listener (cancellable)
 api.registerAFKKickListener(event -> {
-    // Player is being kicked/teleported
-    KickAction action = event.getAction(); // KICK or TELEPORT
-    event.setCancelled(true); // Cancel if needed
-});
-
-// Credit system events (v2.5)
-api.registerCreditEarnedListener(event -> {
-    long creditsEarned = event.getCreditsEarned();
-    long totalCredits = event.getTotalCredits();
-});
-
-api.registerCreditConsumedListener(event -> {
-    long creditsUsed = event.getCreditsConsumed();
-    long remaining = event.getRemainingCredits();
+    event.setCancelled(true);
 });
 ```
 
-### Async Operations & Advanced Features
+### Credit System API
 ```java
-// Async operations
-CompletableFuture<AFKStatus> statusFuture = api.getAFKStatusAsync(player);
-CompletableFuture<PlayerActivityInfo> activityFuture = api.getActivityInfoAsync(player);
-CompletableFuture<List<DetectedPattern>> patternsFuture = api.getDetectedPatternsAsync(player);
+long balance = api.getCreditBalance(player);
+api.addCredits(player, 15);
+api.consumeCredits(player, 10);
+boolean inZone = api.isInAFKZone(player);
+boolean returned = api.returnFromAFKZone(player);
 
-statusFuture.thenAccept(status -> {
-    // Handle async result
-    if (status == AFKStatus.AFK_WARNED) {
-        // Player needs attention
-    }
+api.registerCreditEarnedListener(evt -> {
+    long earned = evt.getCreditsEarned();
 });
-
-// Batch operations
-Map<Player, AFKStatus> batchStatus = api.getBatchAFKStatus(players);
-Map<Player, Long> batchCredits = api.getBatchCreditBalances(players);
-
-// Statistics and analytics
-AFKStatistics serverStats = api.getServerAFKStatistics();
-PlayerAFKStatistics playerStats = api.getPlayerAFKStatistics(player);
-BedrockPlayerInfo bedrockInfo = api.getBedrockPlayerInfo(player);
-
-// Advanced exemptions and overrides
-api.addAFKExemption(player, AFKExemption.TEMPORARY, Duration.ofMinutes(30));
-api.removeAFKExemption(player, AFKExemption.TEMPORARY);
-boolean hasExemption = api.hasAFKExemption(player, AFKExemption.PERMANENT);
-
-// Zone and region management
-Optional<AFKZoneInfo> zoneInfo = api.getAFKZoneAt(player.getLocation());
-boolean allowedHere = api.isAFKAllowedAt(player.getLocation());
-api.setAFKDetectionEnabled(player.getWorld(), false); // disable AFK detection temporarily
 ```
 
-### Nuevo en la API v2.8
-- Estadísticas en vivo: `getAFKStatistics`, `getPlayerStatistics`, `getPerformanceMetrics` ahora devuelven datos reales del servidor.
-- Seguimiento de actividad: `getActivityInfo`, `getActivityStatistics` y `recordActivity` reflejan los eventos registrados por el núcleo.
-- Gestión de zonas: `getAFKZoneAt` e `isAFKAllowedAt` resuelven la configuración de `zone-management` y WorldGuard.
-- Advertencias y patrones: los listeners (`registerAFKStateListener`, `registerWarningListener`, `registerPatternDetectionListener`) reciben eventos completos con posibilidad de cancelar. 
+### Async Operations
+```java
+CompletableFuture<AFKStatus> future = api.getAFKStatusAsync(player);
+Map<Player, AFKStatus> batch = api.getBatchAFKStatus(players);
+```
 
 ---
 
-## 📊 Performance & Monitoring
+## Troubleshooting
 
-### Zero-Lag Architecture
-- **Adaptive check intervals** based on server load (1-20 second intervals)
-- **Player activity categorization** (High/Medium/Low activity players)
-- **Object pooling** to minimize garbage collection
-- **Intelligent caching** with TTL (Time-To-Live) management
-- **Async processing** for heavy operations
+| Problem | Solution |
+|---|---|
+| Players not being detected | Check `modules.core-detection.enabled: true` and that the world is not in `disabled-worlds` |
+| Pattern detection false positives | Increase `repetitive-movement-threshold` or switch to the Conservative detection profile |
+| Large AFK pool not detected | Ensure `modules.pattern-detection.enabled: true` and `large-pool-threshold` is configured |
+| Credits not earned | Check `activity-threshold` and `minimum-session-minutes` settings |
+| Holograms not showing | Install DecentHolograms or FancyHolograms and set `visual-effects.holograms.enabled: true` |
+| Server transfer not working | Ensure BungeeCord or Velocity is configured and the target server name is correct |
+| Folia errors | Plugin supports Folia natively — ensure you are running v3.0+ |
 
-### Performance Metrics & Monitoring
-- **Real-time TPS impact** monitoring (target: <0.5% impact)
-- **Memory usage** tracking per module (<50MB total)
-- **Execution time** profiling for all operations
-- **Cache hit rates** and optimization statistics
-- **Database query optimization** (when database module enabled)
-- **Platform-specific optimizations** (Folia thread-per-region, Paper async chunks)
-
-### Debug Mode
-Enable detailed logging:
+Enable debug logging for detailed output:
 ```yaml
 debug: true
-performance:
-  debug-logging: true
 ```
 
----
-
-## 🔧 Troubleshooting
-
-### Common Issues & Solutions
-
-**Performance Issues:**
-- **High CPU usage**: Increase check intervals, enable adaptive intervals, or disable heavy modules
-- **Memory leaks**: Enable object pooling and cache management
-- **TPS drops**: Reduce max-tps-impact in performance settings
-
-**Detection Issues:**
-- **Bedrock players not detected**: Enable Floodgate/Geyser integration
-- **Pattern detection false positives**: Adjust sensitivity thresholds in pattern-detection-settings
-- **Large AFK pools not detected**: Enable large-pool-threshold and keystroke-timeout detection
-- **Credits not earned**: Check activity-threshold and minimum-session-minutes settings
-
-**Platform-Specific Issues:**
-- **Folia compatibility**: Ensure folia-supported: true and latest version (v2.4.2+)
-- **Cross-version compatibility**: Plugin supports MC 1.16-1.21.10 automatically
-- **Plugin conflicts**: Check for conflicting AFK plugins or schedulers
-
-### Support & Resources
-- 📖 **In-Game Help**: `/afkplus help` and `/afkplus status`
-- 💬 **Discord Community**: https://discord.gg/xKUjn3EJzR
-- 🐛 **Bug Reports**: GitHub Issues with full debug logs
-- 📋 **Feature Requests**: GitHub Discussions
-- 📚 **Wiki & Tutorials**: GitHub Wiki (comprehensive setup guides)
-- 🔧 **Configuration Generator**: Online config builder tool
+Support: `/afkplus help` in-game, or GitHub Issues.
 
 ---
 
-## 📈 Statistics & Analytics
+## Version History
 
-**Anonymous Usage Statistics (bStats):**
-- Server version and platform distribution
-- Feature usage and module adoption rates
-- Performance metrics and optimization insights
-- Cross-platform compatibility statistics
+### v3.1 — Bug Fix Release
+See the [full changelog](CHANGELOG_3_1.md) for details. Key fixes: water pool bypass, door/lever/cobble generator bypasses, warning countdown values, analytics and reward system now functional, hologram support.
 
-**Disable statistics:** Edit `/plugins/bStats/config.yml` or set `modules.analytics.enabled: false`
+### v3.0.4 — Performance
+Reduced main thread load. More stable TPS on busy servers. No behavior or config changes.
 
-**Plugin Analytics (Optional):**
-- Enable `modules.analytics.enabled: true` for detailed server-specific insights
-- Player activity patterns and AFK behavior analysis
-- Credit system usage statistics and optimization recommendations
-- Performance benchmarking and comparison tools
+### v3.0.3 — Bug Fixes
+Fixed animal-riding water bypass (critical), blank lines from empty messages, and reload not applying language changes. Added `max-afk-duration-seconds` config key.
 
----
+### v3.0.2 — Features & Fixes
+Added `afk-action` global config key (KICK/TELEPORT/MARK_AFK_ONLY/NONE), exempt worlds, hex color support. Fixed messages always defaulting to English and zone teleport not working with custom zone names.
 
----
-
-## 🚀 Version History & Compatibility
-
-### Latest Release: v2.9 - AFK Time Windows (2025)
-**Type:** Feature Update | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
-
-- **AFK Time Windows**: Configurable daily hour ranges where AFK actions are paused or modified
-- **Multiple Behaviors**: SKIP_ACTIONS, MESSAGE_ONLY, EXTEND_THRESHOLD, DEFAULT
-- **Timezone Support**: Server timezone or any IANA timezone ID (e.g., America/New_York)
-- **Wrap-around Ranges**: Support for overnight periods (e.g., 22:00-02:00)
-- **New Permission**: `antiafkplus.window.bypass` for staff to ignore windows
-- **Use Cases**: Peak hours protection, event periods, off-hours flexibility
-
----
-
-### Complete Version History
+### v3.0 — Major Rewrite
+In-game GUI, detection profiles, visual effects, 10 built-in languages, credit transfer and leaderboard, Vault and DiscordSRV integrations. JAR size reduced from 3.2 MB to ~400 KB.
 
 <details>
-<summary><b>v2.8.2 - Stability Hotfix (2025)</b></summary>
+<summary>v2.x and earlier (archived, no longer supported)</summary>
 
-**Type:** Bug Fix Release | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
+- **v2.9** — AFK time windows (daily hour ranges to pause punishments)
+- **v2.8** — API overhaul with real live data endpoints
+- **v2.7** — Critical bug fixes (credit teleportation, pattern detection threading)
+- **v2.6** — Server transfer system (Bungee/Velocity)
+- **v2.5** — AFK credit system
+- **v2.4.2** — Full Folia 1.21.8 compatibility
+- **v2.4** — Large AFK pool detection
+- **v2.0** — Enterprise architecture rewrite (modular system, Folia support, Bedrock compatibility)
 
-**Critical Fixes:**
-- Pause-aware scheduling: eliminated CPU spikes when Paper/Folia is paused or in auto-pause mode
-- Stable transfer countdowns: fixed countdown persistence and AFK state transitions
-- Resolved "title disable kick / activity detected loop" issue
-- Final actions now fire exactly once
-
-**Compatibility:** Fully backward compatible with v2.8 API
-</details>
-
-<details>
-<summary><b>v2.8.1 - Pattern Detection Threading Fix (October 20, 2025)</b></summary>
-
-**Type:** Critical Bug Fix | **Compatibility:** Paper 1.21.8, Spigot, Folia, Purpur (MC 1.16-1.21.8)
-
-**Critical Fixes:**
-- Pattern Detection Event Threading: all Bukkit events now fire synchronously on main thread
-- Eliminated async entity access and IllegalStateException errors
-- Converted internal data structures to thread-safe collections
-- Implemented atomic operations for violation counters
-- Added proper player disconnect handling during async analysis
-
-**Impact:**
-- External API listeners now receive pattern detection events correctly
-- Zero threading exceptions in Paper 1.21.8+
-- 100% API compatible with v2.8, drop-in replacement
-</details>
-
-<details>
-<summary><b>v2.8 - API Overhaul (2025)</b></summary>
-
-**Type:** Feature & API Upgrade | **Compatibility:** Minecraft 1.16 - 1.21.10, Java 17+
-
-**Key Features:**
-- **Real Data API**: Activity, history, and statistics endpoints return live server data
-- **Reliable Events**: AFK warnings and pattern detections always delivered to public API
-- **Zone Awareness**: New helpers for zone management (`isAFKAllowedAt`, `getAFKZoneAt`)
-- **Runtime World Toggling**: `setAFKDetectionEnabled` with persistence
-
-**API Improvements:**
-- `getActivityInfo`, `getActivityStatistics`, `getAFKStatistics` return real data
-- Listeners can modify messages or cancel actions before kicks/teleports
-- WorldGuard region integration
-
-**Compatibility:** No configuration changes required, backward compatible
-</details>
-
-<details>
-<summary><b>v2.7 - Critical Bug Fixes (October 7, 2025)</b></summary>
-
-**Type:** Critical Bug Fix | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
-
-**Critical Fixes:**
-- Credit System Teleportation: AFK zone teleportation now works consistently
-- Disabled Worlds Cleanup: No more AFK warnings in disabled worlds, state automatically cleared
-- Pattern Detection Errors: Eliminated ConcurrentModificationException errors
-- Credit System Isolation: Complete isolation when disabled for better performance
-
-**Impact:** 100% backward compatible, no configuration changes required
-</details>
-
-<details>
-<summary><b>v2.6 - Server Transfer System (September 15, 2025)</b></summary>
-
-**Type:** Feature Release | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
-
-**Key Features:**
-- **Server Transfer**: Native TRANSFER_SERVER action via Plugin Messaging (Bungee/Velocity)
-- **Countdown System**: Optional per-second countdown with titles, subtitles, and sounds
-- **Scripted Pipeline**: New DSL-like syntax (TITLE, SUBTITLE, SOUND, MESSAGE, WAIT, TRANSFER)
-- **Robustness**: Auto-registration of BungeeCord channels, fallback actions (KICK, TELEPORT, NONE)
-
-**Integration:**
-- BungeeCord and Velocity support
-- Folia-safe scheduling through PlatformScheduler
-- Zone-based transfer overrides
-
-**Compatibility:** Fully backward compatible, disabled by default
-</details>
-
-<details>
-<summary><b>v2.5 - AFK Credit System (November 9, 2025)</b></summary>
-
-**Type:** Feature Release | **Compatibility:** Minecraft 1.16 - 1.21.8+, Java 17+
-
-**Key Features:**
-- **AFK Credit System**: Earn AFK time by being active (5 min active = 1 min AFK credit)
-- **Credit Ratios**: Configurable by permission groups (VIP, Premium, Admin)
-- **Credit Protection**: Zone teleportation instead of kicks when credits exhausted
-- **WorldGuard Integration**: AFK zones resolved from regions
-- **New Commands**: `/afkback` to return from AFK zone, `/afkcredits` to check balance
-- **Database Support**: Optional SQL history for credit transactions
-
-**Permissions:**
-- `antiafkplus.credit.earn` - Earn credits
-- `antiafkplus.credit.use` - Use credits to delay AFK action
-- `antiafkplus.credit.ratio.vip/premium/admin` - Improved ratios
-
-**API Methods:**
-- Credit management (getCreditBalance, addCredits, consumeCredits)
-- AFK zone management (isInAFKZone, returnFromAFKZone)
-- Credit event listeners
-
-**Compatibility:** Disabled by default, seamless integration
-</details>
-
-<details>
-<summary><b>v2.4.2 - Folia 1.21.8 Compatibility (September 9, 2025)</b></summary>
-
-**Type:** Folia Compatibility Fix | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
-
-**Critical Fixes:**
-- Complete Folia 1.21.8 compatibility with correct method signatures
-- Fixed `runAtFixedRate` API calls (removed TimeUnit parameter, direct tick usage)
-- Stronger fallback with ScheduledExecutorService
-- Migrated all tasks to PlatformScheduler (Folia-safe)
-- Added clean plugin shutdown to prevent JAR locking
-
-**Technical:**
-- Corrected Folia API signatures for GlobalRegionScheduler
-- Native Folia integration via reflection
-- Robust fallback executor for reflection failures
-
-**Compatibility:** Zero impact on Paper/Spigot/Bukkit, full Folia 1.21.8+ support
-</details>
-
-<details>
-<summary><b>v2.4.1 - Action Loop Fix (September 6, 2025)</b></summary>
-
-**Type:** Critical Bug Fix | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
-
-**Critical Fix:**
-- Players now kicked/teleported only once after reaching AFK timeout (instead of every 5 seconds)
-- Added action state tracking to prevent repeated actions
-- Implemented safety delay and automatic cleanup
-- AFK timeout configurations now work correctly
-
-**Compatibility:** Fully backward compatible, no configuration changes required
-</details>
-
-<details>
-<summary><b>v2.4 - Large AFK Pool Detection (August 7, 2025)</b></summary>
-
-**Type:** Feature Enhancement | **Compatibility:** Minecraft 1.16 - 1.21.8, Java 17+
-
-**Key Features:**
-- **Large AFK Pool Detection**: Detects pools between 5x5 and 25x25 blocks
-- **Keystroke Timeout**: Distinguishes manual vs automatic movement
-- **Enhanced Movement Analysis**: Velocity and direction change analysis
-- **Multi-factor Validation**: Prevents false positives
-
-**New Configuration:**
-- `large-pool-threshold: 25.0` - Maximum area for large AFK pools
-- `keystroke-timeout-ms: 180000` - 3 minutes without manual input
-- `automatic-movement-velocity-threshold: 0.15` - Water current detection
-
-**Detection Logic:**
-- Movement area > 5x5 but < 25x25 blocks
-- Player in water for extended periods
-- Movement patterns consistent with water currents
-- No manual keystrokes for 3+ minutes
-
-**Compatibility:** Backward compatible, all existing detection unchanged
 </details>
 
 ---
 
-### Platform Compatibility Matrix
-| Platform | Version Support | Status | Notes |
-|----------|----------------|--------|---------|
-| **Paper** | 1.16 - 1.21.10 | ✅ Full | Recommended platform |
-| **Spigot** | 1.16 - 1.21.10 | ✅ Full | Complete compatibility |
-| **Bukkit** | 1.16 - 1.21.10 | ✅ Full | Legacy support |
-| **Purpur** | 1.16 - 1.21.10 | ✅ Full | Enhanced features |
-| **Folia** | 1.19.4 - 1.21.10 | ✅ Full | Native thread-per-region support |
-| **Bedrock** | All versions | ✅ Full | Via Floodgate/Geyser |
+## Compatibility
 
-### Java Version Requirements
-- **Java 17+** required for all versions
-- **Java 21** recommended for optimal performance
-- **GraalVM** supported for enterprise deployments
+| Platform | Support | Notes |
+|---|---|---|
+| **Paper** | ✅ Full | Recommended platform |
+| **Spigot** | ✅ Full | |
+| **Bukkit** | ✅ Full | |
+| **Purpur / Pufferfish** | ✅ Full | |
+| **Folia** | ✅ Full | Native regionized scheduler |
+| **Bedrock** | ✅ Full | Via Geyser/Floodgate |
 
----
-
-## 👨‍💻 Author & License
-
-**Developed by Koyere**  
-Licensed under **MIT License** - Open source and free to use for all server types.
-
-**Current Version**: v2.9 (AFK windows + 1.21.10 compatibility)  
-**Enterprise Features**: Available in all releases  
-**Community Support**: Active development and updates
+- **Minecraft versions:** 1.16 — 1.21.6+
+- **Java:** 17+ required
 
 ---
 
-## 🎯 Quick Start Guide
+## Installation
 
-1. **Download** latest version from releases
-2. **Install** in `/plugins` folder
-3. **Restart** server (generates default configs)
-4. **Enable modules** you want in `config.yml`
-5. **Configure** AFK times and detection settings
-6. **Customize** messages in `messages.yml`
-7. **Test** with `/afk` command
-8. **Monitor** performance with `/afkplus status`
-
-**For Credit System (v2.5):**
-1. Set `credit-system.enabled: true`
-2. Configure `afk-zone.location` coordinates
-3. Adjust `credit-ratios` for different permission groups
-4. Test credit earning with active gameplay
-5. Test AFK zone teleportation and `/afkback` command
-
-**Need help?** Join our Discord community or check the GitHub wiki!
+1. Download `AntiAFKPlus-3.1.jar` from [SpigotMC](https://www.spigotmc.org/resources/antiafkplus-premium.134494/).
+2. Place in your server's `plugins/` folder.
+3. Start or restart the server.
+4. Configure with `/afkplus gui` or edit `config.yml` directly.
+5. Customize messages in `plugins/AntiAFKPlus/languages/en.yml` (or your language).
 
 ---
 
-## 💰 Guía del Sistema de Créditos (v2.5)
+## Author & License
 
-### Quick Activation
-- In `config.yml` enable the module and the feature:
-  - `modules.credit-system.enabled: true`
-  - `credit-system.enabled: true`
-- Optional: configure AFK zone location in `credit-system.afk-zone` or use existing `zone-management`.
+**Developed by Koyere** — Licensed under the **MIT License**.
 
-### Key Configuration (example)
-```yaml
-modules:
-  credit-system:
-    enabled: true
-
-credit-system:
-  enabled: true
-  credit-ratios:
-    default: "5:1"
-    vip: "4:1"
-    premium: "3:1"
-    admin: "2:1"
-  max-credits:
-    default: 120
-    vip: 180
-    premium: 240
-    admin: 480
-  earning-requirements:
-    minimum-session-minutes: 5
-    activity-threshold: 0.3
-  afk-zone:
-    enabled: true
-    world: "world"
-    location: "0,100,0"
-  notifications:
-    credit-earned: true
-    credit-consumed: true
-    credit-exhausted: true
-    low-credits-warning: true
-    low-credits-threshold: 15
-  return-command:
-    enabled: true
-    cooldown-seconds: 10
-  credit-decay:
-    enabled: false
-    expire-after-days: 7
-    warning-days: 2
-    cleanup-interval-hours: 24
-  database:
-    enabled: false
-    save-interval-minutes: 5
-```
-
-### Permisos
-- `antiafkplus.credit.earn` — ganar créditos (true)
-- `antiafkplus.credit.use` — usar créditos para retrasar la acción AFK (true)
-- `antiafkplus.credit.return` — usar `/afkback` (true)
-- `antiafkplus.credit.check` — usar `/afkcredits` (true)
-- `antiafkplus.credit.ratio.vip|premium|admin` — ratio mejorado (según grupo)
-- `antiafkplus.reload` — recarga de config (`/afkcredits reload`)
-
-### Commands
-- `/afkcredits [reload]` — shows balance (minutes/hours), ratio and maximum; `reload` reloads config.
-- `/afkback` (aliases: `/afkreturn`, `/returnfromafk`) — returns from AFK zone to original location, with cooldown.
-- `/afkcredits <give|take|set|reset> <player> [minutes]` — credit administration (permission `antiafkplus.credit.admin`).
-- `/afkcredits history <player> [limit]` — shows latest credit transactions (requires SQL backend enabled).
-
-### Placeholders (PlaceholderAPI)
-- `%antiafkplus_credits%` — credit balance (minutes)
-- `%antiafkplus_credits_hours%` — credit balance (hours)
-- `%antiafkplus_max_credits%` — maximum allowed
-- `%antiafkplus_credit_ratio%` — active:credit ratio (e.g., "5:1")
-- `%antiafkplus_in_afk_zone%` — `true|false` if player is in AFK zone
-- `%antiafkplus_credits_expire_days%` — days until credits expire (empty if N/A)
-
-### How It Works
-1) Active players earn credits according to ratio and limits.
-2) When AFK is detected, if balance > 0 the final action is cancelled and 1 credit/minute is consumed.
-3) If the player becomes active again, consumption stops (no teleport).
-4) If balance reaches 0, the player is teleported to the AFK zone; use `/afkback` to return.
-
-### Credit API — Examples (Java)
-```java
-AntiAFKPlusAPI api = AntiAFKPlusAPI.getInstance();
-
-// Basic queries
-long balance = api.getCreditBalance(player);
-long max = api.getMaxCredits(player);
-String ratio = api.getCreditRatio(player); // "5:1"
-boolean inZone = api.isInAFKZone(player);
-Location zoneLoc = api.getAFKZoneLocation(player);
-Location original = api.getOriginalLocation(player);
-
-// Balance modification (administration)
-api.addCredits(player, 15);         // +15 minutes
-api.consumeCredits(player, 5);      // -5 minutes (if available)
-api.setCreditBalance(player, 60);   // set balance to 60m (capped by max)
-
-// Return from AFK zone
-boolean ok = api.returnFromAFKZone(player);
-
-// Credit events (non-Bukkit)
-EventRegistration regEarned = api.registerCreditEarnedListener(evt -> {
-    Player p = evt.getPlayer();
-    long earned = evt.getCreditsEarned();
-    long total = evt.getTotalCredits();
-    // custom logic
-});
-
-EventRegistration regConsumed = api.registerCreditConsumedListener(evt -> {
-    Player p = evt.getPlayer();
-    long used = evt.getCreditsConsumed();
-    long remaining = evt.getRemainingCredits();
-    // custom logic
-});
-```
-
-### Optimization Tips
-- Keep `low-credits-threshold` reasonable (e.g., 10–20) to avoid spam.
-- On Folia, do not switch to BukkitScheduler; AntiAFKPlus uses `PlatformScheduler` transparently.
-- For large servers, keep `save-interval-minutes` ≥ 5 if persistence is enabled.
-
-### Persistence (Lightweight & Optional)
-- By default, persistence uses `credits.yml` (lightweight, zero dependencies).
-- Optional SQL persistence (without increasing JAR size):
-  - Requires JDBC driver on the server classpath:
-    - SQLite: `org.sqlite.JDBC`
-    - MySQL: `com.mysql.cj.jdbc.Driver`
-  - If the driver is not available or the connection fails, the plugin automatically falls back to file.
-- Configuration:
-```yaml
-credit-system:
-  database:
-    enabled: true
-    save-interval-minutes: 5
-    # Table prefix for multi-server setups (see below)
-    table-prefix: "afkplus_"
-
-# Global database configuration:
-database:
-  type: "MySQL" # SQLite or MySQL
-  mysql:
-    host: "localhost"
-    port: 3306
-    database: "antiafkplus"
-    username: "root"
-    password: "password"
-```
-
-### Multi-Server Setup (Shared Database with Separate Credit Systems)
-**Use Case:** Run multiple servers (Skyblock, Survival, Creative) with independent credit systems sharing one database.
-
-**How it works:**
-- Each server uses the same MySQL/SQLite database
-- Different `table-prefix` values create separate tables per server
-- Credits earned on Skyblock stay on Skyblock
-- Credits earned on Survival stay on Survival
-
-**Example Configuration:**
-
-**Server 1 - Skyblock** (`config.yml`):
-```yaml
-modules:
-  credit-system:
-    enabled: true
-
-credit-system:
-  enabled: true
-  database:
-    enabled: true
-    table-prefix: "skyblock_"  # Creates: skyblock_credits, skyblock_credit_tx
-
-database:
-  type: "MySQL"
-  mysql:
-    host: "localhost"
-    port: 3306
-    database: "antiafkplus"
-    username: "root"
-    password: "password"
-```
-
-**Server 2 - Survival** (`config.yml`):
-```yaml
-modules:
-  credit-system:
-    enabled: true
-
-credit-system:
-  enabled: true
-  database:
-    enabled: true
-    table-prefix: "survival_"  # Creates: survival_credits, survival_credit_tx
-
-database:
-  type: "MySQL"
-  mysql:
-    host: "localhost"       # Same host
-    port: 3306
-    database: "antiafkplus" # Same database!
-    username: "root"
-    password: "password"
-```
-
-**Result:**
-- Skyblock server uses tables: `skyblock_credits`, `skyblock_credit_tx`
-- Survival server uses tables: `survival_credits`, `survival_credit_tx`
-- Both in the same `antiafkplus` database
-- Completely independent credit systems
-
-**Benefits:**
-- ✅ Centralized database management
-- ✅ Independent credit economies per server
-- ✅ Easy backup (one database)
-- ✅ Simplified monitoring and administration
-- ✅ Works with both MySQL and SQLite
+- **Source code:** Free and open source on [GitHub](https://github.com/koyere/AntiAFKPlus)
+- **Compiled builds:** Available on [SpigotMC Premium](https://www.spigotmc.org/resources/antiafkplus-premium.134494/)
+- **Support and maintenance:** Only provided for v3.0 and later. Versions prior to 3.0 are no longer maintained or supported.
