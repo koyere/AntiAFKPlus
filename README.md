@@ -1,4 +1,4 @@
-# AntiAFKPlus v3.1
+# AntiAFKPlus v3.1.1
 
 **Professional-grade AFK detection and management system with AFK Credit System and Server Transfer**
 
@@ -450,7 +450,7 @@ database:
     <dependency>
         <groupId>com.github.koyere</groupId>
         <artifactId>AntiAFKPlus</artifactId>
-        <version>3.1</version>
+        <version>3.1.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>

@@ -405,8 +405,11 @@ public class BedrockCompatibility implements Listener {
     private void sendBedrockWelcomeMessage(Player player, BedrockPlayerInfo info) {
         String welcomeMsg = plugin.getConfigManager().getMessage(
                 "bedrock-detected", "&a[AntiAFK] &7Bedrock Edition detected! UI adapted for touch controls.");
-        player.sendMessage(welcomeMsg);
-        
+        // Guard: empty string ("") in the language file means the server owner wants silence.
+        if (welcomeMsg != null && !welcomeMsg.trim().isEmpty()) {
+            player.sendMessage(welcomeMsg);
+        }
+
         // Send additional tips based on device type
         BedrockDetectionResult result = info.getDetectionResult();
         if (result.getDeviceType() != null) {
@@ -431,7 +434,10 @@ public class BedrockCompatibility implements Listener {
                     break;
             }
             if (tipKey != null) {
-                player.sendMessage(plugin.getConfigManager().getMessage(tipKey, tipDefault));
+                String tipMsg = plugin.getConfigManager().getMessage(tipKey, tipDefault);
+                if (tipMsg != null && !tipMsg.trim().isEmpty()) {
+                    player.sendMessage(tipMsg);
+                }
             }
         }
     }

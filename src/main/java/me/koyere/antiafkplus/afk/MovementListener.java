@@ -152,6 +152,38 @@ public class MovementListener implements Listener {
         // is preserved because it also affects the location-data feed used by
         // the PatternDetector itself.
 
+        // v3.1: Plugin-initiated teleport grace period for manual AFK.
+        //
+        // When a player types /afk and a co-existing AFK plugin (e.g. EssentialsX)
+        // teleports them to its own AFK zone, the resulting PlayerTeleportEvent
+        // (a subclass of PlayerMoveEvent) is detected as "significant movement" and
+        // immediately unmarks the manual AFK state that was just set — the classic
+        // conflict symptom: player goes AFK, system says "no longer AFK" 5 s later.
+        //
+        // Fix: PLUGIN-cause teleports are not counted as activity for the first
+        // 15 seconds after a player manually goes AFK. After the grace period,
+        // plugin teleports count normally so that /home, /warp, etc. used while
+        // already AFK do lift the state. Head rotation and other activity types
+        // are never suppressed — only MOVEMENT from a PLUGIN teleport.
+        //
+        // Only applies to: manual AFK (/afk command), PLUGIN teleport cause,
+        // within 15 s of the manual AFK start. Auto-detected AFK is unaffected.
+        if (event instanceof org.bukkit.event.player.PlayerTeleportEvent teleportEvent
+                && teleportEvent.getCause() == org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN) {
+            AFKManager graceManager = AntiAFKPlus.getInstance() != null
+                    ? AntiAFKPlus.getInstance().getAfkManager() : null;
+            if (graceManager != null && graceManager.isManuallyAFK(player)) {
+                Long manualStart = graceManager.getManualAFKStartTime(player);
+                if (manualStart != null && System.currentTimeMillis() - manualStart < 15_000L) {
+                    // Plugin teleported a recently-manually-AFK player.
+                    // Update location data for pattern detection but do NOT count
+                    // this as player activity — the player has not moved themselves.
+                    updatePlayerLocationData(player, event);
+                    return;
+                }
+            }
+        }
+
         // Enhanced movement detection
         boolean significantMovement = detectSignificantMovement(event);
         boolean headRotation = detectHeadRotation(player, event);

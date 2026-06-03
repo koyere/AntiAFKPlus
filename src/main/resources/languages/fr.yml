@@ -3,7 +3,7 @@ language:
   code: "fr"
   name: "Français"
   author: "AntiAFKPlus Team"
-  version: "3.1"
+  version: "3.1.1"
 
 messages:
   # Général

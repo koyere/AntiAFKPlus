@@ -48,8 +48,8 @@ import me.koyere.antiafkplus.visual.VisualEffectsManager;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "3.1";
-    private static final String API_VERSION = "3.1";
+    private static final String PLUGIN_VERSION = "3.1.1";
+    private static final String API_VERSION = "3.1.1";
 
     // Core components
     private static AntiAFKPlus instance;
