@@ -4,10 +4,15 @@
 
 ## 🐛 Bug Fixes
 
+### Server idling below 20 TPS even with all modules disabled — Critical
+With the plugin enabled, servers dropped to ~17-18 TPS (with low MSPT) and a spark profile showed the server thread parked. It happened regardless of which modules were turned on.
+- Root cause: the performance optimizer compared the whole JVM heap usage against a 50 MB budget — always true on a real server — and forced a full `System.gc()` every 5 seconds. Each forced GC is a stop-the-world pause that breaks tick timing.
+- Fix: the periodic forced GC has been removed. Memory cleanup now runs only under genuine heap pressure (used heap above 90% of the JVM max). CPU usage is also measured correctly now, so it no longer triggers spurious internal adjustments. No config change needed.
+
 ### EssentialsX (and similar AFK plugins) conflict — High
-Players typing `/afk` were immediately unmarked as AFK a few seconds later with the message "X is no longer AFK", even without touching the keyboard or mouse.
-- Root cause: EssentialsX (and any plugin with an AFK teleport feature) processes `/afk` independently and teleports the player to its own AFK zone. This teleport fired a movement event that AntiAFKPlus interpreted as real player activity, immediately cancelling the manual AFK state.
-- Fix: Plugin-initiated teleports (`TeleportCause.PLUGIN`) no longer unmark a player who went manually AFK within the last 15 seconds. After the 15-second grace period, plugin teleports count as normal activity.
+Players typing `/afk` were immediately unmarked as AFK a few seconds later with the message "X is no longer AFK", even without touching the keyboard or mouse. This still happened on the first 3.1.1 build; it is now fully resolved.
+- Root cause: EssentialsX (and any plugin with an AFK teleport feature) processes `/afk` independently and teleports the player to its own AFK zone. The teleport — and the landing/gravity movement right after it — was counted as real player activity, immediately cancelling the manual AFK state.
+- Fix: when a plugin teleports a player who went manually AFK within the last 15 seconds, neither the teleport nor the brief movement that follows it unmarks them. After the 15-second grace period, plugin teleports count as normal activity. No config change needed.
 - **Recommended config action**: Disable EssentialsX's `/afk` in its config to avoid dual handling:
   ```yaml
   # EssentialsX config.yml

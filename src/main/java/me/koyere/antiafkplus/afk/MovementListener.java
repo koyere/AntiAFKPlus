@@ -59,6 +59,13 @@ public class MovementListener implements Listener {
     // should still be treated as passive when the player hasn't moved.
     private final Map<UUID, InteractContext> lastDoorToggleContext = new ConcurrentHashMap<>();
 
+    // v3.1.1 FIX: Plugin-teleport settle window for manual AFK.
+    // Maps a player UUID to a timestamp (ms) until which positional movement is
+    // ignored as activity, because a co-existing plugin (e.g. EssentialsX) just
+    // teleported a manually-AFK player to its AFK zone. The teleport itself and
+    // the landing/gravity movement that follows must not unmark the manual AFK.
+    private final Map<UUID, Long> pluginTeleportSettleUntil = new ConcurrentHashMap<>();
+
     // Configuration thresholds for micro-movement detection (loaded from config)
     private double microMovementThreshold = 0.1;
     private double headRotationThreshold = 5.0;
@@ -152,36 +159,33 @@ public class MovementListener implements Listener {
         // is preserved because it also affects the location-data feed used by
         // the PatternDetector itself.
 
-        // v3.1: Plugin-initiated teleport grace period for manual AFK.
+        // v3.1.1 FIX: Plugin-initiated teleport grace period for manual AFK.
         //
-        // When a player types /afk and a co-existing AFK plugin (e.g. EssentialsX)
-        // teleports them to its own AFK zone, the resulting PlayerTeleportEvent
-        // (a subclass of PlayerMoveEvent) is detected as "significant movement" and
-        // immediately unmarks the manual AFK state that was just set — the classic
-        // conflict symptom: player goes AFK, system says "no longer AFK" 5 s later.
+        // IMPORTANT: a PlayerMoveEvent handler NEVER receives PlayerTeleportEvent
+        // in Bukkit — teleports are dispatched to their own HandlerList. The
+        // previous "event instanceof PlayerTeleportEvent" guard placed here was
+        // therefore dead code and never ran, which is why the EssentialsX AFK-zone
+        // conflict persisted after the v3.1.1 update.
         //
-        // Fix: PLUGIN-cause teleports are not counted as activity for the first
-        // 15 seconds after a player manually goes AFK. After the grace period,
-        // plugin teleports count normally so that /home, /warp, etc. used while
-        // already AFK do lift the state. Head rotation and other activity types
-        // are never suppressed — only MOVEMENT from a PLUGIN teleport.
-        //
-        // Only applies to: manual AFK (/afk command), PLUGIN teleport cause,
-        // within 15 s of the manual AFK start. Auto-detected AFK is unaffected.
-        if (event instanceof org.bukkit.event.player.PlayerTeleportEvent teleportEvent
-                && teleportEvent.getCause() == org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN) {
-            AFKManager graceManager = AntiAFKPlus.getInstance() != null
-                    ? AntiAFKPlus.getInstance().getAfkManager() : null;
-            if (graceManager != null && graceManager.isManuallyAFK(player)) {
-                Long manualStart = graceManager.getManualAFKStartTime(player);
-                if (manualStart != null && System.currentTimeMillis() - manualStart < 15_000L) {
-                    // Plugin teleported a recently-manually-AFK player.
-                    // Update location data for pattern detection but do NOT count
-                    // this as player activity — the player has not moved themselves.
+        // The teleport is now intercepted in onPlayerTeleport(), which opens a
+        // short settle window. While that window is open we ignore positional
+        // movement for a manually-AFK player, absorbing both the teleport and the
+        // landing/gravity PlayerMoveEvents that immediately follow it.
+        Long settleUntil = pluginTeleportSettleUntil.get(player.getUniqueId());
+        if (settleUntil != null) {
+            if (System.currentTimeMillis() < settleUntil) {
+                AFKManager graceManager = AntiAFKPlus.getInstance() != null
+                        ? AntiAFKPlus.getInstance().getAfkManager() : null;
+                if (graceManager != null && graceManager.isManuallyAFK(player)) {
+                    // Keep feeding location data to the PatternDetector, but do
+                    // NOT count this as player activity — the player did not move
+                    // themselves, a plugin teleported them.
                     updatePlayerLocationData(player, event);
                     return;
                 }
             }
+            // Window expired (or player is no longer manually AFK): drop it.
+            pluginTeleportSettleUntil.remove(player.getUniqueId());
         }
 
         // Enhanced movement detection
@@ -353,6 +357,37 @@ public class MovementListener implements Listener {
             getAfkManager().clearPlayerData(event.getPlayer());
         }
         clearPlayerData(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerTeleport(org.bukkit.event.player.PlayerTeleportEvent event) {
+        // Only PLUGIN-cause teleports (EssentialsX AFK zone, other AFK plugins,
+        // /tp from other plugins, etc.) are relevant to the manual-AFK conflict.
+        if (event.getCause() != org.bukkit.event.player.PlayerTeleportEvent.TeleportCause.PLUGIN) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        if (player.hasPermission("antiafkplus.bypass")) return;
+
+        AFKManager manager = AntiAFKPlus.getInstance() != null
+                ? AntiAFKPlus.getInstance().getAfkManager() : null;
+        if (manager == null || !manager.isManuallyAFK(player)) {
+            return;
+        }
+
+        // Only protect within the first 15 s after the player went manually AFK.
+        // After that, plugin teleports (e.g. /home, /warp used while already AFK)
+        // count as normal activity and lift the state as expected.
+        Long manualStart = manager.getManualAFKStartTime(player);
+        if (manualStart == null || System.currentTimeMillis() - manualStart >= 15_000L) {
+            return;
+        }
+
+        // Open a short settle window. onPlayerMove() will ignore positional
+        // movement for this player until it elapses, covering both the teleport
+        // and the landing/gravity PlayerMoveEvents that follow it.
+        pluginTeleportSettleUntil.put(player.getUniqueId(), System.currentTimeMillis() + 2_000L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -848,6 +883,7 @@ public class MovementListener implements Listener {
         lastInteractContext.remove(uuid);
         lastAnyInteractTime.remove(uuid);
         lastDoorToggleContext.remove(uuid);
+        pluginTeleportSettleUntil.remove(uuid);
     }
 
     private void updateLastMovementTimestamp(Player player) {

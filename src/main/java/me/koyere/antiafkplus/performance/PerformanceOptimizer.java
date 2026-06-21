@@ -7,7 +7,6 @@ import org.bukkit.entity.Player;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.lang.management.ThreadMXBean;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -291,8 +290,13 @@ public class PerformanceOptimizer {
             optimizeIntervals(currentTps, currentMemory, cpuUsage);
         }
         
-        // Memory optimization
-        if (memoryOptimization && currentMemory > maxMemoryUsage) {
+        // Memory optimization.
+        // IMPORTANT: getCurrentMemoryUsage() reports the WHOLE JVM heap, not the
+        // plugin's footprint, so it must never be compared against the small
+        // per-plugin "max-memory-mb" budget (that comparison is true on every
+        // real server and caused a forced full GC every cycle, tanking TPS).
+        // Only act under genuine heap pressure relative to the JVM's max heap.
+        if (memoryOptimization && isHeapUnderPressure()) {
             performMemoryOptimization();
         }
         
@@ -349,7 +353,30 @@ public class PerformanceOptimizer {
     }
     
     /**
+     * Returns true only when the JVM heap is genuinely under pressure
+     * (used heap close to the configured max heap). This replaces the old
+     * check that compared the entire JVM heap usage against a tiny 50MB
+     * per-plugin budget, which was true on every real server and triggered
+     * a forced full GC every cycle.
+     */
+    private boolean isHeapUnderPressure() {
+        java.lang.management.MemoryUsage heap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
+        long max = heap.getMax();
+        if (max <= 0L) {
+            return false; // Undefined max heap; never assume pressure.
+        }
+        double usedRatio = (double) heap.getUsed() / (double) max;
+        return usedRatio >= 0.90; // Only act when heap is nearly exhausted.
+    }
+
+    /**
      * Perform memory optimization.
+     *
+     * Never forces {@link System#gc()}: an explicit full GC is a
+     * stop-the-world pause that hurts TPS far more than it helps, and doing
+     * it on a fixed interval was the root cause of the server idling below
+     * 20 TPS. We only release our own caches/offline data and let the JVM
+     * decide when to collect.
      */
     private void performMemoryOptimization() {
         // Clear caches
@@ -358,9 +385,6 @@ public class PerformanceOptimizer {
         
         // Clean up player data for offline players
         cleanupOfflinePlayerData();
-        
-        // Suggest garbage collection (doesn't force it)
-        System.gc();
         
         // Only log if debug logging is enabled
         if (config().getBoolean("performance.debug-logging", false)) {
@@ -579,16 +603,26 @@ public class PerformanceOptimizer {
     }
     
     /**
-     * Get current CPU usage percentage.
+     * Get current process CPU usage as a percentage (0-100).
+     *
+     * The previous implementation returned {@code (cpuTime / 1e6) % 100},
+     * a meaningless value that fluctuated with accumulated thread CPU time
+     * and triggered CPU "optimizations" at random. We now read the real
+     * process CPU load from the platform MXBean when available.
      */
     private double getCurrentCPUUsage() {
-        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-        if (threadBean.isCurrentThreadCpuTimeSupported()) {
-            long cpuTime = threadBean.getCurrentThreadCpuTime();
-            // This is a simplified calculation
-            return (cpuTime / 1_000_000.0) % 100; // Convert to percentage
+        try {
+            java.lang.management.OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+            if (osBean instanceof com.sun.management.OperatingSystemMXBean sunOs) {
+                double load = sunOs.getProcessCpuLoad(); // 0.0 - 1.0, or negative if not yet available
+                if (load >= 0.0) {
+                    return load * 100.0;
+                }
+            }
+        } catch (Throwable ignored) {
+            // MXBean not available on this platform; fall through.
         }
-        return 0.0;
+        return 0.0; // Unknown: do not trigger CPU-based optimizations.
     }
     
     /**
