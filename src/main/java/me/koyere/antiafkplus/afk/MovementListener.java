@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.bukkit.Bukkit;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
@@ -24,6 +25,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import me.koyere.antiafkplus.AntiAFKPlus;
 import me.koyere.antiafkplus.api.data.ActivityType;
+import me.koyere.antiafkplus.platform.PlayerInputUtil;
 
 public class MovementListener implements Listener {
 
@@ -136,13 +138,30 @@ public class MovementListener implements Listener {
             // Always feed location data to PatternDetector for continued monitoring
             updatePlayerLocationData(player, event);
 
-            // Only count explicit head rotation as activity while mounted,
-            // since that requires actual player input (mouse movement)
-            if (detectHeadRotation(player, event)) {
+            // While mounted, two things count as genuine player activity:
+            //   1. Head rotation — requires mouse input.
+            //   2. Active steering input (W/A/S/D, jump, sneak) — requires key input.
+            //
+            // v3.2 FIX: previously ONLY head rotation was honored here. A player
+            // driving straight forward (holding W without turning the view) produced
+            // no head rotation, so they were wrongly marked AFK while actively riding
+            // a boat, happy ghast, horse, etc. Pressing A/D appeared to "work" only
+            // because turning the vehicle rotates the view. Passive vehicle movement
+            // (e.g. a boat drifting on a water current) presses no key and rotates no
+            // view, so the original anti-bypass guard is preserved. Steering input is
+            // available on Paper/Spigot 1.21.3+ (see PlayerInputUtil); on older servers
+            // the head-rotation-only behaviour is unchanged.
+            boolean headRotation = detectHeadRotation(player, event);
+            boolean steeringInput = !headRotation && PlayerInputUtil.hasActiveMovementInput(player);
+
+            if (headRotation || steeringInput) {
                 AFKManager manager = AntiAFKPlus.getInstance() != null ? AntiAFKPlus.getInstance().getAfkManager() : null;
                 if (manager != null) {
-                    manager.onPlayerActivity(player, ActivityType.HEAD_ROTATION);
-                    lastHeadRotationTime.put(player.getUniqueId(), System.currentTimeMillis());
+                    manager.onPlayerActivity(player,
+                            headRotation ? ActivityType.HEAD_ROTATION : ActivityType.MOVEMENT);
+                    if (headRotation) {
+                        lastHeadRotationTime.put(player.getUniqueId(), System.currentTimeMillis());
+                    }
                     updateLastMovementTimestamp(player);
                     updateLastKeystrokeTime(player);
                 }
@@ -862,6 +881,28 @@ public class MovementListener implements Listener {
         
         // v2.4 NEW: Initialize keystroke tracking for new players
         updateLastKeystrokeTime(player);
+    }
+
+    /**
+     * Seeds activity data for players who are already connected when the plugin
+     * initializes — i.e. a server {@code /reload}, a plugin hot-reload (PlugMan),
+     * or a live install while players are online. {@link PlayerJoinEvent} does NOT
+     * fire for these players, so without seeding their activity timestamps stay at
+     * {@code 0L}. {@link #getLastMovementTimestamp(Player)} then reports them as
+     * having "never moved", which makes the AFK check treat them as instantly AFK
+     * and kick them within a few seconds — regardless of the configured AFK timeout.
+     * Mirrors the online-player seeding already done by RewardManager.
+     */
+    public void initializeOnlinePlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            try {
+                initializePlayerData(player);
+            } catch (Exception e) {
+                // Defensive fallback: at minimum record a current movement timestamp
+                // so the player is never treated as instantly AFK.
+                lastMovementTime.put(player.getUniqueId(), System.currentTimeMillis());
+            }
+        }
     }
 
     private void clearPlayerData(Player player) {

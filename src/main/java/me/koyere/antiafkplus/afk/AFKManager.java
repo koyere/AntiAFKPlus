@@ -547,13 +547,26 @@ public class AFKManager {
         return "unknown";
     }
 
+    /**
+     * Resolves a player's AFK timeout in seconds.
+     *
+     * <p>{@code permission-times} entries override {@code default-afk-time}. When a
+     * player matches several entries — e.g. via a wildcard permission, OP, or group
+     * inheritance — the LARGEST (most permissive) value is used, deterministically.
+     * Previously this iterated an unordered {@link Map} and returned the first match,
+     * so a multi-rank player could randomly receive the shortest timeout.</p>
+     *
+     * <p>Falls back to {@code default-afk-time} only when the player matches no entry.</p>
+     */
     private long getPlayerAfkTime(Player player) {
+        long bestPermissionTime = -1L;
         for (Map.Entry<String, Integer> entry : plugin.getConfigManager().getPermissionTimes().entrySet()) {
-            if (player.hasPermission(entry.getKey())) {
-                return entry.getValue();
+            Integer value = entry.getValue();
+            if (value != null && value > 0 && player.hasPermission(entry.getKey())) {
+                bestPermissionTime = Math.max(bestPermissionTime, value);
             }
         }
-        return plugin.getConfigManager().getDefaultAfkTime();
+        return bestPermissionTime > 0 ? bestPermissionTime : plugin.getConfigManager().getDefaultAfkTime();
     }
 
     private void kickPlayerAfterAFK(Player player, long afkTimeMillis) {

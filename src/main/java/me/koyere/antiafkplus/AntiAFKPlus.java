@@ -48,8 +48,8 @@ import me.koyere.antiafkplus.visual.VisualEffectsManager;
 public final class AntiAFKPlus extends JavaPlugin {
 
     // Plugin version constants
-    private static final String PLUGIN_VERSION = "3.1.1";
-    private static final String API_VERSION = "3.1.1";
+    private static final String PLUGIN_VERSION = "3.2";
+    private static final String API_VERSION = "3.2";
 
     // Core components
     private static AntiAFKPlus instance;
@@ -418,6 +418,13 @@ public final class AntiAFKPlus extends JavaPlugin {
 
         // Initialize AFKManager (legacy component)
         this.afkManager = new AFKManager(this, this.movementListener);
+
+        // Seed players who are already connected (e.g. on /reload, PlugMan, or a
+        // live install). Without this their activity timestamps default to 0L and
+        // the AFK check would flag them as instantly AFK and kick them within a few
+        // seconds, regardless of the configured AFK timeout. Runs synchronously
+        // before the first scheduled AFK check tick.
+        this.movementListener.initializeOnlinePlayers();
 
         // Initialize and register standard listeners
         ItemPickupBlocker itemPickupBlocker = new ItemPickupBlocker(this);
